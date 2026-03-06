@@ -1,0 +1,7 @@
+{
+    "kelly_fraction": 0.5,
+    "max_bet_ratio": 0.05,
+    "min_expected_value": 1.05,
+    "min_bet_amount": 100,
+    "max_bet_amount": 10000
+}
