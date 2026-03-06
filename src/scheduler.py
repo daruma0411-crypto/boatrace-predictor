@@ -8,6 +8,7 @@ from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
 from src.predictor import RealtimePredictor
 from src.betting import KellyBettingStrategy
+from src.result_collector import ResultCollector
 from utils.timezone import now_jst, format_jst
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,9 @@ class DynamicRaceScheduler:
         self.collector = RealtimeDataCollector()
         self.predictor = RealtimePredictor(model_path)
         self.betting = KellyBettingStrategy()
+        self.result_collector = ResultCollector()
         self.processed_races = set()
+        self.settled_today = False
 
     def fetch_daily_schedule(self):
         """当日のレーススケジュールを取得しDBに保存
@@ -103,10 +106,20 @@ class DynamicRaceScheduler:
             logger.info(f"ポーリング: {format_jst(current)} (未処理: {len(schedule) - len(self.processed_races)}件)")
 
             if current.hour >= 23:
-                logger.info("23時以降: 翌日待機")
+                # 23時以降: 結果収集 → 翌日待機
+                if not self.settled_today:
+                    logger.info("23時以降: レース結果収集開始")
+                    try:
+                        count = self.result_collector.settle_today()
+                        logger.info(f"結果収集完了: {count}件精算")
+                    except Exception as e:
+                        logger.error(f"結果収集エラー: {e}", exc_info=True)
+                    self.settled_today = True
                 schedule = []
 
             if current.hour == 7 and current.minute == 0:
+                self.settled_today = False
+                self.processed_races = set()
                 schedule = self.fetch_daily_schedule()
 
             for race in schedule:
