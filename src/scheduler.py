@@ -24,34 +24,88 @@ class DynamicRaceScheduler:
         self.processed_races = set()
 
     def fetch_daily_schedule(self):
-        """当日のレーススケジュールを取得しDBに保存"""
+        """当日のレーススケジュールを取得しDBに保存
+
+        pyjpboatrace API:
+          get_stadiums(d) → {stadium_name: {next_race, next_vote_limit, ...}, ...}
+          get_12races(d, stadium) → {race_no: {vote_limit, status, racers}, ...}
+        """
         today = now_jst().date()
+        races = []
+
+        # 1) 開催場一覧を取得
         try:
-            schedule = self.client.get_race_schedule(d=today)
+            stadiums = self.client.get_stadiums(d=today)
         except Exception as e:
             logger.error(f"スケジュール取得失敗: {e}")
             return []
 
-        races = []
-        if not schedule:
-            return races
+        if not stadiums or not isinstance(stadiums, dict):
+            logger.info("本日の開催場なし")
+            return []
 
-        for entry in schedule if isinstance(schedule, list) else [schedule]:
-            if not isinstance(entry, dict):
+        # スタジアム名→番号の逆引きマップ
+        from pyjpboatrace.const import STADIUMS_MAP
+        name_to_id = {name: sid for sid, name in STADIUMS_MAP}
+
+        # 2) 各開催場の12レースを取得
+        for stadium_name, info in stadiums.items():
+            if stadium_name in ('date',):
                 continue
-            venue_id = entry.get('stadium') or entry.get('venue_id')
-            race_number = entry.get('race') or entry.get('race_number')
-            if not venue_id or not race_number:
+            if not isinstance(info, dict):
                 continue
 
-            race_id = self._upsert_race(today, venue_id, race_number, entry)
-            if race_id:
-                races.append({
-                    'race_id': race_id,
-                    'venue_id': venue_id,
-                    'race_number': race_number,
-                    'deadline_time': entry.get('deadline_time'),
-                })
+            venue_id = name_to_id.get(stadium_name)
+            if not venue_id:
+                continue
+
+            try:
+                race_data = self.client.get_12races(d=today, stadium=venue_id)
+            except Exception as e:
+                logger.warning(f"場{venue_id}のレース取得失敗: {e}")
+                continue
+
+            if not race_data or not isinstance(race_data, dict):
+                continue
+
+            for race_key, race_info in race_data.items():
+                if race_key in ('date', 'stadium'):
+                    continue
+                if not isinstance(race_info, dict):
+                    continue
+
+                # レース番号をパース (例: "1R" → 1)
+                try:
+                    race_number = int(str(race_key).replace('R', ''))
+                except (ValueError, TypeError):
+                    continue
+
+                # 締切時刻をパース
+                deadline_time = None
+                vote_limit = race_info.get('vote_limit')
+                if vote_limit:
+                    try:
+                        from datetime import datetime as dt
+                        import pytz
+                        jst = pytz.timezone('Asia/Tokyo')
+                        deadline_time = dt.strptime(
+                            vote_limit, '%Y-%m-%d %H:%M:%S'
+                        )
+                        deadline_time = jst.localize(deadline_time)
+                    except (ValueError, TypeError):
+                        pass
+
+                entry = {'deadline_time': deadline_time}
+                race_id = self._upsert_race(
+                    today, venue_id, race_number, entry
+                )
+                if race_id:
+                    races.append({
+                        'race_id': race_id,
+                        'venue_id': venue_id,
+                        'race_number': race_number,
+                        'deadline_time': deadline_time,
+                    })
 
         logger.info(f"本日のレース: {len(races)}件")
         return races

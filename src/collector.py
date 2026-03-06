@@ -53,7 +53,7 @@ class RealtimeDataCollector:
 
         while now_jst() < cutoff:
             try:
-                odds_data = self.client.get_odds(
+                odds_data = self.client.get_odds_trifecta(
                     d=race_date, stadium=venue_id, race=race_number
                 )
                 if odds_data:
