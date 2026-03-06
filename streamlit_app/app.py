@@ -9,6 +9,8 @@ from streamlit_app.components.db_utils import (
     get_db_connection,
     get_recent_predictions,
     get_performance_stats,
+    get_today_bets,
+    get_today_venues,
 )
 from streamlit_app.components.mobile_css import inject_mobile_css
 from src.database import init_database
@@ -37,6 +39,14 @@ def _cached_predictions(limit):
 @st.cache_data(ttl=60, show_spinner=False)
 def _cached_performance(days):
     return get_performance_stats(days=days)
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _cached_today_bets():
+    return get_today_bets()
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _cached_today_venues():
+    return get_today_venues()
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _cached_today_counts():
@@ -109,59 +119,95 @@ with st.sidebar:
 # --- メインコンテンツ ---
 st.title("🚤 ボートレース予想AIダッシュボード")
 
-tab1, tab2, tab3 = st.tabs(["📊 今日の予想", "💰 回収率", "🔄 最新予測"])
+tab1, tab2, tab3 = st.tabs(["📊 本日の買い目", "💰 回収率", "🔄 予測詳細"])
 
+# ========== タブ1: 本日の買い目（会場フィルタ付き） ==========
 with tab1:
-    st.subheader("今日の予想一覧")
     try:
-        predictions = _cached_predictions(limit=20)
-        if predictions:
-            df = pd.DataFrame(predictions)
-            # 日本語カラムに変換
-            col_rename = {
-                'venue_id': '会場',
-                'race_number': 'レース',
-                'strategy_type': '戦略',
-                'prediction_time': '予測時刻',
-                'race_date': '日付',
-                'probabilities_1st': '1着確率',
-                'probabilities_2nd': '2着確率',
-                'probabilities_3rd': '3着確率',
-                'recommended_bets': '推奨買い目',
-                'model_version': 'モデル版',
-                'created_at': '作成日時',
-                'race_id': 'レースID',
-                'id': 'ID',
-            }
-            # 会場名を日本語に
-            if 'venue_id' in df.columns:
-                df['venue_id'] = df['venue_id'].map(
-                    lambda v: _venue_name(v)
-                )
-            # 戦略名を日本語に
-            if 'strategy_type' in df.columns:
-                df['strategy_type'] = df['strategy_type'].map(
-                    lambda s: _strategy_name(s)
-                )
-            display_cols = [
-                c for c in ['venue_id', 'race_number', 'strategy_type',
-                             'prediction_time']
-                if c in df.columns
-            ]
-            if display_cols:
-                display_df = df[display_cols].rename(columns=col_rename)
-                st.dataframe(display_df, use_container_width=True)
-            else:
-                st.dataframe(
-                    df.rename(columns=col_rename), use_container_width=True
-                )
+        all_bets = _cached_today_bets()
+        venues = _cached_today_venues()
+
+        if not all_bets:
+            st.info("本日の買い目はまだありません。レース締切10分前に自動生成されます。")
         else:
-            st.info("まだ予想がありません。システムがレースデータを収集中です。")
+            # 会場フィルタ
+            venue_options = ['全会場'] + [
+                _venue_name(v) for v in venues
+            ]
+            selected_venue = st.selectbox(
+                '会場を選択', venue_options, key='venue_filter'
+            )
+
+            df = pd.DataFrame(all_bets)
+            df['会場'] = df['venue_id'].map(_venue_name)
+            df['戦略'] = df['strategy_type'].map(_strategy_name)
+
+            # フィルタ適用
+            if selected_venue != '全会場':
+                df = df[df['会場'] == selected_venue]
+
+            if df.empty:
+                st.info(f"{selected_venue}の買い目はまだありません。")
+            else:
+                # 会場×レース番号でグループ表示
+                for (venue_id, race_num), group in df.groupby(
+                    ['venue_id', 'race_number']
+                ):
+                    venue = _venue_name(venue_id)
+                    total_amount = group['amount'].sum()
+
+                    with st.expander(
+                        f"{venue} {race_num}R  "
+                        f"（{len(group)}点 / 計 ¥{total_amount:,}）",
+                        expanded=True,
+                    ):
+                        for strategy, sgroup in group.groupby('strategy_type'):
+                            st.markdown(f"**{_strategy_name(strategy)}**")
+                            display = sgroup[[
+                                'combination', 'amount', 'odds',
+                                'expected_value',
+                            ]].copy()
+                            display.columns = [
+                                '組み合わせ', '金額', 'オッズ', '期待値',
+                            ]
+                            display['金額'] = display['金額'].map(
+                                lambda x: f'¥{x:,}'
+                            )
+                            display['オッズ'] = display['オッズ'].map(
+                                lambda x: f'{x:.1f}' if x else '-'
+                            )
+                            display['期待値'] = display['期待値'].map(
+                                lambda x: f'{x:.2f}' if x else '-'
+                            )
+                            st.dataframe(
+                                display.reset_index(drop=True),
+                                use_container_width=True,
+                                hide_index=True,
+                            )
+
+            # サマリー
+            st.divider()
+            summary = pd.DataFrame(all_bets)
+            summary['会場'] = summary['venue_id'].map(_venue_name)
+            venue_summary = summary.groupby('会場').agg(
+                点数=('combination', 'count'),
+                投資額=('amount', 'sum'),
+            ).reset_index()
+            venue_summary['投資額'] = venue_summary['投資額'].map(
+                lambda x: f'¥{x:,}'
+            )
+            st.markdown("**会場別サマリー**")
+            st.dataframe(
+                venue_summary, use_container_width=True, hide_index=True
+            )
+
     except Exception as e:
         st.error(f"データ取得エラー: {e}")
 
+
+# ========== タブ2: 回収率 ==========
 with tab2:
-    st.subheader("回収率推移")
+    st.subheader("戦略別パフォーマンス")
     try:
         stats = _cached_performance(days=30)
         if stats:
@@ -180,17 +226,18 @@ with tab2:
     except Exception as e:
         st.error(f"統計取得エラー: {e}")
 
+
+# ========== タブ3: 予測詳細 ==========
 with tab3:
-    st.subheader("最新予測結果")
+    st.subheader("最新予測結果（確率分布）")
     try:
-        recent = _cached_predictions(limit=5)
+        recent = _cached_predictions(limit=10)
         if recent:
             for pred in recent:
                 venue = _venue_name(pred['venue_id'])
                 strategy = _strategy_name(pred['strategy_type'])
                 with st.expander(
-                    f"{venue} {pred['race_number']}R "
-                    f"({strategy})"
+                    f"{venue} {pred['race_number']}R ({strategy})"
                 ):
                     st.json({
                         '1着確率': pred.get('probabilities_1st'),

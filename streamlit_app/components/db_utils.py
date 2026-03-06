@@ -102,6 +102,37 @@ def get_venue_stats():
         return cur.fetchall()
 
 
+def get_today_bets():
+    """本日の買い目詳細を取得"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                r.venue_id, r.race_number, r.deadline_time,
+                b.combination, b.amount, b.odds,
+                b.expected_value, b.strategy_type, b.result, b.payout
+            FROM bets b
+            JOIN races r ON b.race_id = r.id
+            WHERE r.race_date = CURRENT_DATE
+            ORDER BY r.venue_id, r.race_number, b.strategy_type,
+                     b.expected_value DESC
+        """)
+        return cur.fetchall()
+
+
+def get_today_venues():
+    """本日の開催場一覧を取得"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT r.venue_id
+            FROM races r
+            WHERE r.race_date = CURRENT_DATE
+            ORDER BY r.venue_id
+        """)
+        return [row['venue_id'] for row in cur.fetchall()]
+
+
 def get_daily_stats(days=30):
     """日別パフォーマンスを取得"""
     with get_db_connection() as conn:
