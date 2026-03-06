@@ -1,4 +1,8 @@
 """パフォーマンスページ: 場別・券種別・時系列・戦略A/B比較"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px

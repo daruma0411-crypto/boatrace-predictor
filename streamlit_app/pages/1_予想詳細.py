@@ -1,4 +1,8 @@
 """予想詳細ページ: レース選択、確率ヒートマップ、推奨買い目"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
