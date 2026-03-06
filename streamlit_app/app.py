@@ -9,9 +9,9 @@ from streamlit_app.components.db_utils import (
     get_db_connection,
     get_recent_predictions,
     get_performance_stats,
-    init_db,
 )
 from streamlit_app.components.mobile_css import inject_mobile_css
+from src.database import init_database
 
 st.set_page_config(
     page_title="ボートレース予想AI",
@@ -21,7 +21,11 @@ st.set_page_config(
 )
 
 inject_mobile_css()
-init_db()
+
+try:
+    init_database()
+except Exception:
+    pass
 
 
 # --- サイドバー ---

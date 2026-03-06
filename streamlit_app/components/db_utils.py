@@ -7,50 +7,6 @@ from psycopg2.extras import RealDictCursor
 
 logger = logging.getLogger(__name__)
 
-INIT_SQL = """
-CREATE TABLE IF NOT EXISTS races (
-    id SERIAL PRIMARY KEY,
-    venue_id INTEGER NOT NULL,
-    race_number INTEGER NOT NULL,
-    race_date DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS predictions (
-    id SERIAL PRIMARY KEY,
-    race_id INTEGER REFERENCES races(id),
-    strategy_type VARCHAR(50),
-    probabilities_1st JSONB,
-    probabilities_2nd JSONB,
-    probabilities_3rd JSONB,
-    recommended_bets JSONB,
-    prediction_time TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS bets (
-    id SERIAL PRIMARY KEY,
-    race_id INTEGER REFERENCES races(id),
-    strategy_type VARCHAR(50),
-    combination VARCHAR(50),
-    amount NUMERIC,
-    odds NUMERIC,
-    expected_value NUMERIC,
-    result VARCHAR(20),
-    payout NUMERIC,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-"""
-
-
-def init_db():
-    """テーブルが存在しない場合に作成"""
-    try:
-        with get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute(INIT_SQL)
-        logger.info("DB初期化完了")
-    except Exception as e:
-        logger.warning(f"DB初期化スキップ: {e}")
-
 
 def _get_database_url():
     url = os.environ.get('DATABASE_URL', '')
