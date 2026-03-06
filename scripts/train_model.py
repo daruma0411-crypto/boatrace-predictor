@@ -31,9 +31,11 @@ def load_training_data(years=3):
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
-            SELECT r.id, r.venue_id, r.race_date
+            SELECT r.id, r.venue_id, r.race_date,
+                   r.result_1st, r.result_2nd, r.result_3rd
             FROM races r
             WHERE r.race_date >= %s AND r.status = 'finished'
+              AND r.result_1st IS NOT NULL
             ORDER BY r.race_date
         """, (cutoff_date.date(),))
         races = cur.fetchall()
@@ -66,10 +68,10 @@ def load_training_data(years=3):
                 features = feature_engineer.transform(race_data, boats_data)
                 X_list.append(features)
 
-                # ダミーラベル（実際にはレース結果から取得）
-                y1_list.append(0)
-                y2_list.append(1)
-                y3_list.append(2)
+                # 実際の着順ラベル（1始まり→0始まり）
+                y1_list.append(race['result_1st'] - 1)
+                y2_list.append(race['result_2nd'] - 1)
+                y3_list.append(race['result_3rd'] - 1)
             except Exception as e:
                 logger.warning(f"特徴量変換エラー (race_id={race['id']}): {e}")
                 continue

@@ -43,6 +43,10 @@ def _migrate_tables(conn):
     for col, col_def in [
         ('deadline_time', 'TIMESTAMP WITH TIME ZONE'),
         ('status', "VARCHAR(20) DEFAULT 'scheduled'"),
+        ('result_1st', 'INTEGER'),
+        ('result_2nd', 'INTEGER'),
+        ('result_3rd', 'INTEGER'),
+        ('payout_sanrentan', 'INTEGER'),
     ]:
         cur.execute("""
             SELECT 1 FROM information_schema.columns
@@ -121,6 +125,10 @@ def init_database():
                 race_number INTEGER NOT NULL,
                 deadline_time TIMESTAMP WITH TIME ZONE,
                 status VARCHAR(20) DEFAULT 'scheduled',
+                result_1st INTEGER,
+                result_2nd INTEGER,
+                result_3rd INTEGER,
+                payout_sanrentan INTEGER,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 UNIQUE(race_date, venue_id, race_number)
             )

@@ -54,6 +54,11 @@ class ResultCollector:
             winning_combo = trifecta_info.get('result', '')
             payoff_per_100 = trifecta_info.get('payoff', 0)
 
+            # 着順を races テーブルにも書き込む
+            self._save_race_result(
+                today, venue_id, race_number, result, payoff_per_100
+            )
+
             # "1-2-3" 形式に正規化 ("1=2=3", "1-2-3", "123" 等に対応)
             winning_combo = self._normalize_combo(winning_combo)
 
@@ -135,6 +140,44 @@ class ResultCollector:
             """, (race_date, venue_id, race_number))
 
             return count
+
+    def _save_race_result(self, race_date, venue_id, race_number,
+                          result_data, payoff_per_100):
+        """着順・払戻金を races テーブルに保存"""
+        try:
+            ranking = result_data.get('result', [])
+            if not ranking:
+                return
+
+            if isinstance(ranking, list) and isinstance(ranking[0], dict):
+                sorted_ranking = sorted(
+                    ranking, key=lambda x: x.get('rank', 99)
+                )
+                result_1st = sorted_ranking[0]['boat'] if len(sorted_ranking) > 0 else None
+                result_2nd = sorted_ranking[1]['boat'] if len(sorted_ranking) > 1 else None
+                result_3rd = sorted_ranking[2]['boat'] if len(sorted_ranking) > 2 else None
+            elif isinstance(ranking, list):
+                result_1st = ranking[0] if len(ranking) > 0 else None
+                result_2nd = ranking[1] if len(ranking) > 1 else None
+                result_3rd = ranking[2] if len(ranking) > 2 else None
+            else:
+                return
+
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    UPDATE races
+                    SET result_1st = %s, result_2nd = %s, result_3rd = %s,
+                        payout_sanrentan = %s
+                    WHERE race_date = %s AND venue_id = %s AND race_number = %s
+                """, (result_1st, result_2nd, result_3rd, payoff_per_100,
+                      race_date, venue_id, race_number))
+                logger.info(
+                    f"着順保存: 場{venue_id} R{race_number} "
+                    f"→ {result_1st}-{result_2nd}-{result_3rd}"
+                )
+        except Exception as e:
+            logger.warning(f"着順保存失敗: 場{venue_id} R{race_number}: {e}")
 
     def _normalize_combo(self, combo):
         """組み合わせ文字列を "1-2-3" 形式に正規化"""
