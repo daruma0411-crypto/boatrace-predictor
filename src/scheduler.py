@@ -100,10 +100,10 @@ class DynamicRaceScheduler:
 
         while True:
             current = now_jst()
-            logger.debug(f"ポーリング: {format_jst(current)}")
+            logger.info(f"ポーリング: {format_jst(current)} (未処理: {len(schedule) - len(self.processed_races)}件)")
 
-            if current.hour >= 21:
-                logger.info("21時以降: 翌日待機")
+            if current.hour >= 23:
+                logger.info("23時以降: 翌日待機")
                 schedule = []
 
             if current.hour == 7 and current.minute == 0:
