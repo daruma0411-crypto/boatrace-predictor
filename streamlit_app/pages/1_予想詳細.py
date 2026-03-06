@@ -8,8 +8,11 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from streamlit_app.components.db_utils import get_db_connection
+from streamlit_app.components.mobile_css import inject_mobile_css
 
-st.set_page_config(page_title="予想詳細", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="予想詳細", page_icon="🎯", layout="wide",
+                   initial_sidebar_state="collapsed")
+inject_mobile_css()
 st.title("🎯 予想詳細")
 
 VENUE_NAMES = {
@@ -93,9 +96,11 @@ fig = go.Figure(data=go.Heatmap(
 fig.update_layout(
     title='着順別確率 (%)',
     height=300,
-    margin=dict(l=50, r=50, t=50, b=50),
+    margin=dict(l=30, r=20, t=50, b=30),
+    font=dict(size=12),
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True,
+               config={'responsive': True, 'displayModeBar': False})
 
 # --- 推奨買い目 ---
 st.subheader("推奨買い目")

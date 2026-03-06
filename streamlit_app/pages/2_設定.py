@@ -1,9 +1,15 @@
 """設定ページ: ケリー係数、期待値、賭け金制限、モデル選択"""
 import json
 import os
-import streamlit as st
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-st.set_page_config(page_title="設定", page_icon="⚙️")
+import streamlit as st
+from streamlit_app.components.mobile_css import inject_mobile_css
+
+st.set_page_config(page_title="設定", page_icon="⚙️", layout="wide",
+                   initial_sidebar_state="collapsed")
+inject_mobile_css()
 st.title("⚙️ 設定")
 
 CONFIG_PATH = os.path.join(

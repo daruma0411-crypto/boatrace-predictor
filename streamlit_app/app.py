@@ -10,30 +10,16 @@ from streamlit_app.components.db_utils import (
     get_recent_predictions,
     get_performance_stats,
 )
+from streamlit_app.components.mobile_css import inject_mobile_css
 
 st.set_page_config(
     page_title="ボートレース予想AI",
     page_icon="🚤",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# モバイル対応CSS
-st.markdown("""
-<style>
-    @media (max-width: 768px) {
-        .stColumns > div { min-width: 100% !important; }
-        .main .block-container { padding: 1rem; }
-    }
-    .metric-card {
-        background: #1e1e2e;
-        border-radius: 10px;
-        padding: 15px;
-        margin: 5px 0;
-        border: 1px solid #333;
-    }
-</style>
-""", unsafe_allow_html=True)
+inject_mobile_css()
 
 
 # --- サイドバー ---

@@ -12,8 +12,11 @@ from streamlit_app.components.db_utils import (
     get_venue_stats,
     get_daily_stats,
 )
+from streamlit_app.components.mobile_css import inject_mobile_css
 
-st.set_page_config(page_title="パフォーマンス", page_icon="📈", layout="wide")
+st.set_page_config(page_title="パフォーマンス", page_icon="📈", layout="wide",
+                   initial_sidebar_state="collapsed")
+inject_mobile_css()
 st.title("📈 パフォーマンス分析")
 
 VENUE_NAMES = {
@@ -64,8 +67,15 @@ try:
             )
             for _, row in df.iterrows()
         ])
-        fig.update_layout(barmode='group', title='戦略比較')
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            barmode='group', title='戦略比較',
+            margin=dict(l=30, r=20, t=50, b=30),
+            font=dict(size=12),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+        )
+        st.plotly_chart(fig, use_container_width=True,
+                       config={'responsive': True, 'displayModeBar': False})
     else:
         st.info("パフォーマンスデータがまだありません。")
 except Exception as e:
@@ -89,8 +99,15 @@ try:
             labels={'race_date': '日付', 'profit': '損益 (円)',
                     'strategy_type': '戦略'},
         )
+        fig.update_layout(
+            margin=dict(l=30, r=20, t=50, b=30),
+            font=dict(size=12),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+        )
         fig.add_hline(y=0, line_dash="dash", line_color="gray")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True,
+                       config={'responsive': True, 'displayModeBar': False})
 
         fig_roi = px.line(
             df_daily, x='race_date', y='roi',
@@ -99,9 +116,16 @@ try:
             labels={'race_date': '日付', 'roi': 'ROI (%)',
                     'strategy_type': '戦略'},
         )
+        fig_roi.update_layout(
+            margin=dict(l=30, r=20, t=50, b=30),
+            font=dict(size=12),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+        )
         fig_roi.add_hline(y=100, line_dash="dash", line_color="gray",
                           annotation_text="損益分岐点")
-        st.plotly_chart(fig_roi, use_container_width=True)
+        st.plotly_chart(fig_roi, use_container_width=True,
+                       config={'responsive': True, 'displayModeBar': False})
     else:
         st.info("日別データがまだありません。")
 except Exception as e:
@@ -125,9 +149,17 @@ try:
             labels={'venue_name': '競艇場', 'roi': 'ROI (%)',
                     'strategy_type': '戦略'},
         )
+        fig.update_layout(
+            margin=dict(l=30, r=20, t=50, b=50),
+            font=dict(size=11),
+            xaxis=dict(tickangle=-45),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+        )
         fig.add_hline(y=100, line_dash="dash", line_color="red",
                       annotation_text="損益分岐点")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True,
+                       config={'responsive': True, 'displayModeBar': False})
     else:
         st.info("場別データがまだありません。")
 except Exception as e:
