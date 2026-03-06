@@ -48,7 +48,7 @@ class KellyBettingStrategy:
         """戦略A + 戦略Bの両方を計算し統合して返す"""
         if bankroll is None:
             profit = get_current_bankroll()
-            bankroll = self.initial_bankroll + profit
+            bankroll = float(self.initial_bankroll + profit)
 
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(
             probs_1st, probs_2nd, probs_3rd
