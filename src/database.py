@@ -35,10 +35,83 @@ def get_db_connection():
             conn.close()
 
 
+def _migrate_tables(conn):
+    """既存テーブルのスキーマをマイグレーション"""
+    cur = conn.cursor()
+
+    # races テーブルに不足カラムを追加
+    for col, col_def in [
+        ('deadline_time', 'TIMESTAMP WITH TIME ZONE'),
+        ('status', "VARCHAR(20) DEFAULT 'scheduled'"),
+    ]:
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'races' AND column_name = %s
+        """, (col,))
+        if not cur.fetchone():
+            cur.execute(f'ALTER TABLE races ADD COLUMN {col} {col_def}')
+            logger.info(f"マイグレーション: races.{col} 追加")
+
+    # races テーブルに UNIQUE 制約を追加
+    cur.execute("""
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'races'::regclass AND contype = 'u'
+    """)
+    if not cur.fetchone():
+        try:
+            cur.execute("""
+                ALTER TABLE races
+                ADD CONSTRAINT races_date_venue_race_unique
+                UNIQUE (race_date, venue_id, race_number)
+            """)
+            logger.info("マイグレーション: races UNIQUE制約追加")
+        except Exception as e:
+            logger.warning(f"UNIQUE制約追加スキップ (重複データ?): {e}")
+            conn.rollback()
+            conn.cursor()  # reset cursor after rollback
+
+    # predictions テーブルに不足カラムを追加
+    for col, col_def in [
+        ('model_version', 'VARCHAR(50)'),
+    ]:
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'predictions' AND column_name = %s
+        """, (col,))
+        if not cur.fetchone():
+            cur.execute(f'ALTER TABLE predictions ADD COLUMN {col} {col_def}')
+            logger.info(f"マイグレーション: predictions.{col} 追加")
+
+    # bets テーブルに不足カラムを追加
+    for col, col_def in [
+        ('prediction_id', 'INTEGER'),
+        ('bet_type', "VARCHAR(20) DEFAULT 'trifecta'"),
+        ('kelly_fraction', 'REAL'),
+    ]:
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'bets' AND column_name = %s
+        """, (col,))
+        if not cur.fetchone():
+            cur.execute(f'ALTER TABLE bets ADD COLUMN {col} {col_def}')
+            logger.info(f"マイグレーション: bets.{col} 追加")
+
+    conn.commit()
+
+
 def init_database():
-    """5テーブルを作成"""
+    """5テーブルを作成（既存テーブルはマイグレーション）"""
     with get_db_connection() as conn:
         cur = conn.cursor()
+
+        # 既存テーブルがあればマイグレーション
+        cur.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = 'races'
+        """)
+        if cur.fetchone():
+            _migrate_tables(conn)
+            cur = conn.cursor()
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS races (
