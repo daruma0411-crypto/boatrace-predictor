@@ -27,47 +27,26 @@ class DynamicRaceScheduler:
         """当日のレーススケジュールを取得しDBに保存
 
         pyjpboatrace API:
-          get_stadiums(d) → {stadium_name: {next_race, next_vote_limit, ...}, ...}
-          get_12races(d, stadium) → {race_no: {vote_limit, status, racers}, ...}
+          get_stadiums(d) → 開催場一覧（HTMLパースが不安定なため非使用）
+          get_12races(d, stadium) → {race_key: {vote_limit, status, racers}, ...}
+
+        フォールバック方式: 全24場を get_12races で試行し、
+        レスポンスがあった場を当日開催と判定。
         """
         today = now_jst().date()
         races = []
+        from pyjpboatrace.const import NUM_STADIUMS
 
-        # 1) 開催場一覧を取得
-        try:
-            stadiums = self.client.get_stadiums(d=today)
-        except Exception as e:
-            logger.error(f"スケジュール取得失敗: {e}")
-            return []
-
-        if not stadiums or not isinstance(stadiums, dict):
-            logger.info("本日の開催場なし")
-            return []
-
-        # スタジアム名→番号の逆引きマップ
-        from pyjpboatrace.const import STADIUMS_MAP
-        name_to_id = {name: sid for sid, name in STADIUMS_MAP}
-
-        # 2) 各開催場の12レースを取得
-        for stadium_name, info in stadiums.items():
-            if stadium_name in ('date',):
-                continue
-            if not isinstance(info, dict):
-                continue
-
-            venue_id = name_to_id.get(stadium_name)
-            if not venue_id:
-                continue
-
+        for venue_id in range(1, NUM_STADIUMS + 1):
             try:
                 race_data = self.client.get_12races(d=today, stadium=venue_id)
-            except Exception as e:
-                logger.warning(f"場{venue_id}のレース取得失敗: {e}")
+            except Exception:
                 continue
 
             if not race_data or not isinstance(race_data, dict):
                 continue
 
+            found_races = False
             for race_key, race_info in race_data.items():
                 if race_key in ('date', 'stadium'):
                     continue
@@ -106,6 +85,10 @@ class DynamicRaceScheduler:
                         'race_number': race_number,
                         'deadline_time': deadline_time,
                     })
+                    found_races = True
+
+            if found_races:
+                logger.info(f"場{venue_id}: レース取得成功")
 
         logger.info(f"本日のレース: {len(races)}件")
         return races
