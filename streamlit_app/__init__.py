@@ -1,1 +1,1 @@
-"""パッケージ初期化"""
+# streamlit_app package

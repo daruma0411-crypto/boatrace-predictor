@@ -71,18 +71,18 @@ def check_environment():
     # 結果
     print("\n" + "=" * 50)
     if warnings:
-        print("\n⚠️ 警告:")
+        print("\n[WARN] 警告:")
         for w in warnings:
             print(f"  - {w}")
 
     if errors:
-        print("\n❌ エラー:")
+        print("\n[ERROR] エラー:")
         for e in errors:
             print(f"  - {e}")
         print(f"\n環境チェック: {len(errors)}件のエラー")
         return False
     else:
-        print("\n✅ 環境チェック: すべてOK")
+        print("\n[PASS] 環境チェック: すべてOK")
         return True
 
 
