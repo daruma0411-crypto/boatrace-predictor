@@ -15,14 +15,12 @@ class RealtimeDataCollector:
         self.client = PyJPBoatrace()
 
     def get_exhibition_data(self, race_date, venue_id, race_number, deadline_time):
-        """展示データを取得（締切2分前まで20秒間隔リトライ）
+        """展示データを取得（最大3回リトライ）
 
-        進入コース欠損時は枠なり仮定。
+        pyjpboatraceのHTMLパーサーが失敗する場合は枠なりダミーを返す。
         """
-        cutoff = deadline_time - timedelta(minutes=2)
-        data = None
-
-        while now_jst() < cutoff:
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
                 data = self.client.get_just_before_info(
                     d=race_date, stadium=venue_id, race=race_number
@@ -31,20 +29,18 @@ class RealtimeDataCollector:
                     logger.info(
                         f"展示データ取得成功: 場{venue_id} R{race_number}"
                     )
-                    break
+                    return self._parse_exhibition_data(data)
             except Exception as e:
-                logger.warning(f"展示データ取得リトライ: {e}")
+                logger.warning(
+                    f"展示データ取得失敗(試行{attempt+1}/{max_retries}): {e}"
+                )
+            time.sleep(5)
 
-            time.sleep(20)
-
-        if not data:
-            logger.warning(
-                f"展示データ取得失敗: 場{venue_id} R{race_number}"
-            )
-            return None
-
-        boats = self._parse_exhibition_data(data)
-        return boats
+        # フォールバック: 枠なりダミーデータ
+        logger.info(
+            f"展示データフォールバック(枠なり): 場{venue_id} R{race_number}"
+        )
+        return self._generate_fallback_exhibition()
 
     def get_realtime_odds(self, race_date, venue_id, race_number, deadline_time):
         """リアルタイムオッズを取得（締切30秒前まで15秒間隔リトライ）"""
@@ -72,6 +68,20 @@ class RealtimeDataCollector:
             )
 
         return odds_data
+
+    def _generate_fallback_exhibition(self):
+        """展示データ取得失敗時のフォールバック（枠なり仮定）"""
+        return [
+            {
+                'boat_number': i,
+                'exhibition_time': None,
+                'tilt': None,
+                'approach_course': i,
+                'fallback_flag': True,
+                'weight': None,
+            }
+            for i in range(1, 7)
+        ]
 
     def _parse_exhibition_data(self, data):
         """展示データをパースし、進入コース欠損時は枠なり仮定"""
