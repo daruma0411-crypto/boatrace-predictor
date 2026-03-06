@@ -1,2 +1,1 @@
 ﻿web: TZ=Asia/Tokyo streamlit run streamlit_app/app.py --server.port=$PORT --server.address=0.0.0.0
-worker: TZ=Asia/Tokyo python app.py
