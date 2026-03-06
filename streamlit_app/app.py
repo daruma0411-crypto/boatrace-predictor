@@ -27,6 +27,28 @@ try:
 except Exception:
     pass
 
+# --- 場名マッピング ---
+VENUE_NAMES = {
+    1: '桐生', 2: '戸田', 3: '江戸川', 4: '平和島', 5: '多摩川',
+    6: '浜名湖', 7: '蒲郡', 8: '常滑', 9: '津', 10: '三国',
+    11: 'びわこ', 12: '住之江', 13: '尼崎', 14: '鳴門', 15: '丸亀',
+    16: '児島', 17: '宮島', 18: '徳山', 19: '下関', 20: '若松',
+    21: '芦屋', 22: '福岡', 23: '唐津', 24: '大村',
+}
+
+STRATEGY_NAMES = {
+    'kelly_strict': 'ケリー厳選',
+    'top_prob_fixed': '確率上位固定',
+}
+
+
+def _venue_name(venue_id):
+    return VENUE_NAMES.get(venue_id, f'場{venue_id}')
+
+
+def _strategy_name(strategy_type):
+    return STRATEGY_NAMES.get(strategy_type, strategy_type)
+
 
 # --- サイドバー ---
 with st.sidebar:
@@ -78,15 +100,44 @@ with tab1:
         predictions = get_recent_predictions(limit=20)
         if predictions:
             df = pd.DataFrame(predictions)
+            # 日本語カラムに変換
+            col_rename = {
+                'venue_id': '会場',
+                'race_number': 'レース',
+                'strategy_type': '戦略',
+                'prediction_time': '予測時刻',
+                'race_date': '日付',
+                'probabilities_1st': '1着確率',
+                'probabilities_2nd': '2着確率',
+                'probabilities_3rd': '3着確率',
+                'recommended_bets': '推奨買い目',
+                'model_version': 'モデル版',
+                'created_at': '作成日時',
+                'race_id': 'レースID',
+                'id': 'ID',
+            }
+            # 会場名を日本語に
+            if 'venue_id' in df.columns:
+                df['venue_id'] = df['venue_id'].map(
+                    lambda v: _venue_name(v)
+                )
+            # 戦略名を日本語に
+            if 'strategy_type' in df.columns:
+                df['strategy_type'] = df['strategy_type'].map(
+                    lambda s: _strategy_name(s)
+                )
             display_cols = [
                 c for c in ['venue_id', 'race_number', 'strategy_type',
                              'prediction_time']
                 if c in df.columns
             ]
             if display_cols:
-                st.dataframe(df[display_cols], use_container_width=True)
+                display_df = df[display_cols].rename(columns=col_rename)
+                st.dataframe(display_df, use_container_width=True)
             else:
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(
+                    df.rename(columns=col_rename), use_container_width=True
+                )
         else:
             st.info("まだ予想がありません。システムがレースデータを収集中です。")
     except Exception as e:
@@ -97,14 +148,14 @@ with tab2:
     try:
         stats = get_performance_stats(days=30)
         if stats:
-            df_stats = pd.DataFrame(stats)
             col1, col2 = st.columns(2)
             for s in stats:
+                name = _strategy_name(s['strategy_type'])
                 with col1 if s['strategy_type'] == 'kelly_strict' else col2:
-                    st.markdown(f"**戦略: {s['strategy_type']}**")
+                    st.markdown(f"**{name}**")
                     st.metric("ベット数", s['total_bets'])
-                    st.metric("ROI", f"{s['roi']:.1f}%")
-                    st.metric("勝率",
+                    st.metric("回収率", f"{s['roi']:.1f}%")
+                    st.metric("的中率",
                               f"{s['wins'] / s['total_bets'] * 100:.1f}%"
                               if s['total_bets'] > 0 else "0%")
         else:
@@ -118,9 +169,11 @@ with tab3:
         recent = get_recent_predictions(limit=5)
         if recent:
             for pred in recent:
+                venue = _venue_name(pred['venue_id'])
+                strategy = _strategy_name(pred['strategy_type'])
                 with st.expander(
-                    f"場{pred['venue_id']} R{pred['race_number']} "
-                    f"({pred['strategy_type']})"
+                    f"{venue} {pred['race_number']}R "
+                    f"({strategy})"
                 ):
                     st.json({
                         '1着確率': pred.get('probabilities_1st'),

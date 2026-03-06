@@ -1,8 +1,8 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
 A/Bテスト対応:
-- 戦略A (kelly_strict): 期待値1.05以上、ハーフ・ケリー
-- 戦略B (top_prob_fixed): 確率最優先、固定100円
+- 戦略A (kelly_strict): 期待値1.20以上、ハーフ・ケリー、上位5点
+- 戦略B (top_prob_fixed): 確率上位10点、期待値1.0以上、固定100円
 """
 import json
 import logging
@@ -23,9 +23,10 @@ def _load_config():
     defaults = {
         'kelly_fraction': 0.5,
         'max_bet_ratio': 0.05,
-        'min_expected_value': 1.05,
+        'min_expected_value': 1.20,
         'min_bet_amount': 100,
         'max_bet_amount': 10000,
+        'max_kelly_bets': 5,
     }
     try:
         with open(CONFIG_PATH, 'r') as f:
@@ -67,10 +68,11 @@ class KellyBettingStrategy:
         }
 
     def _strategy_kelly_strict(self, sanrentan_probs, odds_data, bankroll):
-        """戦略A: 期待値1.05以上 × ハーフ・ケリー"""
-        bets = []
+        """戦略A: 期待値1.20以上 × ハーフ・ケリー × 上位N点"""
+        candidates = []
         kelly_frac = self.config['kelly_fraction']
         min_ev = self.config['min_expected_value']
+        max_kelly_bets = self.config.get('max_kelly_bets', 5)
         max_bet = min(
             self.config['max_bet_amount'],
             bankroll * self.config['max_bet_ratio']
@@ -102,7 +104,7 @@ class KellyBettingStrategy:
             bet_amount = int(round(bet_amount / 100) * 100)  # 100円単位
 
             if bet_amount >= min_bet:
-                bets.append({
+                candidates.append({
                     'bet_type': 'sanrentan',
                     'combination': combo,
                     'amount': bet_amount,
@@ -113,22 +115,29 @@ class KellyBettingStrategy:
                     'strategy_type': 'kelly_strict',
                 })
 
-        bets.sort(key=lambda x: x['expected_value'], reverse=True)
-        return bets
+        # 期待値上位N点に絞る
+        candidates.sort(key=lambda x: x['expected_value'], reverse=True)
+        return candidates[:max_kelly_bets]
 
     def _strategy_top_prob_fixed(self, sanrentan_probs, odds_data):
-        """戦略B: 確率上位を固定100円"""
+        """戦略B: 確率上位10点、期待値1.0以上、固定100円"""
         bets = []
         sorted_combos = sorted(
             sanrentan_probs.items(), key=lambda x: x[1], reverse=True
         )
 
-        for combo, prob in sorted_combos[:10]:
+        for combo, prob in sorted_combos:
+            if len(bets) >= 10:
+                break
+
             odds = odds_data.get(combo, 0.0)
             if odds <= 1.0 or prob <= 0:
                 continue
 
             ev = prob * odds
+            if ev < 1.0:
+                continue
+
             bets.append({
                 'bet_type': 'sanrentan',
                 'combination': combo,
