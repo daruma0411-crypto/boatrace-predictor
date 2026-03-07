@@ -193,6 +193,62 @@ def _parse_boat_td(tds, boat_number):
         return None
 
 
+def scrape_result(session, race_date, venue_id, race_number):
+    """レース結果ページから着順と3連単払戻金を取得
+
+    Returns:
+        dict with keys: result_1st, result_2nd, result_3rd, payout_sanrentan
+        or None
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/raceresult?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+
+    try:
+        r = session.get(url, timeout=15)
+        if r.status_code != 200:
+            return None
+    except Exception:
+        return None
+
+    soup = BeautifulSoup(r.text, 'html.parser')
+    tbodies = soup.find_all('tbody')
+
+    if len(tbodies) < 9:
+        return None
+
+    # tbody[1]〜[6]: 着順。td[1]が艇番
+    ranking = []
+    for i in range(1, 7):
+        tds = tbodies[i].find_all('td')
+        if len(tds) >= 2:
+            boat_text = tds[1].get_text(strip=True)
+            boat_num = _parse_int(boat_text)
+            if boat_num:
+                ranking.append(boat_num)
+
+    if len(ranking) < 3:
+        return None
+
+    # 3連単払戻金: tbody内のtdを個別にパース
+    payout = 0
+    for i in range(7, min(len(tbodies), 15)):
+        tds_pay = tbodies[i].find_all('td')
+        if tds_pay and '3連単' in tds_pay[0].get_text(strip=True):
+            if len(tds_pay) >= 3:
+                pay_text = tds_pay[2].get_text(strip=True)
+                m = re.search(r'[¥￥]([0-9,]+)', pay_text)
+                if m:
+                    payout = int(m.group(1).replace(',', ''))
+            break
+
+    return {
+        'result_1st': ranking[0],
+        'result_2nd': ranking[1],
+        'result_3rd': ranking[2],
+        'payout_sanrentan': payout,
+    }
+
+
 def scrape_beforeinfo(session, race_date, venue_id, race_number):
     """直前情報ページから展示タイム・進入コースを取得
 
