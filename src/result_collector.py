@@ -1,11 +1,11 @@
-"""レース結果収集 & ベット答え合わせ
+"""レース結果収集 & ベット答え合わせ（scraper.py ベース）
 
 レース終了後に実際の着順・払戻金をスクレイピングし、
 bets テーブルの result / payout を UPDATE する。
 スケジューラの23時以降ループから呼ばれる。
 """
 import logging
-from pyjpboatrace import PyJPBoatrace
+from src.scraper import _get_session, scrape_result
 from src.database import get_db_connection
 from utils.timezone import now_jst
 
@@ -16,7 +16,7 @@ class ResultCollector:
     """レース結果を収集し、ベットの勝敗・払戻を確定する"""
 
     def __init__(self):
-        self.client = PyJPBoatrace()
+        self.session = _get_session()
 
     def settle_today(self):
         """本日の未確定ベットを全て精算する"""
@@ -34,40 +34,29 @@ class ResultCollector:
         settled_count = 0
         for venue_id, race_number in race_keys:
             try:
-                result = self.client.get_race_result(
-                    d=today, stadium=venue_id, race=race_number
-                )
+                result = scrape_result(self.session, today, venue_id, race_number)
             except Exception as e:
                 logger.warning(
                     f"結果取得失敗: 場{venue_id} R{race_number}: {e}"
                 )
                 continue
 
-            if not result or 'payoff' not in result:
+            if not result:
                 logger.warning(
                     f"結果データなし: 場{venue_id} R{race_number}"
                 )
                 continue
 
-            # 3連単の確定結果を取得
-            trifecta_info = result['payoff'].get('trifecta', {})
-            winning_combo = trifecta_info.get('result', '')
-            payoff_per_100 = trifecta_info.get('payoff', 0)
+            # scrape_result は {result_1st, result_2nd, result_3rd, payout_sanrentan}
+            winning_combo = (
+                f"{result['result_1st']}-{result['result_2nd']}-{result['result_3rd']}"
+            )
+            payoff_per_100 = result['payout_sanrentan'] or 0
 
             # 着順を races テーブルにも書き込む
             self._save_race_result(
                 today, venue_id, race_number, result, payoff_per_100
             )
-
-            # "1-2-3" 形式に正規化 ("1=2=3", "1-2-3", "123" 等に対応)
-            winning_combo = self._normalize_combo(winning_combo)
-
-            if not winning_combo:
-                logger.warning(
-                    f"着順パース失敗: 場{venue_id} R{race_number}: "
-                    f"{trifecta_info}"
-                )
-                continue
 
             # 該当レースのベットを精算
             count = self._settle_race_bets(
@@ -103,7 +92,6 @@ class ResultCollector:
         with get_db_connection() as conn:
             cur = conn.cursor()
 
-            # 該当レースの未精算ベットを取得
             cur.execute("""
                 SELECT b.id, b.combination, b.amount
                 FROM bets b
@@ -119,21 +107,18 @@ class ResultCollector:
             for bet in bets:
                 bet_combo = self._normalize_combo(bet['combination'])
                 if bet_combo == winning_combo:
-                    # 的中: 払戻 = (賭け金 / 100) × 払戻金
                     payout = int(bet['amount'] / 100 * payoff_per_100)
                     cur.execute("""
                         UPDATE bets SET result = 'win', payout = %s
                         WHERE id = %s
                     """, (payout, bet['id']))
                 else:
-                    # ハズレ
                     cur.execute("""
                         UPDATE bets SET result = 'lose', payout = 0
                         WHERE id = %s
                     """, (bet['id'],))
                 count += 1
 
-            # races テーブルのステータスも更新
             cur.execute("""
                 UPDATE races SET status = 'settled'
                 WHERE race_date = %s AND venue_id = %s AND race_number = %s
@@ -145,36 +130,24 @@ class ResultCollector:
                           result_data, payoff_per_100):
         """着順・払戻金を races テーブルに保存"""
         try:
-            ranking = result_data.get('result', [])
-            if not ranking:
-                return
-
-            if isinstance(ranking, list) and isinstance(ranking[0], dict):
-                sorted_ranking = sorted(
-                    ranking, key=lambda x: x.get('rank', 99)
-                )
-                result_1st = sorted_ranking[0]['boat'] if len(sorted_ranking) > 0 else None
-                result_2nd = sorted_ranking[1]['boat'] if len(sorted_ranking) > 1 else None
-                result_3rd = sorted_ranking[2]['boat'] if len(sorted_ranking) > 2 else None
-            elif isinstance(ranking, list):
-                result_1st = ranking[0] if len(ranking) > 0 else None
-                result_2nd = ranking[1] if len(ranking) > 1 else None
-                result_3rd = ranking[2] if len(ranking) > 2 else None
-            else:
-                return
-
             with get_db_connection() as conn:
                 cur = conn.cursor()
                 cur.execute("""
                     UPDATE races
                     SET result_1st = %s, result_2nd = %s, result_3rd = %s,
-                        payout_sanrentan = %s
+                        payout_sanrentan = %s, status = 'finished'
                     WHERE race_date = %s AND venue_id = %s AND race_number = %s
-                """, (result_1st, result_2nd, result_3rd, payoff_per_100,
-                      race_date, venue_id, race_number))
+                """, (
+                    result_data['result_1st'],
+                    result_data['result_2nd'],
+                    result_data['result_3rd'],
+                    payoff_per_100,
+                    race_date, venue_id, race_number,
+                ))
                 logger.info(
                     f"着順保存: 場{venue_id} R{race_number} "
-                    f"→ {result_1st}-{result_2nd}-{result_3rd}"
+                    f"→ {result_data['result_1st']}-{result_data['result_2nd']}"
+                    f"-{result_data['result_3rd']}"
                 )
         except Exception as e:
             logger.warning(f"着順保存失敗: 場{venue_id} R{race_number}: {e}")
@@ -184,14 +157,10 @@ class ResultCollector:
         if not combo:
             return ''
         s = str(combo).strip()
-        # "1=2=3" → "1-2-3"
         s = s.replace('=', '-')
-        # "1−2−3" (全角ハイフン) → "1-2-3"
         s = s.replace('−', '-').replace('ー', '-')
-        # スペース区切り "1 2 3" → "1-2-3"
         if ' ' in s and '-' not in s:
             s = '-'.join(s.split())
-        # "123" (3桁連結) → "1-2-3"
         if len(s) == 3 and s.isdigit():
             s = f"{s[0]}-{s[1]}-{s[2]}"
         return s

@@ -1,9 +1,12 @@
-"""動的レーススケジューラ"""
+"""動的レーススケジューラ（scraper.py ベース）
+
+pyjpboatrace を廃止し、公式サイト直接パースで当日スケジュール取得。
+"""
 import time
 import logging
 from datetime import timedelta
 from concurrent.futures import ThreadPoolExecutor
-from pyjpboatrace import PyJPBoatrace
+from src.scraper import _get_session, scrape_racelist
 from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
 from src.predictor import RealtimePredictor
@@ -13,12 +16,14 @@ from utils.timezone import now_jst, format_jst
 
 logger = logging.getLogger(__name__)
 
+NUM_VENUES = 24
+
 
 class DynamicRaceScheduler:
     """動的レーススケジューラ: 1分間隔ポーリング"""
 
     def __init__(self, model_path='models/boatrace_model.pth'):
-        self.client = PyJPBoatrace()
+        self.session = _get_session()
         self.collector = RealtimeDataCollector()
         self.predictor = RealtimePredictor(model_path)
         self.betting = KellyBettingStrategy()
@@ -29,81 +34,53 @@ class DynamicRaceScheduler:
     def fetch_daily_schedule(self):
         """当日のレーススケジュールを取得しDBに保存
 
-        pyjpboatrace API:
-          get_stadiums(d) → 開催場一覧（HTMLパースが不安定なため非使用）
-          get_12races(d, stadium) → {race_key: {vote_limit, status, racers}, ...}
-
-        フォールバック方式: 全24場を get_12races で試行し、
-        レスポンスがあった場を当日開催と判定。
+        全24場のR1出走表を試行し、レスポンスがあった場を当日開催と判定。
+        開催場のR1〜R12を全てDB登録する。
         """
         today = now_jst().date()
         races = []
-        from pyjpboatrace.const import NUM_STADIUMS
 
-        for venue_id in range(1, NUM_STADIUMS + 1):
+        for venue_id in range(1, NUM_VENUES + 1):
             try:
-                race_data = self.client.get_12races(d=today, stadium=venue_id)
+                test_boats = scrape_racelist(self.session, today, venue_id, 1)
+                if not test_boats:
+                    continue
             except Exception:
                 continue
 
-            if not race_data or not isinstance(race_data, dict):
-                continue
+            time.sleep(0.5)
 
-            found_races = False
-            for race_key, race_info in race_data.items():
-                if race_key in ('date', 'stadium'):
-                    continue
-                if not isinstance(race_info, dict):
-                    continue
-
-                # レース番号をパース (例: "1R" → 1)
-                try:
-                    race_number = int(str(race_key).replace('R', ''))
-                except (ValueError, TypeError):
-                    continue
-
-                # 締切時刻をパース
-                deadline_time = None
-                vote_limit = race_info.get('vote_limit')
-                if vote_limit:
-                    try:
-                        from datetime import datetime as dt
-                        import pytz
-                        jst = pytz.timezone('Asia/Tokyo')
-                        deadline_time = dt.strptime(
-                            vote_limit, '%Y-%m-%d %H:%M:%S'
-                        )
-                        deadline_time = jst.localize(deadline_time)
-                    except (ValueError, TypeError):
-                        pass
-
-                entry = {'deadline_time': deadline_time}
-                race_id = self._upsert_race(
-                    today, venue_id, race_number, entry
-                )
+            # この会場は開催中 → R1〜R12を登録
+            for race_number in range(1, 13):
+                race_id = self._upsert_race(today, venue_id, race_number, {})
                 if race_id:
                     races.append({
                         'race_id': race_id,
                         'venue_id': venue_id,
                         'race_number': race_number,
-                        'deadline_time': deadline_time,
+                        'deadline_time': None,  # 締切時刻は直前情報から取得
                     })
-                    found_races = True
 
-            if found_races:
-                logger.info(f"場{venue_id}: レース取得成功")
+            logger.info(f"場{venue_id}: 12R登録完了")
 
         logger.info(f"本日のレース: {len(races)}件")
         return races
 
     def run_polling(self):
-        """1分間隔ポーリング、締切10-2分前に予測実行"""
+        """1分間隔ポーリング、各レースを順番に予測実行
+
+        締切時刻が不明な場合は、未処理レースを順番に予測する方式。
+        """
         logger.info("ポーリング開始")
         schedule = self.fetch_daily_schedule()
 
         while True:
             current = now_jst()
-            logger.info(f"ポーリング: {format_jst(current)} (未処理: {len(schedule) - len(self.processed_races)}件)")
+            remaining = len(schedule) - len(self.processed_races)
+            logger.info(
+                f"ポーリング: {format_jst(current)} "
+                f"(未処理: {remaining}件)"
+            )
 
             if current.hour >= 23:
                 # 23時以降: 結果収集 → 翌日待機
@@ -122,49 +99,47 @@ class DynamicRaceScheduler:
                 self.processed_races = set()
                 schedule = self.fetch_daily_schedule()
 
+            # 未処理レースを順番に予測
             for race in schedule:
                 race_key = (race['venue_id'], race['race_number'])
                 if race_key in self.processed_races:
                     continue
 
-                deadline = race.get('deadline_time')
-                if not deadline:
-                    continue
-
-                if hasattr(deadline, 'tzinfo') and deadline.tzinfo is None:
-                    from utils.timezone import to_jst
-                    deadline = to_jst(deadline)
-
-                minutes_before = (deadline - current).total_seconds() / 60
-
-                if 2 <= minutes_before <= 10:
+                # レース時間帯チェック（8:30〜17:00 の範囲で予測実行）
+                if 8 <= current.hour <= 17:
                     logger.info(
                         f"予測開始: 場{race['venue_id']} "
-                        f"R{race['race_number']} "
-                        f"(締切{minutes_before:.1f}分前)"
+                        f"R{race['race_number']}"
                     )
                     self.predict_and_bet_safe(race)
                     self.processed_races.add(race_key)
+                    break  # 1レースずつ処理して次のポーリングへ
 
             time.sleep(60)
 
     def predict_and_bet_safe(self, race):
-        """ThreadPoolExecutorで並列実行"""
+        """展示データ取得 → 予測 → ベット計算"""
         try:
+            today = now_jst().date()
+            deadline = race.get(
+                'deadline_time',
+                now_jst() + timedelta(minutes=5),
+            )
+
             with ThreadPoolExecutor(max_workers=2) as executor:
                 future_ex = executor.submit(
                     self.collector.get_exhibition_data,
-                    now_jst().date(),
+                    today,
                     race['venue_id'],
                     race['race_number'],
-                    race.get('deadline_time', now_jst() + timedelta(minutes=5)),
+                    deadline,
                 )
                 future_odds = executor.submit(
                     self.collector.get_realtime_odds,
-                    now_jst().date(),
+                    today,
                     race['venue_id'],
                     race['race_number'],
-                    race.get('deadline_time', now_jst() + timedelta(minutes=5)),
+                    deadline,
                 )
 
                 exhibition_data = future_ex.result(timeout=300)
@@ -180,9 +155,26 @@ class DynamicRaceScheduler:
                 race['race_id']
             )
             if not race_data:
-                return
+                # DBにboatsがない場合、出走表をスクレイピングして登録
+                boats_data = self._fetch_and_store_boats(
+                    today, race['venue_id'], race['race_number'], race['race_id']
+                )
+                if not boats_data:
+                    logger.warning(
+                        f"出走表取得失敗: 場{race['venue_id']} R{race['race_number']}"
+                    )
+                    return
+                race_data = {
+                    'venue_id': race['venue_id'],
+                    'month': today.month,
+                    'distance': 1800,
+                    'wind_speed': 0,
+                    'wind_direction': 'calm',
+                    'temperature': 20,
+                }
 
-            if exhibition_data:
+            # 展示データをマージ
+            if exhibition_data and boats_data:
                 for ex_boat in exhibition_data:
                     for db_boat in boats_data:
                         if db_boat['boat_number'] == ex_boat['boat_number']:
@@ -228,6 +220,64 @@ class DynamicRaceScheduler:
                 f"予測エラー: 場{race['venue_id']} R{race['race_number']}: {e}",
                 exc_info=True,
             )
+
+    def _fetch_and_store_boats(self, race_date, venue_id, race_number, race_id):
+        """出走表をスクレイピングしてDB格納、boats_dataとして返す"""
+        boats = scrape_racelist(self.session, race_date, venue_id, race_number)
+        if not boats or len(boats) != 6:
+            return None
+
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("DELETE FROM boats WHERE race_id = %s", (race_id,))
+                for b in boats:
+                    cur.execute("""
+                        INSERT INTO boats
+                        (race_id, boat_number, player_id, player_name,
+                         player_class, win_rate, win_rate_2, win_rate_3,
+                         local_win_rate, local_win_rate_2,
+                         motor_win_rate_2, motor_win_rate_3,
+                         boat_win_rate_2, weight, avg_st, approach_course)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (
+                        race_id, b['boat_number'],
+                        b.get('player_id'), b.get('player_name'),
+                        b.get('player_class'),
+                        b.get('win_rate'), b.get('win_rate_2'), b.get('win_rate_3'),
+                        b.get('local_win_rate'), b.get('local_win_rate_2'),
+                        b.get('motor_win_rate_2'), b.get('motor_win_rate_3'),
+                        b.get('boat_win_rate_2'),
+                        b.get('weight'), b.get('avg_st'),
+                        b['boat_number'],
+                    ))
+        except Exception as e:
+            logger.error(f"出走表DB格納失敗: {e}")
+            return None
+
+        # predictor が使える形式に変換
+        boats_data = []
+        for b in boats:
+            boats_data.append({
+                'boat_number': b['boat_number'],
+                'player_class': b.get('player_class'),
+                'win_rate': b.get('win_rate'),
+                'win_rate_2': b.get('win_rate_2'),
+                'win_rate_3': b.get('win_rate_3'),
+                'local_win_rate': b.get('local_win_rate'),
+                'local_win_rate_2': b.get('local_win_rate_2'),
+                'avg_st': b.get('avg_st'),
+                'motor_win_rate_2': b.get('motor_win_rate_2'),
+                'motor_win_rate_3': b.get('motor_win_rate_3'),
+                'boat_win_rate_2': b.get('boat_win_rate_2'),
+                'weight': b.get('weight'),
+                'exhibition_time': None,
+                'approach_course': b['boat_number'],
+                'is_new_motor': False,
+                'fallback_flag': False,
+            })
+
+        return boats_data
 
     def _upsert_race(self, race_date, venue_id, race_number, entry):
         """レースをDB登録/取得"""
