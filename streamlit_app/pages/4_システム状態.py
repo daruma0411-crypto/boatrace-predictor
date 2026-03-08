@@ -5,13 +5,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
-from streamlit_app.components.db_utils import get_db_connection
-from streamlit_app.components.mobile_css import inject_mobile_css
+
+try:
+    from streamlit_app.components.db_utils import get_db_connection
+    from streamlit_app.components.mobile_css import inject_mobile_css
+    DB_AVAILABLE = True
+except Exception:
+    DB_AVAILABLE = False
+
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 st.set_page_config(page_title="システム状態", page_icon="🔧", layout="wide",
                    initial_sidebar_state="collapsed")
-inject_mobile_css()
+if DB_AVAILABLE:
+    inject_mobile_css()
 st.title("🔧 システム状態")
 
 VENUE_NAMES = {
@@ -25,6 +38,8 @@ VENUE_NAMES = {
 
 # === DB統計 ===
 st.subheader("データベース統計")
+if not DB_AVAILABLE:
+    st.warning("DB接続モジュールが利用できません")
 try:
     with get_db_connection() as conn:
         cur = conn.cursor()
@@ -84,8 +99,7 @@ model_path = os.path.join(
     'models', 'boatrace_model.pth'
 )
 
-if os.path.exists(model_path):
-    import torch
+if os.path.exists(model_path) and TORCH_AVAILABLE:
     try:
         checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
         col1, col2 = st.columns(2)
