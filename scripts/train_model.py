@@ -63,10 +63,12 @@ def load_training_data_fast(years=3):
     with get_db_connection() as conn:
         cur = conn.cursor()
 
-        # レース一括取得
+        # レース一括取得（天候データ含む）
         cur.execute("""
             SELECT r.id, r.venue_id, r.race_date,
-                   r.result_1st, r.result_2nd, r.result_3rd
+                   r.result_1st, r.result_2nd, r.result_3rd,
+                   r.wind_speed, r.wind_direction, r.temperature,
+                   r.wave_height, r.water_temperature
             FROM races r
             WHERE r.race_date >= %s AND r.status = 'finished'
               AND r.result_1st IS NOT NULL
@@ -77,14 +79,15 @@ def load_training_data_fast(years=3):
 
         race_ids = [r['id'] for r in races]
 
-        # boats 一括取得
+        # boats 一括取得（tilt/parts_changed含む）
         cur.execute("""
             SELECT race_id, boat_number, player_class,
                    win_rate, win_rate_2, win_rate_3,
                    local_win_rate, local_win_rate_2,
                    avg_st, motor_win_rate_2, motor_win_rate_3,
                    boat_win_rate_2, weight, exhibition_time,
-                   approach_course, is_new_motor
+                   approach_course, is_new_motor,
+                   tilt, parts_changed
             FROM boats
             WHERE race_id = ANY(%s)
             ORDER BY race_id, boat_number
@@ -112,9 +115,11 @@ def load_training_data_fast(years=3):
             'venue_id': race['venue_id'],
             'month': race['race_date'].month,
             'distance': 1800,
-            'wind_speed': 0,
-            'wind_direction': 'calm',
-            'temperature': 20,
+            'wind_speed': race.get('wind_speed') or 0,
+            'wind_direction': race.get('wind_direction') or 'calm',
+            'temperature': race.get('temperature') or 20,
+            'wave_height': race.get('wave_height') or 0,
+            'water_temperature': race.get('water_temperature') or 20,
         }
 
         try:

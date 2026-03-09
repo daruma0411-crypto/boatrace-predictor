@@ -240,6 +240,27 @@ class DynamicRaceScheduler:
                     'water_temperature', 20
                 )
 
+                # 天候データをDBに永続化（再学習用）
+                try:
+                    with get_db_connection() as conn:
+                        cur = conn.cursor()
+                        cur.execute("""
+                            UPDATE races
+                            SET wind_speed = %s, wind_direction = %s,
+                                temperature = %s, wave_height = %s,
+                                water_temperature = %s
+                            WHERE id = %s
+                        """, (
+                            race_data.get('wind_speed'),
+                            race_data.get('wind_direction'),
+                            race_data.get('temperature'),
+                            race_data.get('wave_height'),
+                            race_data.get('water_temperature'),
+                            race['race_id'],
+                        ))
+                except Exception as e:
+                    logger.warning(f"天候データDB保存失敗: {e}")
+
             # 直前情報(展示タイム・チルト・部品交換・進入コース)をマージ
             if beforeinfo_boats and boats_data:
                 for ex_boat in beforeinfo_boats:
@@ -259,6 +280,28 @@ class DynamicRaceScheduler:
                             if ex_boat.get('weight') is not None:
                                 db_boat['weight'] = ex_boat['weight']
                             break
+
+            # チルト・部品交換・展示タイムをDBに永続化（再学習用）
+            if beforeinfo_boats and boats_data:
+                try:
+                    with get_db_connection() as conn:
+                        cur = conn.cursor()
+                        for db_boat in boats_data:
+                            cur.execute("""
+                                UPDATE boats
+                                SET tilt = %s, parts_changed = %s,
+                                    exhibition_time = %s, approach_course = %s
+                                WHERE race_id = %s AND boat_number = %s
+                            """, (
+                                db_boat.get('tilt'),
+                                db_boat.get('parts_changed', False),
+                                db_boat.get('exhibition_time'),
+                                db_boat.get('approach_course'),
+                                race['race_id'],
+                                db_boat['boat_number'],
+                            ))
+                except Exception as e:
+                    logger.warning(f"艇データDB保存失敗: {e}")
 
             prediction = self.predictor.predict(race_data, boats_data)
 
@@ -309,8 +352,9 @@ class DynamicRaceScheduler:
                          player_class, win_rate, win_rate_2, win_rate_3,
                          local_win_rate, local_win_rate_2,
                          motor_win_rate_2, motor_win_rate_3,
-                         boat_win_rate_2, weight, avg_st, approach_course)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                         boat_win_rate_2, weight, avg_st, approach_course,
+                         tilt, parts_changed)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     """, (
                         race_id, b['boat_number'],
                         b.get('player_id'), b.get('player_name'),
@@ -321,6 +365,7 @@ class DynamicRaceScheduler:
                         b.get('boat_win_rate_2'),
                         b.get('weight'), b.get('avg_st'),
                         b['boat_number'],
+                        b.get('tilt'), b.get('parts_changed', False),
                     ))
         except Exception as e:
             logger.error(f"出走表DB格納失敗: {e}")

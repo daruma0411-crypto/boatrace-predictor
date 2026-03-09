@@ -74,6 +74,35 @@ def _migrate_tables(conn):
             conn.rollback()
             conn.cursor()  # reset cursor after rollback
 
+    # boats テーブルに不足カラムを追加 (208次元対応)
+    for col, col_def in [
+        ('tilt', 'REAL'),
+        ('parts_changed', 'BOOLEAN DEFAULT FALSE'),
+    ]:
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'boats' AND column_name = %s
+        """, (col,))
+        if not cur.fetchone():
+            cur.execute(f'ALTER TABLE boats ADD COLUMN {col} {col_def}')
+            logger.info(f"マイグレーション: boats.{col} 追加")
+
+    # races テーブルに天候カラムを追加 (208次元対応)
+    for col, col_def in [
+        ('wind_speed', 'REAL'),
+        ('wind_direction', 'VARCHAR(10)'),
+        ('temperature', 'REAL'),
+        ('wave_height', 'REAL'),
+        ('water_temperature', 'REAL'),
+    ]:
+        cur.execute("""
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'races' AND column_name = %s
+        """, (col,))
+        if not cur.fetchone():
+            cur.execute(f'ALTER TABLE races ADD COLUMN {col} {col_def}')
+            logger.info(f"マイグレーション: races.{col} 追加")
+
     # predictions テーブルに不足カラムを追加
     for col, col_def in [
         ('model_version', 'VARCHAR(50)'),
@@ -129,6 +158,11 @@ def init_database():
                 result_2nd INTEGER,
                 result_3rd INTEGER,
                 payout_sanrentan INTEGER,
+                wind_speed REAL,
+                wind_direction VARCHAR(10),
+                temperature REAL,
+                wave_height REAL,
+                water_temperature REAL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 UNIQUE(race_date, venue_id, race_number)
             )
@@ -155,6 +189,8 @@ def init_database():
                 exhibition_time REAL,
                 approach_course INTEGER,
                 is_new_motor BOOLEAN DEFAULT FALSE,
+                tilt REAL,
+                parts_changed BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
