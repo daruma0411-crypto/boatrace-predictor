@@ -107,3 +107,19 @@ if st.button("設定を保存", type="primary"):
     save_config(new_config)
     st.success("設定を保存しました")
     st.json(new_config)
+
+st.divider()
+st.subheader("データベース管理")
+st.warning("以下の操作は取り消せません。")
+
+if st.button("全データ削除（再スタート）", type="secondary"):
+    try:
+        from streamlit_app.components.db_utils import get_db_connection
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            for table in ['bets', 'predictions', 'model_performance', 'boats', 'races']:
+                cur.execute(f'TRUNCATE TABLE {table} CASCADE')
+        st.success("全5テーブルのデータを削除しました。再スタート準備完了。")
+        st.cache_data.clear()
+    except Exception as e:
+        st.error(f"削除エラー: {e}")
