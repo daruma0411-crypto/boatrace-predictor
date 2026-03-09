@@ -44,6 +44,11 @@ MIN_BET = 100
 MAX_BET = 5000
 MAX_BET_RATIO = 0.05
 
+# 締切前ターゲットウィンドウ（分）
+# 処理~20秒 + 購入バッファ~60秒 → 2-5分前が最適
+TARGET_WINDOW_MIN = 2   # 最低リードタイム
+TARGET_WINDOW_MAX = 5   # 最大ウィンドウ
+
 
 def find_active_race(session, today):
     """締切時刻ベースで最適なレースを選択
@@ -91,14 +96,14 @@ def find_active_race(session, today):
         print("開催中の場が見つかりませんでした。")
         return None, None, None
 
-    # 締切まで15-20分以内のレースを抽出
+    # 締切まで TARGET_WINDOW_MIN〜TARGET_WINDOW_MAX 分以内のレースを抽出
     target_races = []
     for venue_id, rno, deadline_dt, venue_name in all_races:
         minutes_left = (deadline_dt - current).total_seconds() / 60
-        if 15 <= minutes_left <= 20:
+        if TARGET_WINDOW_MIN <= minutes_left <= TARGET_WINDOW_MAX:
             target_races.append((venue_id, rno, deadline_dt, venue_name, minutes_left))
 
-    # 15-20分以内のレースがある場合
+    # ターゲットウィンドウ内のレースがある場合
     if target_races:
         # 最も締切が近い（minutes_left が小さい）ものを選択
         target_races.sort(key=lambda x: x[4])
@@ -128,8 +133,9 @@ def find_active_race(session, today):
         print(f"\n  → 最も直近のレース: {venue_name} R{rno}")
         print(f"    締切: {deadline_dt.strftime('%H:%M')} (残り{minutes_left:.0f}分)")
 
-        if minutes_left > 20:
-            print(f"    ※ 締切まで{minutes_left:.0f}分あります（理想は15-20分前）")
+        if minutes_left > TARGET_WINDOW_MAX:
+            print(f"    ※ 締切まで{minutes_left:.0f}分あります"
+                  f"（理想は{TARGET_WINDOW_MIN}-{TARGET_WINDOW_MAX}分前）")
             print(f"    参考としてEVスキャンを実行します")
 
         odds_provider = RealtimeOddsProvider()
@@ -231,6 +237,7 @@ def main():
     print(f"  Phase 2 ライブEVスキャン — ペーパートレード・デモ")
     print(f"  日付: {today}  時刻: {now.strftime('%H:%M:%S')}")
     print(f"  仮想資金: ¥{BANKROLL:,}")
+    print(f"  ターゲット: 締切{TARGET_WINDOW_MIN}-{TARGET_WINDOW_MAX}分前")
     print("=" * 70)
 
     # ── Step 1: ターゲットレース選択 ──

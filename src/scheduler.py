@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 NUM_VENUES = 24
 
+# 締切前リードタイム（分）
+# 処理時間 ~20秒 + 購入バッファ ~60秒 → 最低1.5分必要
+# ウィンドウ: LEAD_TIME_MIN 〜 LEAD_TIME_MAX 分前
+LEAD_TIME_MIN = 2  # 最小リードタイム（これ未満はスキップ）
+LEAD_TIME_MAX = 3  # 最大リードタイム（この範囲内で処理開始）
+
 
 class DynamicRaceScheduler:
     """動的レーススケジューラ: 1分間隔ポーリング"""
@@ -140,8 +146,8 @@ class DynamicRaceScheduler:
 
                 minutes_left = (deadline - current).total_seconds() / 60
 
-                if minutes_left < 15:
-                    # 締切15分未満 → 処理済みとしてマーク（スキップ）
+                if minutes_left < LEAD_TIME_MIN:
+                    # リードタイム不足 → 処理済みとしてマーク（スキップ）
                     logger.debug(
                         f"締切超過スキップ: 場{race['venue_id']} "
                         f"R{race['race_number']} (残り{minutes_left:.0f}分)"
@@ -149,7 +155,7 @@ class DynamicRaceScheduler:
                     self.processed_races.add(race_key)
                     continue
 
-                if 15 <= minutes_left <= 20:
+                if LEAD_TIME_MIN <= minutes_left <= LEAD_TIME_MAX:
                     logger.info(
                         f"予測開始: 場{race['venue_id']} "
                         f"R{race['race_number']} "
