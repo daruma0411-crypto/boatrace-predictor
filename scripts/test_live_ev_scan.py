@@ -19,10 +19,11 @@ import torch
 from datetime import date, datetime
 from itertools import permutations
 
-from src.scraper import _get_session, scrape_racelist, scrape_beforeinfo
+from src.scraper import _get_session, scrape_racelist, scrape_beforeinfo, scrape_race_deadlines
 from src.odds_estimator import RealtimeOddsProvider
 from src.features import FeatureEngineer
 from src.models import load_model, BoatraceMultiTaskModel
+from utils.timezone import now_jst
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -45,24 +46,109 @@ MAX_BET_RATIO = 0.05
 
 
 def find_active_race(session, today):
-    """本日の開催場から直近レースを探す"""
-    print("本日の開催場を検索中...")
+    """締切時刻ベースで最適なレースを選択
+
+    全開催場の締切時刻を取得し、現在時刻から15-20分以内のレースを優先選択。
+    該当なしの場合は、最も直近の将来レースを選択してEVスキャン実行。
+    """
+    current = now_jst()
+    print(f"本日の開催場を検索中... (現在 {current.strftime('%H:%M')})")
+
+    # 全開催場の締切時刻を収集
+    all_races = []  # (venue_id, race_number, deadline_dt, venue_name)
+
     for venue_id in range(1, 25):
-        # R12→R1 の降順で、最も番号の大きい「まだ取れる」レースを探す
         test = scrape_racelist(session, today, venue_id, 1)
-        if test:
-            venue_name = VENUE_NAMES.get(venue_id, f'場{venue_id}')
-            # このレース場は開催中。最新レースを探す
-            for rno in range(12, 0, -1):
-                odds_provider = RealtimeOddsProvider()
-                odds = odds_provider.fetch_odds(today, venue_id, rno)
-                if odds and len(odds) >= 60:
-                    print(f"  → {venue_name} R{rno} でオッズ取得成功 ({len(odds)}通り)")
-                    return venue_id, rno, odds
-            # オッズなし＝全レース終了 or 未発売、次の場へ
-            print(f"  {venue_name}: 開催中だがオッズ取得可能なレースなし")
+        if not test:
+            _time.sleep(0.3)
+            continue
+
+        venue_name = VENUE_NAMES.get(venue_id, f'場{venue_id}')
+        print(f"  {venue_name}: 開催中")
+
+        # 締切時刻を一括取得
+        deadlines = scrape_race_deadlines(session, today, venue_id)
+        _time.sleep(0.5)
+
+        if not deadlines:
+            print(f"    締切時刻取得失敗 → スキップ")
+            continue
+
+        for rno, dl_str in deadlines.items():
+            try:
+                h, m = dl_str.split(':')
+                deadline_dt = current.replace(
+                    hour=int(h), minute=int(m), second=0, microsecond=0,
+                )
+                all_races.append((venue_id, rno, deadline_dt, venue_name))
+            except (ValueError, TypeError):
+                pass
+
+        print(f"    締切: R1={deadlines.get(1, '?')} 〜 R12={deadlines.get(12, '?')}")
         _time.sleep(0.3)
 
+    if not all_races:
+        print("開催中の場が見つかりませんでした。")
+        return None, None, None
+
+    # 締切まで15-20分以内のレースを抽出
+    target_races = []
+    for venue_id, rno, deadline_dt, venue_name in all_races:
+        minutes_left = (deadline_dt - current).total_seconds() / 60
+        if 15 <= minutes_left <= 20:
+            target_races.append((venue_id, rno, deadline_dt, venue_name, minutes_left))
+
+    # 15-20分以内のレースがある場合
+    if target_races:
+        # 最も締切が近い（minutes_left が小さい）ものを選択
+        target_races.sort(key=lambda x: x[4])
+        venue_id, rno, deadline_dt, venue_name, minutes_left = target_races[0]
+        print(f"\n  ★ 締切直前レース発見: {venue_name} R{rno}")
+        print(f"    締切: {deadline_dt.strftime('%H:%M')} (残り{minutes_left:.0f}分)")
+
+        # オッズ取得
+        odds_provider = RealtimeOddsProvider()
+        odds = odds_provider.fetch_odds(today, venue_id, rno)
+        if odds and len(odds) >= 60:
+            print(f"    オッズ取得成功 ({len(odds)}通り)")
+            return venue_id, rno, odds
+        else:
+            print(f"    オッズ取得失敗 → 他の候補を探索")
+
+    # 15-20分以内がない or オッズ取得失敗 → 最も直近の将来レースを選択
+    future_races = []
+    for venue_id, rno, deadline_dt, venue_name in all_races:
+        minutes_left = (deadline_dt - current).total_seconds() / 60
+        if minutes_left > 0:
+            future_races.append((venue_id, rno, deadline_dt, venue_name, minutes_left))
+
+    if future_races:
+        future_races.sort(key=lambda x: x[4])
+        venue_id, rno, deadline_dt, venue_name, minutes_left = future_races[0]
+        print(f"\n  → 最も直近のレース: {venue_name} R{rno}")
+        print(f"    締切: {deadline_dt.strftime('%H:%M')} (残り{minutes_left:.0f}分)")
+
+        if minutes_left > 20:
+            print(f"    ※ 締切まで{minutes_left:.0f}分あります（理想は15-20分前）")
+            print(f"    参考としてEVスキャンを実行します")
+
+        odds_provider = RealtimeOddsProvider()
+        odds = odds_provider.fetch_odds(today, venue_id, rno)
+        if odds and len(odds) >= 60:
+            print(f"    オッズ取得成功 ({len(odds)}通り)")
+            return venue_id, rno, odds
+
+    # 全レース終了 → 最終レースのオッズで参考スキャン
+    past_races = sorted(all_races, key=lambda x: x[2], reverse=True)
+    for venue_id, rno, deadline_dt, venue_name in past_races:
+        odds_provider = RealtimeOddsProvider()
+        odds = odds_provider.fetch_odds(today, venue_id, rno)
+        if odds and len(odds) >= 60:
+            minutes_ago = (current - deadline_dt).total_seconds() / 60
+            print(f"\n  → {venue_name} R{rno} (締切{minutes_ago:.0f}分前 — 参考スキャン)")
+            return venue_id, rno, odds
+
+    print("オッズ取得可能なレースが見つかりませんでした。")
     return None, None, None
 
 
@@ -135,8 +221,8 @@ def kelly_bet(prob, odds, bankroll):
 
 
 def main():
-    today = date.today()
-    now = datetime.now()
+    today = now_jst().date()
+    now = now_jst()
     session = _get_session()
 
     print("=" * 70)

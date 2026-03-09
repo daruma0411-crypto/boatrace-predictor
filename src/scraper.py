@@ -60,6 +60,50 @@ def _split_br(td):
     return parts
 
 
+def scrape_race_deadlines(session, race_date, venue_id):
+    """raceindexページから12R分の締切時刻を一括取得
+
+    Args:
+        session: requests.Session
+        race_date: datetime.date
+        venue_id: int (1-24)
+
+    Returns:
+        dict: {1: "15:20", 2: "15:45", ..., 12: "20:38"}
+              パース失敗時は空dict
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/raceindex?jcd={venue_id:02d}&hd={hd}"
+
+    try:
+        r = session.get(url, timeout=15)
+        if r.status_code != 200:
+            logger.debug(f"raceindex HTTP {r.status_code}: 場{venue_id}")
+            return {}
+    except Exception as e:
+        logger.debug(f"raceindex取得エラー: 場{venue_id}: {e}")
+        return {}
+
+    soup = BeautifulSoup(r.text, 'html.parser')
+
+    # HH:MM 形式の td を全て取得
+    time_cells = soup.find_all('td', string=re.compile(r'^\s*\d{2}:\d{2}\s*$'))
+
+    if len(time_cells) < 12:
+        logger.debug(
+            f"締切時刻の要素不足: 場{venue_id} ({len(time_cells)}個, 12個必要)"
+        )
+        return {}
+
+    deadlines = {}
+    for i in range(12):
+        time_text = time_cells[i].get_text(strip=True)
+        deadlines[i + 1] = time_text
+
+    logger.info(f"締切時刻取得: 場{venue_id} 12R分 ({deadlines.get(1)}〜{deadlines.get(12)})")
+    return deadlines
+
+
 def scrape_racelist(session, race_date, venue_id, race_number):
     """出走表ページから6艇の選手データを取得
 
