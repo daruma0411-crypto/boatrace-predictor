@@ -38,11 +38,11 @@ try:
         col1, col2 = st.columns(2)
 
         for i, row in df.iterrows():
-            target = col1 if row['strategy_type'] == 'kelly_strict' else col2
+            target = col1 if row['strategy_type'] == 'conservative' else col2
             with target:
                 strategy_label = (
-                    "戦略A (ケリー基準)" if row['strategy_type'] == 'kelly_strict'
-                    else "戦略B (確率優先)"
+                    "戦略A (保守的)" if row['strategy_type'] == 'conservative'
+                    else "戦略B (普通)"
                 )
                 st.markdown(f"### {strategy_label}")
                 c1, c2, c3 = st.columns(3)

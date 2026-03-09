@@ -74,8 +74,8 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'kelly_strict': 'ケリー厳選',
-    'top_prob_fixed': '確率上位固定',
+    'conservative': '保守的 (1/8ケリー)',
+    'standard': '普通 (1/4ケリー)',
 }
 
 
@@ -214,7 +214,7 @@ with tab2:
             col1, col2 = st.columns(2)
             for s in stats:
                 name = _strategy_name(s['strategy_type'])
-                with col1 if s['strategy_type'] == 'kelly_strict' else col2:
+                with col1 if s['strategy_type'] == 'conservative' else col2:
                     st.markdown(f"**{name}**")
                     st.metric("ベット数", s['total_bets'])
                     st.metric("回収率", f"{s['roi']:.1f}%")

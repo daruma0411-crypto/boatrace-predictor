@@ -53,7 +53,7 @@ class RealtimePredictor:
 
     def save_prediction(self, race_id, prediction_result,
                          recommended_bets=None, model_version='v1.0',
-                         strategy_type='kelly_strict'):
+                         strategy_type='conservative'):
         """予測結果をPostgreSQLに保存"""
         with get_db_connection() as conn:
             cur = conn.cursor()

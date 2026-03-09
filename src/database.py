@@ -249,13 +249,19 @@ def init_database():
         logger.info("データベース初期化完了（5テーブル作成）")
 
 
-def get_current_bankroll():
-    """現在の収支を取得"""
+def get_current_bankroll(strategy_type=None):
+    """現在の収支を取得（戦略別フィルター対応）"""
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT COALESCE(SUM(payout - amount), 0) as profit
-            FROM bets WHERE result IS NOT NULL
-        """)
+        if strategy_type:
+            cur.execute("""
+                SELECT COALESCE(SUM(payout - amount), 0) as profit
+                FROM bets WHERE result IS NOT NULL AND strategy_type = %s
+            """, (strategy_type,))
+        else:
+            cur.execute("""
+                SELECT COALESCE(SUM(payout - amount), 0) as profit
+                FROM bets WHERE result IS NOT NULL
+            """)
         row = cur.fetchone()
         return row['profit'] if row else 0

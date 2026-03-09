@@ -1,13 +1,13 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
-A/Bテスト対応:
-- 戦略A (kelly_strict): 期待値1.20以上、ハーフ・ケリー、上位5点
-- 戦略B (top_prob_fixed): 確率上位10点、期待値1.0以上、固定100円
+A/Bテスト:
+- 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、オッズ10%割引、最大3点
+- 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、オッズ5%割引、最大5点
+各戦略に独立 bankroll 200,000円。
 """
 import json
 import logging
 import os
-import numpy as np
 from itertools import permutations
 from src.database import get_db_connection, get_current_bankroll
 
@@ -21,12 +21,27 @@ CONFIG_PATH = os.path.join(
 def _load_config():
     """ベッティング設定を読み込み"""
     defaults = {
-        'kelly_fraction': 0.5,
-        'max_bet_ratio': 0.05,
-        'min_expected_value': 1.20,
-        'min_bet_amount': 100,
-        'max_bet_amount': 10000,
-        'max_kelly_bets': 5,
+        'initial_bankroll': 200000,
+        'strategies': {
+            'conservative': {
+                'kelly_fraction': 0.125,
+                'max_total_bet_ratio': 0.02,
+                'max_ticket_bet_ratio': 0.008,
+                'min_expected_value': 1.15,
+                'odds_discount_factor': 0.90,
+                'max_recommended_bets': 3,
+                'min_bet_amount': 100,
+            },
+            'standard': {
+                'kelly_fraction': 0.25,
+                'max_total_bet_ratio': 0.03,
+                'max_ticket_bet_ratio': 0.012,
+                'min_expected_value': 1.10,
+                'odds_discount_factor': 0.95,
+                'max_recommended_bets': 5,
+                'min_bet_amount': 100,
+            },
+        },
     }
     try:
         with open(CONFIG_PATH, 'r') as f:
@@ -40,56 +55,62 @@ def _load_config():
 class KellyBettingStrategy:
     """ケリー基準 + A/Bテスト ベッティング戦略"""
 
-    def __init__(self, initial_bankroll=100000):
+    def __init__(self, initial_bankroll=None):
         self.config = _load_config()
-        self.initial_bankroll = initial_bankroll
+        self.initial_bankroll = (
+            initial_bankroll or self.config['initial_bankroll']
+        )
 
     def calculate_all_strategies(self, probs_1st, probs_2nd, probs_3rd,
                                   odds_data, bankroll=None):
-        """戦略A + 戦略Bの両方を計算し統合して返す"""
-        if bankroll is None:
-            profit = get_current_bankroll()
-            bankroll = float(self.initial_bankroll + profit)
-
+        """conservative + standard 両戦略を計算して返す"""
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(
             probs_1st, probs_2nd, probs_3rd
         )
 
-        bets_a = self._strategy_kelly_strict(
-            sanrentan_probs, odds_data, bankroll
-        )
-        bets_b = self._strategy_top_prob_fixed(
-            sanrentan_probs, odds_data
-        )
+        results = {}
+        for strategy_name, strategy_config in self.config['strategies'].items():
+            # 各戦略で独立bankroll
+            if bankroll is not None:
+                br = bankroll
+            else:
+                profit = get_current_bankroll(strategy_type=strategy_name)
+                br = float(self.initial_bankroll + profit)
 
-        return {
-            'kelly_strict': bets_a,
-            'top_prob_fixed': bets_b,
-        }
+            bets = self._strategy_kelly(
+                strategy_config, sanrentan_probs, odds_data, br, strategy_name
+            )
+            results[strategy_name] = bets
 
-    def _strategy_kelly_strict(self, sanrentan_probs, odds_data, bankroll):
-        """戦略A: 期待値1.20以上 × ハーフ・ケリー × 上位N点"""
+        return results
+
+    def _strategy_kelly(self, config, sanrentan_probs, odds_data,
+                         bankroll, strategy_name):
+        """共通ケリー戦略: オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
         candidates = []
-        kelly_frac = self.config['kelly_fraction']
-        min_ev = self.config['min_expected_value']
-        max_kelly_bets = self.config.get('max_kelly_bets', 5)
-        max_bet = min(
-            self.config['max_bet_amount'],
-            bankroll * self.config['max_bet_ratio']
-        )
-        min_bet = self.config['min_bet_amount']
+        kelly_frac = config['kelly_fraction']
+        min_ev = config['min_expected_value']
+        max_bets = config['max_recommended_bets']
+        max_ticket = bankroll * config['max_ticket_bet_ratio']
+        max_total = bankroll * config['max_total_bet_ratio']
+        min_bet = config['min_bet_amount']
+        odds_discount = config['odds_discount_factor']
 
         for combo, prob in sanrentan_probs.items():
-            odds = odds_data.get(combo, 0.0)
-            if odds <= 1.0 or prob <= 0:
+            raw_odds = odds_data.get(combo, 0.0)
+            if raw_odds <= 1.0 or prob <= 0:
                 continue
 
-            ev = prob * odds
+            # オッズ割引
+            discounted_odds = raw_odds * odds_discount
+
+            # 割引後EVで判定
+            ev = prob * discounted_odds
             if ev < min_ev:
                 continue
 
-            # ケリー基準: f = (b*p - q) / b  (b = odds-1)
-            b = odds - 1.0
+            # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
+            b = discounted_odds - 1.0
             if b <= 0:
                 continue
             q = 1.0 - prob
@@ -98,9 +119,10 @@ class KellyBettingStrategy:
             if kelly <= 0:
                 continue
 
-            # ハーフ・ケリー
+            # フラクショナル・ケリー
             bet_amount = bankroll * kelly * kelly_frac
-            bet_amount = max(min_bet, min(max_bet, bet_amount))
+            # 1点上限
+            bet_amount = max(min_bet, min(max_ticket, bet_amount))
             bet_amount = int(round(bet_amount / 100) * 100)  # 100円単位
 
             if bet_amount >= min_bet:
@@ -108,48 +130,29 @@ class KellyBettingStrategy:
                     'bet_type': 'sanrentan',
                     'combination': combo,
                     'amount': bet_amount,
-                    'odds': odds,
+                    'odds': raw_odds,
+                    'discounted_odds': discounted_odds,
                     'expected_value': ev,
                     'kelly_fraction': kelly * kelly_frac,
                     'probability': prob,
-                    'strategy_type': 'kelly_strict',
+                    'strategy_type': strategy_name,
                 })
 
-        # 期待値上位N点に絞る
+        # 割引EV上位N点に絞る
         candidates.sort(key=lambda x: x['expected_value'], reverse=True)
-        return candidates[:max_kelly_bets]
+        candidates = candidates[:max_bets]
 
-    def _strategy_top_prob_fixed(self, sanrentan_probs, odds_data):
-        """戦略B: 確率上位10点、期待値1.0以上、固定100円"""
-        bets = []
-        sorted_combos = sorted(
-            sanrentan_probs.items(), key=lambda x: x[1], reverse=True
-        )
+        # レース合計上限カット
+        total = sum(c['amount'] for c in candidates)
+        if total > max_total and candidates:
+            ratio = max_total / total
+            for c in candidates:
+                c['amount'] = max(
+                    min_bet,
+                    int(round(c['amount'] * ratio / 100) * 100)
+                )
 
-        for combo, prob in sorted_combos:
-            if len(bets) >= 10:
-                break
-
-            odds = odds_data.get(combo, 0.0)
-            if odds <= 1.0 or prob <= 0:
-                continue
-
-            ev = prob * odds
-            if ev < 1.0:
-                continue
-
-            bets.append({
-                'bet_type': 'sanrentan',
-                'combination': combo,
-                'amount': 100,
-                'odds': odds,
-                'expected_value': ev,
-                'kelly_fraction': 0.0,
-                'probability': prob,
-                'strategy_type': 'top_prob_fixed',
-            })
-
-        return bets
+        return candidates
 
     def _calculate_sanrentan_bets_conditional(self, probs_1st, probs_2nd,
                                                probs_3rd):
@@ -163,7 +166,6 @@ class KellyBettingStrategy:
         for combo in permutations(range(6), 3):
             i, j, k = combo
 
-            # 同一艇チェック（冗長だがpermutationsなので不要、明示的にガード）
             if len(set(combo)) != 3:
                 continue
 
