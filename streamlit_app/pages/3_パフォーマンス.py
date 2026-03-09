@@ -1,4 +1,4 @@
-"""パフォーマンスページ: 場別・券種別・時系列・戦略A/B比較"""
+"""パフォーマンスページ: 6戦略比較・時系列・場別分析"""
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -27,24 +27,53 @@ VENUE_NAMES = {
     21: '芦屋', 22: '福岡', 23: '唐津', 24: '大村',
 }
 
+STRATEGY_NAMES = {
+    'conservative': 'A: 保守的',
+    'standard': 'B: 普通',
+    'divergence': 'C: 市場乖離',
+    'high_confidence': 'D: 高確信',
+    'ensemble': 'E: 合議制',
+    'div_confidence': 'F: 乖離+確信',
+}
+
+STRATEGY_COLORS = {
+    'conservative': '#1f77b4',
+    'standard': '#ff7f0e',
+    'divergence': '#2ca02c',
+    'high_confidence': '#d62728',
+    'ensemble': '#9467bd',
+    'div_confidence': '#8c564b',
+}
+
+STRATEGY_ORDER = [
+    'conservative', 'standard', 'divergence',
+    'high_confidence', 'ensemble', 'div_confidence',
+]
+
 days = st.slider("分析期間（日数）", min_value=7, max_value=90, value=30)
 
-# --- 戦略別A/Bテスト比較 ---
-st.subheader("戦略別 A/Bテスト比較")
+# --- 戦略別6戦略比較 ---
+st.subheader("戦略別比較 (A〜F)")
 try:
     stats = get_performance_stats(days=days)
     if stats:
         df = pd.DataFrame(stats)
-        col1, col2 = st.columns(2)
 
-        for i, row in df.iterrows():
-            target = col1 if row['strategy_type'] == 'conservative' else col2
-            with target:
-                strategy_label = (
-                    "戦略A (保守的)" if row['strategy_type'] == 'conservative'
-                    else "戦略B (普通)"
-                )
-                st.markdown(f"### {strategy_label}")
+        # 3列×2行レイアウト
+        row1 = st.columns(3)
+        row2 = st.columns(3)
+        all_cols = row1 + row2
+
+        # 戦略順に並べる
+        strategy_map = {s['strategy_type']: s for s in stats}
+
+        for idx, strategy_key in enumerate(STRATEGY_ORDER):
+            if strategy_key not in strategy_map:
+                continue
+            row = strategy_map[strategy_key]
+            with all_cols[idx]:
+                label = STRATEGY_NAMES.get(strategy_key, strategy_key)
+                st.markdown(f"### {label}")
                 c1, c2, c3 = st.columns(3)
                 c1.metric("ベット数", row['total_bets'])
                 c2.metric("ROI", f"{row['roi']:.1f}%")
@@ -54,9 +83,13 @@ try:
                 )
                 c3.metric("的中率", f"{win_rate:.1f}%")
 
-        fig = go.Figure(data=[
-            go.Bar(
-                name=row['strategy_type'],
+        # 棒グラフ比較
+        fig = go.Figure()
+        for _, row in df.iterrows():
+            name = STRATEGY_NAMES.get(row['strategy_type'], row['strategy_type'])
+            color = STRATEGY_COLORS.get(row['strategy_type'], '#333')
+            fig.add_trace(go.Bar(
+                name=name,
                 x=['ベット数', '投資額(千円)', '回収額(千円)', 'ROI(%)'],
                 y=[
                     row['total_bets'],
@@ -64,9 +97,8 @@ try:
                     (row['total_payout'] or 0) / 1000,
                     row['roi'],
                 ],
-            )
-            for _, row in df.iterrows()
-        ])
+                marker_color=color,
+            ))
         fig.update_layout(
             barmode='group', title='戦略比較',
             margin=dict(l=30, r=20, t=50, b=30),
@@ -91,13 +123,21 @@ try:
             df_daily['total_payout'].fillna(0) -
             df_daily['total_amount'].fillna(0)
         )
+        df_daily['戦略'] = df_daily['strategy_type'].map(
+            lambda x: STRATEGY_NAMES.get(x, x)
+        )
+
+        color_map = {
+            STRATEGY_NAMES.get(k, k): v
+            for k, v in STRATEGY_COLORS.items()
+        }
 
         fig = px.line(
             df_daily, x='race_date', y='profit',
-            color='strategy_type',
+            color='戦略',
+            color_discrete_map=color_map,
             title='日別損益推移',
-            labels={'race_date': '日付', 'profit': '損益 (円)',
-                    'strategy_type': '戦略'},
+            labels={'race_date': '日付', 'profit': '損益 (円)'},
         )
         fig.update_layout(
             margin=dict(l=30, r=20, t=50, b=30),
@@ -111,10 +151,10 @@ try:
 
         fig_roi = px.line(
             df_daily, x='race_date', y='roi',
-            color='strategy_type',
+            color='戦略',
+            color_discrete_map=color_map,
             title='日別ROI推移',
-            labels={'race_date': '日付', 'roi': 'ROI (%)',
-                    'strategy_type': '戦略'},
+            labels={'race_date': '日付', 'roi': 'ROI (%)'},
         )
         fig_roi.update_layout(
             margin=dict(l=30, r=20, t=50, b=30),
@@ -140,14 +180,22 @@ try:
         df_venue['venue_name'] = df_venue['venue_id'].map(
             lambda x: VENUE_NAMES.get(x, f'場{x}')
         )
+        df_venue['戦略'] = df_venue['strategy_type'].map(
+            lambda x: STRATEGY_NAMES.get(x, x)
+        )
+
+        color_map = {
+            STRATEGY_NAMES.get(k, k): v
+            for k, v in STRATEGY_COLORS.items()
+        }
 
         fig = px.bar(
             df_venue, x='venue_name', y='roi',
-            color='strategy_type',
+            color='戦略',
+            color_discrete_map=color_map,
             barmode='group',
             title='場別ROI',
-            labels={'venue_name': '競艇場', 'roi': 'ROI (%)',
-                    'strategy_type': '戦略'},
+            labels={'venue_name': '競艇場', 'roi': 'ROI (%)'},
         )
         fig.update_layout(
             margin=dict(l=30, r=20, t=50, b=50),

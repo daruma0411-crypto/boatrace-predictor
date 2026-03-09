@@ -9,7 +9,8 @@
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 80
+            "max_odds": 80,
+            "filter_type": "none"
         },
         "standard": {
             "kelly_fraction": 0.25,
@@ -19,7 +20,56 @@
             "odds_discount_factor": 0.95,
             "max_recommended_bets": 5,
             "min_bet_amount": 100,
-            "max_odds": 150
+            "max_odds": 150,
+            "filter_type": "none"
+        },
+        "divergence": {
+            "kelly_fraction": 0.20,
+            "max_total_bet_ratio": 0.025,
+            "max_ticket_bet_ratio": 0.01,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.93,
+            "max_recommended_bets": 4,
+            "min_bet_amount": 100,
+            "max_odds": 120,
+            "filter_type": "divergence",
+            "min_divergence_ratio": 2.0
+        },
+        "high_confidence": {
+            "kelly_fraction": 0.20,
+            "max_total_bet_ratio": 0.025,
+            "max_ticket_bet_ratio": 0.01,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.93,
+            "max_recommended_bets": 4,
+            "min_bet_amount": 100,
+            "max_odds": 120,
+            "filter_type": "entropy",
+            "max_entropy": 1.5
+        },
+        "ensemble": {
+            "kelly_fraction": 0.20,
+            "max_total_bet_ratio": 0.025,
+            "max_ticket_bet_ratio": 0.01,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.93,
+            "max_recommended_bets": 4,
+            "min_bet_amount": 100,
+            "max_odds": 120,
+            "filter_type": "ensemble"
+        },
+        "div_confidence": {
+            "kelly_fraction": 0.20,
+            "max_total_bet_ratio": 0.025,
+            "max_ticket_bet_ratio": 0.01,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.93,
+            "max_recommended_bets": 4,
+            "min_bet_amount": 100,
+            "max_odds": 120,
+            "filter_type": "div_confidence",
+            "min_divergence_ratio": 2.0,
+            "max_entropy": 1.5
         }
     }
 }

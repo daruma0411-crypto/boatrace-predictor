@@ -115,6 +115,25 @@ def _migrate_tables(conn):
             cur.execute(f'ALTER TABLE predictions ADD COLUMN {col} {col_def}')
             logger.info(f"マイグレーション: predictions.{col} 追加")
 
+    # strategy_type VARCHAR(20) → VARCHAR(30) マイグレーション
+    for table in ['predictions', 'bets', 'model_performance']:
+        try:
+            cur.execute("""
+                SELECT character_maximum_length
+                FROM information_schema.columns
+                WHERE table_name = %s AND column_name = 'strategy_type'
+            """, (table,))
+            row = cur.fetchone()
+            if row and row['character_maximum_length'] and row['character_maximum_length'] < 30:
+                cur.execute(
+                    f'ALTER TABLE {table} ALTER COLUMN strategy_type TYPE VARCHAR(30)'
+                )
+                logger.info(f"マイグレーション: {table}.strategy_type VARCHAR(30)に拡張")
+        except Exception as e:
+            logger.warning(f"strategy_type拡張スキップ ({table}): {e}")
+            conn.rollback()
+            cur = conn.cursor()
+
     # bets テーブルに不足カラムを追加
     for col, col_def in [
         ('prediction_id', 'INTEGER'),
@@ -205,7 +224,7 @@ def init_database():
                 probabilities_3rd JSONB,
                 recommended_bets JSONB,
                 model_version VARCHAR(50),
-                strategy_type VARCHAR(20) NOT NULL,
+                strategy_type VARCHAR(30) NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
@@ -223,7 +242,7 @@ def init_database():
                 kelly_fraction REAL,
                 result VARCHAR(20),
                 payout INTEGER DEFAULT 0,
-                strategy_type VARCHAR(20) NOT NULL,
+                strategy_type VARCHAR(30) NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
@@ -241,7 +260,7 @@ def init_database():
                 total_amount INTEGER DEFAULT 0,
                 total_payout INTEGER DEFAULT 0,
                 roi REAL,
-                strategy_type VARCHAR(20),
+                strategy_type VARCHAR(30),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)

@@ -1,9 +1,12 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
-A/Bテスト:
-- 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、最大3点
-- 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、最大5点
-各戦略に独立 bankroll 200,000円。
+A/Bテスト → 6戦略並列テスト:
+- 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、最大3点、filter=none
+- 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、最大5点、filter=none
+- 戦略C (divergence):   市場乖離度フィルター、model_prob/market_prob≥2.0
+- 戦略D (high_confidence): エントロピーフィルター、H<1.5の確信レースのみ
+- 戦略E (ensemble):     4モデル合議、1着予測一致時のみ平均確率でKelly
+- 戦略F (div_confidence): C+D合わせ技、乖離度+エントロピー両方パス
 
 条件別最適化:
 - 場の荒れ度でオッズ上限を動的調整
@@ -12,6 +15,7 @@ A/Bテスト:
 """
 import json
 import logging
+import math
 import os
 from itertools import permutations
 from src.database import get_db_connection, get_current_bankroll
@@ -47,6 +51,7 @@ def _load_config():
                 'max_recommended_bets': 3,
                 'min_bet_amount': 100,
                 'max_odds': 80,
+                'filter_type': 'none',
             },
             'standard': {
                 'kelly_fraction': 0.25,
@@ -57,6 +62,7 @@ def _load_config():
                 'max_recommended_bets': 5,
                 'min_bet_amount': 100,
                 'max_odds': 150,
+                'filter_type': 'none',
             },
         },
     }
@@ -103,8 +109,65 @@ def _should_skip_by_top_boat(probs_1st):
     return top_boat >= 4
 
 
+def _calculate_entropy(probs):
+    """Shannon entropy H = -Σ p_i * log2(p_i)
+
+    低いほど確信度が高い（1つに集中）。
+    6艇の一様分布だと H = log2(6) ≈ 2.585。
+    """
+    h = 0.0
+    for p in probs:
+        if p > 0:
+            h -= p * math.log2(p)
+    return h
+
+
+def _check_ensemble_agreement(ensemble_predictions):
+    """全モデルの1着予測が一致するかチェック
+
+    Returns:
+        tuple: (agreed: bool, top_boat_idx: int or None)
+    """
+    if not ensemble_predictions:
+        return False, None
+
+    top_boats = []
+    for pred in ensemble_predictions:
+        probs = pred['probs_1st']
+        top = max(range(6), key=lambda i: probs[i])
+        top_boats.append(top)
+
+    if len(set(top_boats)) == 1:
+        return True, top_boats[0]
+    return False, None
+
+
+def _average_ensemble_probs(ensemble_predictions):
+    """全モデルの確率を平均する
+
+    Returns:
+        dict: {probs_1st, probs_2nd, probs_3rd} (平均済み)
+    """
+    n = len(ensemble_predictions)
+    avg_1st = [0.0] * 6
+    avg_2nd = [0.0] * 6
+    avg_3rd = [0.0] * 6
+
+    for pred in ensemble_predictions:
+        for i in range(6):
+            avg_1st[i] += pred['probs_1st'][i] / n
+            avg_2nd[i] += pred['probs_2nd'][i] / n
+            avg_3rd[i] += pred['probs_3rd'][i] / n
+
+    return {
+        'probs_1st': avg_1st,
+        'probs_2nd': avg_2nd,
+        'probs_3rd': avg_3rd,
+    }
+
+
 class KellyBettingStrategy:
-    """ケリー基準 + A/Bテスト ベッティング戦略"""
+    """ケリー基準 + 6戦略並列テスト ベッティング戦略"""
 
     def __init__(self, initial_bankroll=None):
         self.config = _load_config()
@@ -114,10 +177,13 @@ class KellyBettingStrategy:
 
     def calculate_all_strategies(self, probs_1st, probs_2nd, probs_3rd,
                                   odds_data, bankroll=None,
-                                  venue_id=None, race_number=None):
-        """conservative + standard 両戦略を計算して返す
+                                  venue_id=None, race_number=None,
+                                  ensemble_predictions=None):
+        """全戦略を計算して返す
 
-        venue_id, race_number を渡すと条件別最適化が有効になる。
+        既存A/B（filter_type=none）は従来パスを完全に通る。
+        C-F戦略はフィルタ判定後にKelly計算。
+        ensemble_predictions: EnsemblePredictor.predict_all()の結果（戦略E用）
         """
         # 発見3: 5-6号艇軸ならスキップ
         if _should_skip_by_top_boat(probs_1st):
@@ -129,12 +195,80 @@ class KellyBettingStrategy:
             )
             return {name: [] for name in self.config['strategies']}
 
+        # 通常の3連単確率（A/B/C/D/F用）
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(
             probs_1st, probs_2nd, probs_3rd
         )
 
+        # 市場乖離度テーブル: model_prob / market_prob
+        divergence_map = {}
+        if odds_data:
+            for combo, prob in sanrentan_probs.items():
+                raw_odds = odds_data.get(combo, 0.0)
+                if raw_odds > 1.0:
+                    market_prob = 1.0 / raw_odds
+                    divergence_map[combo] = prob / market_prob if market_prob > 0 else 0.0
+
+        # エントロピー計算（D/F用）
+        entropy_1st = _calculate_entropy(probs_1st)
+
+        # アンサンブル合議（E用）
+        ensemble_agreed = False
+        ensemble_top_boat = None
+        ensemble_sanrentan = None
+        if ensemble_predictions and len(ensemble_predictions) >= 2:
+            ensemble_agreed, ensemble_top_boat = _check_ensemble_agreement(
+                ensemble_predictions
+            )
+            if ensemble_agreed:
+                avg = _average_ensemble_probs(ensemble_predictions)
+                ensemble_sanrentan = self._calculate_sanrentan_bets_conditional(
+                    avg['probs_1st'], avg['probs_2nd'], avg['probs_3rd']
+                )
+
         results = {}
         for strategy_name, strategy_config in self.config['strategies'].items():
+            filter_type = strategy_config.get('filter_type', 'none')
+
+            # --- フィルタ判定 ---
+            if filter_type == 'divergence':
+                # 乖離度フィルタは_strategy_kelly内でcombo単位で適用
+                pass
+
+            elif filter_type == 'entropy':
+                max_entropy = strategy_config.get('max_entropy', 1.5)
+                if entropy_1st >= max_entropy:
+                    logger.info(
+                        f"エントロピーフィルタ: {strategy_name} スキップ "
+                        f"(H={entropy_1st:.3f} >= {max_entropy})"
+                    )
+                    results[strategy_name] = []
+                    continue
+
+            elif filter_type == 'ensemble':
+                if not ensemble_agreed:
+                    logger.info(
+                        f"アンサンブル不一致: {strategy_name} スキップ"
+                    )
+                    results[strategy_name] = []
+                    continue
+
+            elif filter_type == 'div_confidence':
+                max_entropy = strategy_config.get('max_entropy', 1.5)
+                if entropy_1st >= max_entropy:
+                    logger.info(
+                        f"div_confidence エントロピーフィルタ: {strategy_name} スキップ "
+                        f"(H={entropy_1st:.3f} >= {max_entropy})"
+                    )
+                    results[strategy_name] = []
+                    continue
+
+            # --- 使用する確率の決定 ---
+            if filter_type == 'ensemble' and ensemble_sanrentan is not None:
+                use_sanrentan = ensemble_sanrentan
+            else:
+                use_sanrentan = sanrentan_probs
+
             # 各戦略で独立bankroll
             if bankroll is not None:
                 br = bankroll
@@ -143,8 +277,9 @@ class KellyBettingStrategy:
                 br = float(self.initial_bankroll + profit)
 
             bets = self._strategy_kelly(
-                strategy_config, sanrentan_probs, odds_data, br,
+                strategy_config, use_sanrentan, odds_data, br,
                 strategy_name, venue_id, race_number,
+                divergence_map=divergence_map,
             )
             results[strategy_name] = bets
 
@@ -152,7 +287,8 @@ class KellyBettingStrategy:
 
     def _strategy_kelly(self, config, sanrentan_probs, odds_data,
                          bankroll, strategy_name,
-                         venue_id=None, race_number=None):
+                         venue_id=None, race_number=None,
+                         divergence_map=None):
         """共通ケリー戦略: オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
         candidates = []
         kelly_frac = config['kelly_fraction']
@@ -163,6 +299,8 @@ class KellyBettingStrategy:
         min_bet = config['min_bet_amount']
         odds_discount = config['odds_discount_factor']
         base_max_odds = config.get('max_odds', 9999)
+        filter_type = config.get('filter_type', 'none')
+        min_divergence = config.get('min_divergence_ratio', 2.0)
 
         # 発見1+2: 場・R番号でオッズ上限を動的調整
         if venue_id is not None and race_number is not None:
@@ -178,6 +316,13 @@ class KellyBettingStrategy:
             # オッズ上限フィルター（動的調整済み）
             if raw_odds > max_odds:
                 continue
+
+            # --- 乖離度フィルター (C, F) ---
+            if filter_type in ('divergence', 'div_confidence'):
+                if divergence_map:
+                    div_ratio = divergence_map.get(combo, 0.0)
+                    if div_ratio < min_divergence:
+                        continue
 
             # オッズ割引
             discounted_odds = raw_odds * odds_discount

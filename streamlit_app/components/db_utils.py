@@ -155,3 +155,64 @@ def get_daily_stats(days=30):
             ORDER BY r.race_date
         """, (days,))
         return cur.fetchall()
+
+
+def get_strategy_summary(start_date, end_date):
+    """全戦略サマリー（期間指定）
+
+    Returns:
+        list of dict: [{strategy_type, total_bets, total_amount, total_payout,
+                        roi, wins, total_races}]
+    """
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                b.strategy_type,
+                COUNT(*) as total_bets,
+                SUM(b.amount) as total_amount,
+                SUM(b.payout) as total_payout,
+                CASE WHEN SUM(b.amount) > 0
+                     THEN SUM(b.payout)::float / SUM(b.amount) * 100
+                     ELSE 0 END as roi,
+                COUNT(CASE WHEN b.payout > 0 THEN 1 END) as wins,
+                COUNT(DISTINCT b.race_id) as total_races
+            FROM bets b
+            JOIN races r ON b.race_id = r.id
+            WHERE b.result IS NOT NULL
+              AND r.race_date >= %s
+              AND r.race_date <= %s
+            GROUP BY b.strategy_type
+            ORDER BY b.strategy_type
+        """, (start_date, end_date))
+        return cur.fetchall()
+
+
+def get_daily_stats_by_period(start_date, end_date):
+    """期間指定の日別統計
+
+    Returns:
+        list of dict: [{race_date, strategy_type, total_bets,
+                        total_amount, total_payout, roi}]
+    """
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                r.race_date,
+                b.strategy_type,
+                COUNT(*) as total_bets,
+                SUM(b.amount) as total_amount,
+                SUM(b.payout) as total_payout,
+                CASE WHEN SUM(b.amount) > 0
+                     THEN SUM(b.payout)::float / SUM(b.amount) * 100
+                     ELSE 0 END as roi
+            FROM bets b
+            JOIN races r ON b.race_id = r.id
+            WHERE b.result IS NOT NULL
+              AND r.race_date >= %s
+              AND r.race_date <= %s
+            GROUP BY r.race_date, b.strategy_type
+            ORDER BY r.race_date
+        """, (start_date, end_date))
+        return cur.fetchall()

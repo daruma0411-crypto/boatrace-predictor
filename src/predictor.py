@@ -1,6 +1,7 @@
 """リアルタイム予測エンジン"""
 import json
 import logging
+import os
 import numpy as np
 import torch
 from src.models import load_model, BoatraceMultiTaskModel
@@ -9,6 +10,14 @@ from src.database import get_db_connection
 from utils.timezone import now_jst
 
 logger = logging.getLogger(__name__)
+
+# アンサンブル用モデルパス一覧
+ENSEMBLE_MODEL_PATHS = [
+    'models/boatrace_model.pth',
+    'models/boatrace_model_s05.pth',
+    'models/boatrace_model_s07.pth',
+    'models/boatrace_model_s085.pth',
+]
 
 
 class RealtimePredictor:
@@ -130,3 +139,61 @@ class RealtimePredictor:
                 })
 
             return race_data, boats_data
+
+
+class EnsemblePredictor:
+    """4モデルアンサンブル予測: 特徴量計算1回、推論だけ各モデルで実行"""
+
+    def __init__(self, model_paths=None):
+        self.model_paths = model_paths or ENSEMBLE_MODEL_PATHS
+        self.feature_engineer = FeatureEngineer()
+        self.models = {}  # 遅延ロード
+        self.device = torch.device('cpu')
+
+    def _ensure_models(self):
+        """全モデルを遅延ロード"""
+        for path in self.model_paths:
+            if path in self.models:
+                continue
+            if not os.path.exists(path):
+                logger.warning(f"アンサンブルモデル未発見: {path}")
+                continue
+            try:
+                self.models[path] = load_model(path, self.device)
+                logger.info(f"アンサンブルモデルロード: {path}")
+            except Exception as e:
+                logger.warning(f"アンサンブルモデルロード失敗: {path}: {e}")
+
+    def predict_all(self, race_data, boats_data):
+        """全モデルで推論し、結果リストを返す
+
+        Returns:
+            list of dict: [{probs_1st, probs_2nd, probs_3rd, model_path}, ...]
+        """
+        self._ensure_models()
+
+        if not self.models:
+            logger.warning("アンサンブル: ロード済みモデルなし")
+            return []
+
+        # 特徴量は1回だけ計算
+        features = self.feature_engineer.transform(race_data, boats_data)
+        x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
+
+        results = []
+        for path, model in self.models.items():
+            with torch.no_grad():
+                out_1st, out_2nd, out_3rd = model(x)
+
+            probs_1st = torch.softmax(out_1st, dim=1).squeeze().numpy()
+            probs_2nd = torch.softmax(out_2nd, dim=1).squeeze().numpy()
+            probs_3rd = torch.softmax(out_3rd, dim=1).squeeze().numpy()
+
+            results.append({
+                'probs_1st': probs_1st.tolist(),
+                'probs_2nd': probs_2nd.tolist(),
+                'probs_3rd': probs_3rd.tolist(),
+                'model_path': path,
+            })
+
+        return results

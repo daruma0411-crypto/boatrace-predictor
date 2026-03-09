@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from src.scraper import _get_session, scrape_racelist, scrape_race_deadlines
 from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
-from src.predictor import RealtimePredictor
+from src.predictor import RealtimePredictor, EnsemblePredictor
 from src.betting import KellyBettingStrategy
 from src.result_collector import ResultCollector
 from utils.timezone import now_jst, format_jst
@@ -32,6 +32,7 @@ class DynamicRaceScheduler:
         self.session = _get_session()
         self.collector = RealtimeDataCollector()
         self.predictor = RealtimePredictor(model_path)
+        self.ensemble_predictor = EnsemblePredictor()
         self.betting = KellyBettingStrategy()
         self.result_collector = ResultCollector()
         self.processed_races = set()
@@ -368,6 +369,15 @@ class DynamicRaceScheduler:
 
             prediction = self.predictor.predict(race_data, boats_data)
 
+            # アンサンブル予測（戦略E用）
+            try:
+                ensemble_preds = self.ensemble_predictor.predict_all(
+                    race_data, boats_data
+                )
+            except Exception as e:
+                logger.warning(f"アンサンブル予測エラー: {e}")
+                ensemble_preds = None
+
             odds_dict = self._parse_odds(odds_data) if odds_data else {}
 
             all_bets = self.betting.calculate_all_strategies(
@@ -377,6 +387,7 @@ class DynamicRaceScheduler:
                 odds_dict,
                 venue_id=race['venue_id'],
                 race_number=race['race_number'],
+                ensemble_predictions=ensemble_preds,
             )
 
             for strategy_type, bets in all_bets.items():
