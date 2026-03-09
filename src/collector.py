@@ -26,31 +26,41 @@ class RealtimeDataCollector:
         return self._odds_provider
 
     def get_exhibition_data(self, race_date, venue_id, race_number, deadline_time):
-        """展示データを取得（最大3回リトライ）
+        """直前情報を取得（最大3回リトライ）
 
-        scraper.py の scrape_beforeinfo で展示タイム・進入コースを取得。
+        scraper.py の scrape_beforeinfo で天候・展示タイム・チルト・部品交換を取得。
         取得失敗時は枠なりダミーを返す。
+
+        Returns:
+            dict: {'weather': {...}, 'boats': [...]}
         """
         max_retries = 3
         for attempt in range(max_retries):
             try:
                 data = scrape_beforeinfo(self.session, race_date, venue_id, race_number)
-                if data:
+                if data and data.get('boats'):
                     logger.info(
-                        f"展示データ取得成功: 場{venue_id} R{race_number}"
+                        f"直前情報取得成功: 場{venue_id} R{race_number}"
                     )
                     return data
             except Exception as e:
                 logger.warning(
-                    f"展示データ取得失敗(試行{attempt+1}/{max_retries}): {e}"
+                    f"直前情報取得失敗(試行{attempt+1}/{max_retries}): {e}"
                 )
             time.sleep(5)
 
         # フォールバック: 枠なりダミーデータ
         logger.info(
-            f"展示データフォールバック(枠なり): 場{venue_id} R{race_number}"
+            f"直前情報フォールバック(枠なり): 場{venue_id} R{race_number}"
         )
-        return self._generate_fallback_exhibition()
+        return {
+            'weather': {
+                'temperature': None, 'wind_speed': None,
+                'wind_direction': 'calm', 'wave_height': None,
+                'water_temperature': None,
+            },
+            'boats': self._generate_fallback_exhibition(),
+        }
 
     def get_racelist_data(self, race_date, venue_id, race_number):
         """出走表データを取得"""

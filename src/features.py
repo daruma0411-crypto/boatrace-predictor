@@ -1,4 +1,7 @@
-"""特徴量エンジニアリング (194次元)"""
+"""特徴量エンジニアリング (208次元)
+
+v2: 直前情報追加 — 波高・水温(global) + チルト・部品交換(per-boat)
+"""
 import logging
 import numpy as np
 
@@ -10,15 +13,19 @@ PLAYER_CLASSES = ['A1', 'A2', 'B1', 'B2']
 
 
 class FeatureEngineer:
-    """レースデータを194次元特徴量に変換
+    """レースデータを208次元特徴量に変換
 
-    グローバル14次元 + 艇別30次元×6艇 = 194次元
+    グローバル16次元 + 艇別32次元×6艇 = 208次元
+
+    v1 (194次元) からの追加:
+      global: +波高(1) +水温(1) = +2
+      per-boat: +チルト(1) +部品交換フラグ(1) = +2
     """
 
-    GLOBAL_DIM = 14
-    PER_BOAT_DIM = 30
+    GLOBAL_DIM = 16
+    PER_BOAT_DIM = 32
     NUM_BOATS = 6
-    TOTAL_DIM = GLOBAL_DIM + PER_BOAT_DIM * NUM_BOATS  # 194
+    TOTAL_DIM = GLOBAL_DIM + PER_BOAT_DIM * NUM_BOATS  # 208
 
     def transform(self, race_data, boats_data):
         """レースデータと艇データから特徴量ベクトルを生成"""
@@ -40,9 +47,10 @@ class FeatureEngineer:
         return features
 
     def _extract_global(self, race_data):
-        """グローバル特徴量 (14次元)
+        """グローバル特徴量 (16次元)
 
-        場ID(1) + 月(1) + 距離(1) + 風速(1) + 風向OneHot(9) + 気温(1) = 14
+        場ID(1) + 月(1) + 距離(1) + 風速(1) + 風向OneHot(9) + 気温(1)
+        + 波高(1) + 水温(1) = 16
         """
         features = []
 
@@ -67,16 +75,25 @@ class FeatureEngineer:
         temperature = race_data.get('temperature', 20)
         features.append(temperature / 40.0)
 
+        # v2: 波高 (cm → 正規化: /20)
+        wave_height = race_data.get('wave_height', 0) or 0
+        features.append(wave_height / 20.0)
+
+        # v2: 水温 (℃ → 正規化: /40)
+        water_temperature = race_data.get('water_temperature', 20) or 20
+        features.append(water_temperature / 40.0)
+
         return np.array(features, dtype=np.float32)
 
     def _extract_boat(self, boat_data, all_boats):
-        """艇別特徴量 (30次元)
+        """艇別特徴量 (32次元)
 
         級別OneHot(4) + 全国勝率相対(1) + 全国2連率(1) + 全国3連率(1) +
         当地勝率(1) + 当地2連率(1) + 平均ST(1) + 内側平均ST差(1) +
         モーター2連率(1) + モーター3連率(1) + ボート2連率(1) +
         新モーターフラグ(1) + 体重差分(1) + 展示タイム差分(1) +
-        進入コースOneHot(6) + フォールバックフラグ(1) + 枠番OneHot(6) = 30
+        進入コースOneHot(6) + フォールバックフラグ(1) + 枠番OneHot(6)
+        + チルト(1) + 部品交換フラグ(1) = 32
         """
         features = []
 
@@ -165,6 +182,15 @@ class FeatureEngineer:
         if 1 <= boat_number <= 6:
             boat_num_onehot[boat_number - 1] = 1.0
         features.extend(boat_num_onehot)
+
+        # v2: チルト (度 → 正規化: /3.0, 通常 -0.5〜3.0)
+        tilt = boat_data.get('tilt', 0.0) or 0.0
+        features.append(tilt / 3.0)
+
+        # v2: 部品交換フラグ
+        features.append(
+            1.0 if boat_data.get('parts_changed', False) else 0.0
+        )
 
         return np.array(features, dtype=np.float32)
 

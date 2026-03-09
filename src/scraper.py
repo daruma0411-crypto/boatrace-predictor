@@ -390,11 +390,169 @@ def scrape_odds_3t(session, race_date, venue_id, race_number, max_retries=3):
     return None
 
 
-def scrape_beforeinfo(session, race_date, venue_id, race_number):
-    """直前情報ページから展示タイム・進入コースを取得
+# 風向CSSクラス番号 → 8方位マッピング（is-wind1〜16 → N/NE/E/SE/S/SW/W/NW, 17=calm）
+_WIND_CLASS_MAP = {
+    1: 'N', 2: 'N', 3: 'NE', 4: 'NE',
+    5: 'E', 6: 'E', 7: 'SE', 8: 'SE',
+    9: 'S', 10: 'S', 11: 'SW', 12: 'SW',
+    13: 'W', 14: 'W', 15: 'NW', 16: 'NW',
+    17: 'calm',
+}
+
+
+def _parse_weather(soup):
+    """weather1 セクションから天候データを抽出
 
     Returns:
-        list[dict] or None
+        dict: {temperature, wind_speed, wind_direction, wave_height, water_temperature}
+    """
+    weather = {
+        'temperature': None,
+        'wind_speed': None,
+        'wind_direction': 'calm',
+        'wave_height': None,
+        'water_temperature': None,
+    }
+
+    weather_div = soup.find('div', class_='weather1')
+    if not weather_div:
+        return weather
+
+    # 風速: "風速" ラベルの隣テキスト "2m"
+    wind_label = weather_div.find(string=re.compile(r'風速'))
+    if wind_label:
+        sib = wind_label.find_next(string=re.compile(r'\d+'))
+        if sib:
+            m = re.search(r'(\d+)', sib)
+            if m:
+                weather['wind_speed'] = int(m.group(1))
+
+    # 波高: "波高" ラベルの隣テキスト "1cm"
+    wave_label = weather_div.find(string=re.compile(r'波高'))
+    if wave_label:
+        sib = wave_label.find_next(string=re.compile(r'\d+'))
+        if sib:
+            m = re.search(r'(\d+)', sib)
+            if m:
+                weather['wave_height'] = int(m.group(1))
+
+    # 気温: "気温" ラベルの隣テキスト "10.0℃"
+    temp_label = weather_div.find(string=re.compile(r'気温'))
+    if temp_label:
+        sib = temp_label.find_next(string=re.compile(r'[\d.]+'))
+        if sib:
+            m = re.search(r'([\d.]+)', sib)
+            if m:
+                weather['temperature'] = float(m.group(1))
+
+    # 水温: "水温" ラベルの隣テキスト "11.0℃"
+    water_label = weather_div.find(string=re.compile(r'水温'))
+    if water_label:
+        sib = water_label.find_next(string=re.compile(r'[\d.]+'))
+        if sib:
+            m = re.search(r'([\d.]+)', sib)
+            if m:
+                weather['water_temperature'] = float(m.group(1))
+
+    # 風向: CSSクラス is-windXX → 8方位
+    wind_dir_p = weather_div.find(
+        'p', class_=lambda c: c and any('is-wind' in x for x in (c if isinstance(c, list) else [c]))
+    )
+    if wind_dir_p:
+        classes = wind_dir_p.get('class', [])
+        for cls in classes:
+            m = re.match(r'is-wind(\d+)', cls)
+            if m:
+                wind_num = int(m.group(1))
+                weather['wind_direction'] = _WIND_CLASS_MAP.get(wind_num, 'calm')
+                break
+
+    return weather
+
+
+def _parse_boat_beforeinfo(tbody):
+    """tbody (1艇分) から直前情報を抽出
+
+    td[0]: 枠番
+    td[3]: 体重 "53.7kg"
+    td[4]: 展示タイム "6.75"
+    td[5]: チルト "-0.5"
+    td[7]: 部品交換 (空 or テキスト)
+    """
+    tds = tbody.find_all('td')
+    if len(tds) < 8:
+        return None
+
+    boat_number = _parse_int(tds[0].get_text(strip=True))
+    if not boat_number:
+        return None
+
+    # 体重
+    weight_text = tds[3].get_text(strip=True)
+    weight = None
+    w_match = re.search(r'([\d.]+)', weight_text)
+    if w_match:
+        weight = float(w_match.group(1))
+
+    # 展示タイム
+    exhibition_time = _parse_float(tds[4].get_text(strip=True))
+
+    # チルト
+    tilt = _parse_float(tds[5].get_text(strip=True))
+
+    # 部品交換
+    parts_text = tds[7].get_text(strip=True) if len(tds) > 7 else ''
+    parts_changed = bool(parts_text)
+
+    return {
+        'boat_number': boat_number,
+        'weight': weight,
+        'exhibition_time': exhibition_time,
+        'tilt': tilt,
+        'parts_changed': parts_changed,
+        'parts_detail': parts_text if parts_changed else None,
+    }
+
+
+def _parse_start_exhibition(soup):
+    """スタート展示セクションから進入コースを抽出
+
+    tbody の最後のブロック (6セル) に "X.YY" 形式のデータが格納。
+    整数部分が艇番号、小数部分×100で進入コースを推定。
+
+    Returns:
+        dict: {boat_number: approach_course, ...}
+    """
+    tbodies = soup.find_all('tbody')
+    approach = {}
+
+    # 最後の tbody (6セル) がスタート展示
+    for tb in reversed(tbodies):
+        tds = tb.find_all('td')
+        if len(tds) == 6:
+            for course, td in enumerate(tds, 1):
+                text = td.get_text(strip=True)
+                # "1.18" → 整数部=艇番号
+                m = re.match(r'^(\d)', text)
+                if m:
+                    boat_num = int(m.group(1))
+                    approach[boat_num] = course
+            if approach:
+                break
+
+    return approach
+
+
+def scrape_beforeinfo(session, race_date, venue_id, race_number):
+    """直前情報ページから天候・展示タイム・チルト・部品交換・進入コースを取得
+
+    Returns:
+        dict: {
+            'weather': {temperature, wind_speed, wind_direction, wave_height, water_temperature},
+            'boats': [{boat_number, weight, exhibition_time, tilt, parts_changed,
+                       parts_detail, approach_course}, ...]
+        }
+        or None
     """
     hd = race_date.strftime('%Y%m%d')
     url = f"{BASE_URL}/beforeinfo?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
@@ -408,15 +566,36 @@ def scrape_beforeinfo(session, race_date, venue_id, race_number):
 
     soup = BeautifulSoup(r.text, 'html.parser')
 
-    # 展示タイムテーブルを探す
-    result = []
-    # 展示タイムは "is-fs14" クラスの要素に格納されることが多い
-    # 簡易実装: 6艇分のデータだけ返す
-    for boat_number in range(1, 7):
-        result.append({
-            'boat_number': boat_number,
-            'exhibition_time': None,
-            'approach_course': boat_number,  # デフォルト枠なり
-        })
+    # 天候データ
+    weather = _parse_weather(soup)
 
-    return result
+    # 6艇分の直前データ
+    tbodies = soup.find_all('tbody')
+    boats = []
+    for i in range(1, 7):
+        if i < len(tbodies):
+            boat_data = _parse_boat_beforeinfo(tbodies[i])
+            if boat_data:
+                boats.append(boat_data)
+
+    if len(boats) != 6:
+        logger.debug(
+            f"直前情報パース不完全: 場{venue_id} R{race_number} "
+            f"({len(boats)}/6艇)"
+        )
+
+    # 進入コース
+    approach = _parse_start_exhibition(soup)
+    for boat in boats:
+        boat['approach_course'] = approach.get(
+            boat['boat_number'], boat['boat_number']
+        )
+
+    logger.info(
+        f"直前情報取得: 場{venue_id} R{race_number} "
+        f"(風{weather['wind_direction']}{weather.get('wind_speed', '?')}m "
+        f"波{weather.get('wave_height', '?')}cm "
+        f"展示{[b.get('exhibition_time') for b in boats]})"
+    )
+
+    return {'weather': weather, 'boats': boats}

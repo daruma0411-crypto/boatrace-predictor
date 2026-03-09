@@ -10,12 +10,12 @@ logger = logging.getLogger(__name__)
 class BoatraceMultiTaskModel(nn.Module):
     """マルチタスク学習モデル: 1着/2着/3着を同時予測
 
-    入力: 194次元 (グローバル14 + 艇別30×6)
+    入力: 208次元 (グローバル16 + 艇別32×6)
     隠れ層: [512, 256, 128]
     出力: 6ユニット×3ヘッド
     """
 
-    def __init__(self, input_dim=194, hidden_dims=None, num_boats=6):
+    def __init__(self, input_dim=208, hidden_dims=None, num_boats=6):
         super().__init__()
         if hidden_dims is None:
             hidden_dims = [512, 256, 128]

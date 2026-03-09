@@ -189,11 +189,15 @@ class DynamicRaceScheduler:
                 exhibition_data = future_ex.result(timeout=300)
                 odds_data = future_odds.result(timeout=300)
 
-            if not exhibition_data:
+            if not exhibition_data or not exhibition_data.get('boats'):
                 logger.warning(
-                    f"展示データなし: 場{race['venue_id']} R{race['race_number']}"
+                    f"直前情報なし: 場{race['venue_id']} R{race['race_number']}"
                 )
                 return
+
+            # 直前情報から天候データを抽出
+            beforeinfo_weather = exhibition_data.get('weather', {})
+            beforeinfo_boats = exhibition_data.get('boats', [])
 
             race_data, boats_data = self.predictor._get_pre_race_data(
                 race['race_id']
@@ -217,20 +221,37 @@ class DynamicRaceScheduler:
                     'temperature': 20,
                 }
 
-            # 展示データをマージ
-            if exhibition_data and boats_data:
-                for ex_boat in exhibition_data:
+            # 天候データをrace_dataにマージ
+            if beforeinfo_weather:
+                if beforeinfo_weather.get('wind_speed') is not None:
+                    race_data['wind_speed'] = beforeinfo_weather['wind_speed']
+                if beforeinfo_weather.get('wind_direction'):
+                    race_data['wind_direction'] = beforeinfo_weather['wind_direction']
+                if beforeinfo_weather.get('temperature') is not None:
+                    race_data['temperature'] = beforeinfo_weather['temperature']
+                race_data['wave_height'] = beforeinfo_weather.get('wave_height', 0)
+                race_data['water_temperature'] = beforeinfo_weather.get(
+                    'water_temperature', 20
+                )
+
+            # 直前情報(展示タイム・チルト・部品交換・進入コース)をマージ
+            if beforeinfo_boats and boats_data:
+                for ex_boat in beforeinfo_boats:
                     for db_boat in boats_data:
                         if db_boat['boat_number'] == ex_boat['boat_number']:
                             db_boat['exhibition_time'] = ex_boat.get(
                                 'exhibition_time'
                             )
                             db_boat['approach_course'] = ex_boat.get(
-                                'approach_course'
+                                'approach_course', db_boat['boat_number']
                             )
-                            db_boat['fallback_flag'] = ex_boat.get(
-                                'fallback_flag', False
+                            db_boat['tilt'] = ex_boat.get('tilt')
+                            db_boat['parts_changed'] = ex_boat.get(
+                                'parts_changed', False
                             )
+                            db_boat['fallback_flag'] = False
+                            if ex_boat.get('weight') is not None:
+                                db_boat['weight'] = ex_boat['weight']
                             break
 
             prediction = self.predictor.predict(race_data, boats_data)

@@ -170,6 +170,8 @@ def build_boats_data(boats_raw):
             'boat_win_rate_2': b.get('boat_win_rate_2'),
             'weight': b.get('weight'),
             'exhibition_time': None,
+            'tilt': None,
+            'parts_changed': False,
             'approach_course': b['boat_number'],  # 枠なり仮定
             'is_new_motor': False,
             'fallback_flag': True,
@@ -243,12 +245,15 @@ def main():
     venue_name = VENUE_NAMES.get(venue_id, f'場{venue_id}')
     print(f"\n  ターゲット: {venue_name} R{race_number}")
 
-    # ── Step 2: 出走表データ取得 → 特徴量生成 → AIモデル推論 ──
-    print("\n[Step 2] 出走表取得 → AIモデル推論")
+    # ── Step 2: 出走表 + 直前情報取得 → 特徴量生成 → AIモデル推論 ──
+    print("\n[Step 2] 出走表 + 直前情報取得 → AIモデル推論")
     boats_raw = scrape_racelist(session, today, venue_id, race_number)
     if not boats_raw or len(boats_raw) != 6:
         print("  出走表取得失敗")
         sys.exit(1)
+
+    # 直前情報取得（天候 + 展示タイム + チルト + 部品交換）
+    beforeinfo = scrape_beforeinfo(session, today, venue_id, race_number)
 
     boats_data = build_boats_data(boats_raw)
     race_data = {
@@ -258,26 +263,81 @@ def main():
         'wind_speed': 0,
         'wind_direction': 'calm',
         'temperature': 20,
+        'wave_height': 0,
+        'water_temperature': 20,
     }
 
-    # 選手情報表示
-    print(f"\n  {'枠':>2}  {'選手名':<8} {'級':>2} {'勝率':>5} {'2連率':>6} {'ST':>5}")
-    print("  " + "-" * 42)
-    for b in boats_raw:
-        name = (b.get('player_name') or '???')[:8]
-        cls = b.get('player_class') or '??'
-        wr = b.get('win_rate') or 0.0
-        w2 = b.get('win_rate_2') or 0.0
-        st = b.get('avg_st') or 0.0
-        print(f"  {b['boat_number']:>2}  {name:<8} {cls:>2} {wr:>5.2f} {w2:>5.1f}% {st:>5.2f}")
+    # 直前情報をマージ
+    if beforeinfo:
+        weather = beforeinfo.get('weather', {})
+        if weather.get('wind_speed') is not None:
+            race_data['wind_speed'] = weather['wind_speed']
+        if weather.get('wind_direction'):
+            race_data['wind_direction'] = weather['wind_direction']
+        if weather.get('temperature') is not None:
+            race_data['temperature'] = weather['temperature']
+        race_data['wave_height'] = weather.get('wave_height', 0) or 0
+        race_data['water_temperature'] = weather.get('water_temperature', 20) or 20
+
+        # 展示タイム・チルト・部品交換・進入コース・体重をboats_dataにマージ
+        bi_boats = beforeinfo.get('boats', [])
+        for bi_boat in bi_boats:
+            for bd in boats_data:
+                if bd['boat_number'] == bi_boat['boat_number']:
+                    bd['exhibition_time'] = bi_boat.get('exhibition_time')
+                    bd['tilt'] = bi_boat.get('tilt')
+                    bd['parts_changed'] = bi_boat.get('parts_changed', False)
+                    bd['approach_course'] = bi_boat.get(
+                        'approach_course', bd['boat_number']
+                    )
+                    bd['fallback_flag'] = False
+                    if bi_boat.get('weight') is not None:
+                        bd['weight'] = bi_boat['weight']
+                    break
+
+        # 天候情報表示
+        print(f"\n  天候: {weather.get('wind_direction', '?')}の風 "
+              f"{weather.get('wind_speed', '?')}m  "
+              f"波高{weather.get('wave_height', '?')}cm  "
+              f"気温{weather.get('temperature', '?')}℃  "
+              f"水温{weather.get('water_temperature', '?')}℃")
+    else:
+        print("\n  直前情報取得失敗 → デフォルト値使用")
+
+    # 選手情報表示（展示タイム・チルト追加）
+    print(f"\n  {'枠':>2}  {'選手名':<8} {'級':>2} {'勝率':>5} {'2連率':>6} "
+          f"{'ST':>5} {'展示':>5} {'ﾁﾙﾄ':>5} {'部品':>4}")
+    print("  " + "-" * 62)
+    for bd in boats_data:
+        name = (bd.get('player_name') or '???')[:8]
+        # player_name is from boats_raw, need to look it up
+        raw = next((b for b in boats_raw if b['boat_number'] == bd['boat_number']), {})
+        name = (raw.get('player_name') or '???')[:8]
+        cls = raw.get('player_class') or '??'
+        wr = raw.get('win_rate') or 0.0
+        w2 = raw.get('win_rate_2') or 0.0
+        st = raw.get('avg_st') or 0.0
+        ex = bd.get('exhibition_time')
+        ex_str = f"{ex:>5.2f}" if ex else "  N/A"
+        tilt = bd.get('tilt')
+        tilt_str = f"{tilt:>+5.1f}" if tilt is not None else "  N/A"
+        parts = "YES" if bd.get('parts_changed') else "-"
+        print(f"  {bd['boat_number']:>2}  {name:<8} {cls:>2} {wr:>5.2f} "
+              f"{w2:>5.1f}% {st:>5.2f} {ex_str} {tilt_str} {parts:>4}")
 
     # モデル推論
     fe = FeatureEngineer()
     try:
         model = load_model('models/boatrace_model.pth', torch.device('cpu'))
-    except FileNotFoundError:
-        print("  モデルファイルなし → ダミーモデル使用")
-        model = BoatraceMultiTaskModel()
+        # 次元チェック: 旧モデル(194次元) vs 新特徴量(208次元)
+        if model.input_dim != fe.TOTAL_DIM:
+            print(f"  モデル次元不一致 ({model.input_dim} != {fe.TOTAL_DIM}) "
+                  f"→ 新ダミーモデル使用")
+            model = BoatraceMultiTaskModel(input_dim=fe.TOTAL_DIM)
+            model.eval()
+    except (FileNotFoundError, RuntimeError) as e:
+        print(f"  モデル読み込み不可({type(e).__name__}) → ダミーモデル使用")
+        model = BoatraceMultiTaskModel(input_dim=fe.TOTAL_DIM)
         model.eval()
 
     features = fe.transform(race_data, boats_data)
