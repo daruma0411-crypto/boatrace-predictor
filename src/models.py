@@ -50,17 +50,34 @@ class BoatraceMultiTaskModel(nn.Module):
 
 
 class BoatraceMultiTaskLoss(nn.Module):
-    """マルチタスク加重損失: [1着×1.0, 2着×0.7, 3着×0.5]"""
+    """マルチタスク加重損失: [1着×1.0, 2着×0.7, 3着×0.5]
 
-    def __init__(self, weights=None):
+    class_weights_1st: 1着ヘッド用のクラス重み (Tensor, shape=[6])
+        出現頻度の逆数ベースで、1号艇のLoss寄与を下げ、
+        穴番（2〜6号艇）の正解時のLoss寄与を上げる。
+    class_weights_2nd, class_weights_3rd: 同様に2着/3着ヘッド用
+    """
+
+    def __init__(self, weights=None,
+                 class_weights_1st=None,
+                 class_weights_2nd=None,
+                 class_weights_3rd=None):
         super().__init__()
         self.weights = weights or [1.0, 0.7, 0.5]
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion_1st = nn.CrossEntropyLoss(
+            weight=class_weights_1st
+        )
+        self.criterion_2nd = nn.CrossEntropyLoss(
+            weight=class_weights_2nd
+        )
+        self.criterion_3rd = nn.CrossEntropyLoss(
+            weight=class_weights_3rd
+        )
 
     def forward(self, outputs, targets):
-        loss_1st = self.criterion(outputs[0], targets[0])
-        loss_2nd = self.criterion(outputs[1], targets[1])
-        loss_3rd = self.criterion(outputs[2], targets[2])
+        loss_1st = self.criterion_1st(outputs[0], targets[0])
+        loss_2nd = self.criterion_2nd(outputs[1], targets[1])
+        loss_3rd = self.criterion_3rd(outputs[2], targets[2])
         return (self.weights[0] * loss_1st +
                 self.weights[1] * loss_2nd +
                 self.weights[2] * loss_3rd)

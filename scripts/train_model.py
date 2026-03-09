@@ -1,4 +1,4 @@
-"""モデル訓練スクリプト: 過去3年データ、Early Stopping"""
+"""モデル訓練スクリプト: クラス重み付き + 一括データ取得 + Early Stopping"""
 import sys
 import os
 import logging
@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from datetime import datetime, timedelta
+from collections import defaultdict, Counter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -18,18 +19,51 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def load_training_data(years=3):
-    """過去N年分のレースデータをDBから取得し特徴量に変換"""
+def compute_class_weights(labels, num_classes=6, smoothing=0.3):
+    """出現頻度の逆数ベースのクラス重みを計算
+
+    smoothing: 0.0=完全逆数, 1.0=均等重み
+        0.3 は穴番を約3倍重視しつつ、1号艇も完全無視しない設定
+
+    例 (54kデータ):
+        1号艇: 54.6% → weight ≈ 0.56
+        2号艇: 13.5% → weight ≈ 1.35
+        3号艇: 12.7% → weight ≈ 1.43
+        4号艇: 10.1% → weight ≈ 1.60
+        5号艇:  5.9% → weight ≈ 2.11
+        6号艇:  3.1% → weight ≈ 2.79
+    """
+    counts = Counter(labels.tolist())
+    total = len(labels)
+
+    # 逆頻度重み: w_i = total / (num_classes * count_i)
+    raw_weights = []
+    for i in range(num_classes):
+        count = counts.get(i, 1)
+        raw_weights.append(total / (num_classes * count))
+
+    raw_weights = np.array(raw_weights, dtype=np.float32)
+
+    # スムージング: smoothed = (1 - s) * raw + s * 1.0
+    smoothed = (1 - smoothing) * raw_weights + smoothing * np.ones(num_classes)
+
+    # 正規化（平均1.0に）
+    smoothed = smoothed / smoothed.mean()
+
+    return torch.FloatTensor(smoothed)
+
+
+def load_training_data_fast(years=3):
+    """過去N年分のレースデータをDB一括取得→特徴量変換"""
     feature_engineer = FeatureEngineer()
     cutoff_date = datetime.now() - timedelta(days=365 * years)
 
-    X_list = []
-    y1_list = []
-    y2_list = []
-    y3_list = []
+    logger.info("データ一括取得中...")
 
     with get_db_connection() as conn:
         cur = conn.cursor()
+
+        # レース一括取得
         cur.execute("""
             SELECT r.id, r.venue_id, r.race_date,
                    r.result_1st, r.result_2nd, r.result_3rd
@@ -39,42 +73,58 @@ def load_training_data(years=3):
             ORDER BY r.race_date
         """, (cutoff_date.date(),))
         races = cur.fetchall()
+        logger.info(f"レース取得: {len(races):,}件")
 
-        logger.info(f"訓練対象レース: {len(races)}件")
+        race_ids = [r['id'] for r in races]
 
-        for race in races:
-            cur.execute("""
-                SELECT * FROM boats
-                WHERE race_id = %s
-                ORDER BY boat_number
-            """, (race['id'],))
-            boats = cur.fetchall()
+        # boats 一括取得
+        cur.execute("""
+            SELECT race_id, boat_number, player_class,
+                   win_rate, win_rate_2, win_rate_3,
+                   local_win_rate, local_win_rate_2,
+                   avg_st, motor_win_rate_2, motor_win_rate_3,
+                   boat_win_rate_2, weight, exhibition_time,
+                   approach_course, is_new_motor
+            FROM boats
+            WHERE race_id = ANY(%s)
+            ORDER BY race_id, boat_number
+        """, (race_ids,))
+        all_boats = cur.fetchall()
+        logger.info(f"ボート取得: {len(all_boats):,}件")
 
-            if len(boats) != 6:
-                continue
+    # レースIDごとにグループ化
+    boats_by_race = defaultdict(list)
+    for b in all_boats:
+        boats_by_race[b['race_id']].append(dict(b))
 
-            race_data = {
-                'venue_id': race['venue_id'],
-                'month': race['race_date'].month,
-                'distance': 1800,
-                'wind_speed': 0,
-                'wind_direction': 'calm',
-                'temperature': 20,
-            }
+    logger.info("特徴量生成中...")
+    X_list = []
+    y1_list = []
+    y2_list = []
+    y3_list = []
 
-            boats_data = [dict(b) for b in boats]
+    for race in races:
+        boats = boats_by_race.get(race['id'], [])
+        if len(boats) != 6:
+            continue
 
-            try:
-                features = feature_engineer.transform(race_data, boats_data)
-                X_list.append(features)
+        race_data = {
+            'venue_id': race['venue_id'],
+            'month': race['race_date'].month,
+            'distance': 1800,
+            'wind_speed': 0,
+            'wind_direction': 'calm',
+            'temperature': 20,
+        }
 
-                # 実際の着順ラベル（1始まり→0始まり）
-                y1_list.append(race['result_1st'] - 1)
-                y2_list.append(race['result_2nd'] - 1)
-                y3_list.append(race['result_3rd'] - 1)
-            except Exception as e:
-                logger.warning(f"特徴量変換エラー (race_id={race['id']}): {e}")
-                continue
+        try:
+            features = feature_engineer.transform(race_data, boats)
+            X_list.append(features)
+            y1_list.append(race['result_1st'] - 1)
+            y2_list.append(race['result_2nd'] - 1)
+            y3_list.append(race['result_3rd'] - 1)
+        except Exception as e:
+            continue
 
     if not X_list:
         logger.warning("訓練データが0件です")
@@ -85,18 +135,35 @@ def load_training_data(years=3):
     y2 = np.array(y2_list, dtype=np.int64)
     y3 = np.array(y3_list, dtype=np.int64)
 
-    logger.info(f"訓練データ: {len(X)}件, 特徴量次元: {X.shape[1]}")
+    logger.info(f"訓練データ: {len(X):,}件, 特徴量次元: {X.shape[1]}")
     return X, y1, y2, y3
 
 
-def train(epochs=100, batch_size=256, lr=0.001, patience=10):
-    """モデル訓練（Early Stopping付き）"""
-    logger.info("=== モデル訓練開始 ===")
+def train(epochs=100, batch_size=256, lr=0.001, patience=10,
+          weight_smoothing=0.3):
+    """モデル訓練（クラス重み + Early Stopping）
 
-    X, y1, y2, y3 = load_training_data()
+    Args:
+        weight_smoothing: クラス重みの平滑化パラメータ
+            0.0 = 完全な逆頻度重み（穴番を極端に重視）
+            0.3 = デフォルト（穴番を適度に重視）
+            1.0 = 均等重み（旧来と同じ）
+    """
+    logger.info("=== モデル訓練開始 ===")
+    logger.info(f"クラス重みスムージング: {weight_smoothing}")
+
+    X, y1, y2, y3 = load_training_data_fast()
     if X is None:
-        logger.error("訓練データがありません。先にcollect_historical_data.pyを実行してください。")
+        logger.error("訓練データがありません。")
         return
+
+    # === クラス重み計算 ===
+    cw_1st = compute_class_weights(y1, smoothing=weight_smoothing)
+    cw_2nd = compute_class_weights(y2, smoothing=weight_smoothing)
+    cw_3rd = compute_class_weights(y3, smoothing=weight_smoothing)
+
+    logger.info(f"1着クラス重み: {['%.2f' % w for w in cw_1st.tolist()]}")
+    logger.info(f"  (1号艇={cw_1st[0]:.2f}, 6号艇={cw_1st[5]:.2f}, 比率={cw_1st[5]/cw_1st[0]:.1f}x)")
 
     # 訓練/検証 分割 (8:2)
     n = len(X)
@@ -125,7 +192,11 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10):
     logger.info(f"デバイス: {device}")
 
     model = BoatraceMultiTaskModel().to(device)
-    criterion = BoatraceMultiTaskLoss()
+    criterion = BoatraceMultiTaskLoss(
+        class_weights_1st=cw_1st.to(device),
+        class_weights_2nd=cw_2nd.to(device),
+        class_weights_3rd=cw_3rd.to(device),
+    )
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=5, factor=0.5
@@ -188,6 +259,8 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10):
                 'val_loss': val_loss,
                 'train_size': len(train_idx),
                 'val_size': len(val_idx),
+                'class_weights_1st': cw_1st.tolist(),
+                'weight_smoothing': weight_smoothing,
             })
         else:
             patience_counter += 1
@@ -202,4 +275,18 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10):
 
 
 if __name__ == '__main__':
-    train()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--smoothing', type=float, default=0.3,
+                        help='クラス重みスムージング (0.0=逆頻度, 1.0=均等)')
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--patience', type=int, default=10)
+    args = parser.parse_args()
+
+    train(
+        epochs=args.epochs,
+        lr=args.lr,
+        patience=args.patience,
+        weight_smoothing=args.smoothing,
+    )
