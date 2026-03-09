@@ -16,6 +16,14 @@ class RealtimeDataCollector:
 
     def __init__(self):
         self.session = _get_session()
+        self._odds_provider = None
+
+    def _get_odds_provider(self):
+        """RealtimeOddsProvider を遅延初期化"""
+        if self._odds_provider is None:
+            from src.odds_estimator import RealtimeOddsProvider
+            self._odds_provider = RealtimeOddsProvider()
+        return self._odds_provider
 
     def get_exhibition_data(self, race_date, venue_id, race_number, deadline_time):
         """展示データを取得（最大3回リトライ）
@@ -56,13 +64,30 @@ class RealtimeDataCollector:
             return None
 
     def get_realtime_odds(self, race_date, venue_id, race_number, deadline_time):
-        """リアルタイムオッズを取得
+        """リアルタイム3連単オッズを取得
 
-        現時点ではscraper.pyにオッズ取得は未実装のため空dictを返す。
-        TODO: scrape_odds() を実装してここに接続。
+        RealtimeOddsProvider 経由で boatrace.jp からスクレイピング。
+        例外時は空dictを返す（ベッティング計算はオッズなしでスキップされる）。
         """
-        logger.info(f"オッズ取得: 場{venue_id} R{race_number} (未実装、空dict返却)")
-        return {}
+        try:
+            provider = self._get_odds_provider()
+            odds = provider.fetch_odds(race_date, venue_id, race_number)
+            if odds:
+                logger.info(
+                    f"オッズ取得成功: 場{venue_id} R{race_number} "
+                    f"({len(odds)}通り)"
+                )
+            else:
+                logger.info(
+                    f"オッズ未取得: 場{venue_id} R{race_number} "
+                    f"(未発売 or 取得失敗)"
+                )
+            return odds
+        except Exception as e:
+            logger.warning(
+                f"オッズ取得例外: 場{venue_id} R{race_number}: {e}"
+            )
+            return {}
 
     def _generate_fallback_exhibition(self):
         """展示データ取得失敗時のフォールバック（枠なり仮定）"""

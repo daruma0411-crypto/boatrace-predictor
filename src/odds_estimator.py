@@ -136,20 +136,77 @@ class CalibratedOddsEstimator(OddsEstimatorBase):
 
 
 class RealtimeOddsProvider(OddsEstimatorBase):
-    """Phase 2用: リアルタイムオッズ取得（将来実装）
+    """リアルタイムオッズ取得: boatrace.jp から3連単オッズをスクレイピング
 
-    boatrace.jp からレース直前の全120通りオッズをスクレイピングする。
+    - 5分TTLキャッシュ（同一レースの重複リクエスト防止）
+    - 空dictもキャッシュ（未発売の無限リトライ防止）
+    - フォールバック: 理論オッズ 0.75/P
     """
 
     def __init__(self):
-        self._cached_odds = {}
+        self._cache = {}  # key: (date_str, venue, race) → (timestamp, odds_dict)
+        self._cache_ttl = 300  # 5分
+        self._session = None
+        self._last_fetched_odds = {}
+
+    def _get_session(self):
+        if self._session is None:
+            from src.scraper import _get_session
+            self._session = _get_session()
+        return self._session
 
     def fetch_odds(self, race_date, venue_id, race_number):
-        """レースのオッズを取得（未実装）"""
-        raise NotImplementedError("Phase 2で実装予定")
+        """レースの3連単オッズを取得（5分TTLキャッシュ付き）
+
+        Args:
+            race_date: datetime.date
+            venue_id: int (1-24)
+            race_number: int (1-12)
+
+        Returns:
+            dict: {"1-2-3": 12.7, ...} 倍率形式。取得失敗時は空dict
+        """
+        import time
+        from src.scraper import scrape_odds_3t
+
+        cache_key = (str(race_date), venue_id, race_number)
+
+        # キャッシュチェック
+        if cache_key in self._cache:
+            cached_time, cached_odds = self._cache[cache_key]
+            if time.time() - cached_time < self._cache_ttl:
+                logger.debug(
+                    f"オッズキャッシュヒット: 場{venue_id} R{race_number} "
+                    f"({len(cached_odds)}通り)"
+                )
+                return cached_odds
+
+        # スクレイピング
+        odds = scrape_odds_3t(
+            self._get_session(), race_date, venue_id, race_number
+        )
+
+        # 空dictもキャッシュ（未発売の無限リトライ防止）
+        result = odds if odds else {}
+        self._cache[cache_key] = (time.time(), result)
+        self._last_fetched_odds = result
+
+        return result
 
     def estimate_odds(self, probability):
-        raise NotImplementedError("fetch_odds()でオッズを直接取得してください")
+        """フォールバック: 理論オッズ 0.75/P"""
+        if probability <= 0:
+            return 0.0
+        return (1.0 - TAKEOUT_RATE) / probability
 
     def estimate_odds_batch(self, sanrentan_probs):
-        return self._cached_odds
+        """取得済みリアルオッズを返す。未取得の組み合わせは理論値フォールバック"""
+        result = {}
+        for combo, prob in sanrentan_probs.items():
+            if prob <= 0:
+                continue
+            if combo in self._last_fetched_odds:
+                result[combo] = self._last_fetched_odds[combo]
+            else:
+                result[combo] = self.estimate_odds(prob)
+        return result

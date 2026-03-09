@@ -249,6 +249,103 @@ def scrape_result(session, race_date, venue_id, race_number):
     }
 
 
+def _decode_odds_position(position):
+    """120個のオッズ位置 → (1着, 2着, 3着) 艇番号に変換
+
+    boatrace.jp odds3t ページの td.oddsPoint 要素の並び順:
+    - column = position % 6 → 1着の艇番号インデックス (0-5)
+    - group_index = (position // 6) // 4 → 2着候補インデックス (0-4)
+    - row_in_group = (position // 6) % 4 → 3着候補インデックス (0-3)
+
+    Returns:
+        tuple(int, int, int): (1着, 2着, 3着) 艇番号 (1-6) or None
+    """
+    column = position % 6
+    row = position // 6
+    group_index = row // 4
+    row_in_group = row % 4
+
+    first = column + 1
+
+    # 2着: 1着を除いた艇のうち、group_index番目（昇順）
+    second_candidates = [b for b in range(1, 7) if b != first]
+    if group_index >= len(second_candidates):
+        return None
+    second = second_candidates[group_index]
+
+    # 3着: 1着・2着を除いた艇のうち、row_in_group番目（昇順）
+    third_candidates = [b for b in range(1, 7) if b != first and b != second]
+    if row_in_group >= len(third_candidates):
+        return None
+    third = third_candidates[row_in_group]
+
+    return (first, second, third)
+
+
+def scrape_odds_3t(session, race_date, venue_id, race_number, max_retries=3):
+    """3連単オッズページから全120通りのオッズを取得
+
+    Args:
+        session: requests.Session
+        race_date: datetime.date
+        venue_id: int (1-24)
+        race_number: int (1-12)
+        max_retries: int リトライ回数
+
+    Returns:
+        dict: {"1-2-3": 12.7, ...} 倍率形式。取得失敗時はNone
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/odds3t?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+
+    for attempt in range(max_retries):
+        try:
+            r = session.get(url, timeout=15)
+            if r.status_code != 200:
+                logger.debug(f"オッズ取得HTTP {r.status_code}: attempt {attempt+1}")
+                time.sleep(2)
+                continue
+        except Exception as e:
+            logger.debug(f"オッズ取得エラー: {e}, attempt {attempt+1}")
+            time.sleep(2)
+            continue
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+        odds_cells = soup.find_all('td', class_='oddsPoint')
+
+        if len(odds_cells) < 120:
+            logger.debug(f"オッズ要素不足: {len(odds_cells)}個 (120必要)")
+            time.sleep(2)
+            continue
+
+        odds_dict = {}
+        for pos, cell in enumerate(odds_cells[:120]):
+            combo = _decode_odds_position(pos)
+            if combo is None:
+                continue
+
+            text = cell.get_text(strip=True)
+            if not text or text == '欠' or text == '特払':
+                continue
+
+            odds_val = _parse_float(text)
+            if odds_val and odds_val > 0:
+                key = f"{combo[0]}-{combo[1]}-{combo[2]}"
+                odds_dict[key] = odds_val
+
+        if odds_dict:
+            logger.info(
+                f"3連単オッズ取得: {len(odds_dict)}通り "
+                f"(場{venue_id} R{race_number})"
+            )
+            return odds_dict
+
+        time.sleep(2)
+
+    logger.warning(f"3連単オッズ取得失敗: 場{venue_id} R{race_number}")
+    return None
+
+
 def scrape_beforeinfo(session, race_date, venue_id, race_number):
     """直前情報ページから展示タイム・進入コースを取得
 
