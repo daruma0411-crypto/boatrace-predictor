@@ -375,6 +375,8 @@ class DynamicRaceScheduler:
                 prediction['probs_2nd'],
                 prediction['probs_3rd'],
                 odds_dict,
+                venue_id=race['venue_id'],
+                race_number=race['race_number'],
             )
 
             for strategy_type, bets in all_bets.items():

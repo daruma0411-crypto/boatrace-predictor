@@ -1,9 +1,14 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
 A/Bテスト:
-- 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、オッズ10%割引、最大3点
-- 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、オッズ5%割引、最大5点
+- 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、最大3点
+- 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、最大5点
 各戦略に独立 bankroll 200,000円。
+
+条件別最適化:
+- 場の荒れ度でオッズ上限を動的調整
+- レース番号で調整（R11-12は堅い、R2-4は荒れる）
+- 5-6号艇軸の予測はゾーン外としてスキップ
 """
 import json
 import logging
@@ -16,6 +21,16 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'config', 'betting_config.json'
 )
+
+# --- 発見1: 場の荒れ度分類 (1号艇勝率ベース) ---
+# 堅い場 (1kaku > 60%): オッズ上限を締める
+VENUE_STABLE = {18, 19, 24}  # 徳山, 下関, 大村
+# 荒れる場 (1kaku < 48%): オッズ上限を広げる
+VENUE_CHAOTIC = {2, 3, 4, 14}  # 戸田, 江戸川, 平和島, 鳴門
+
+# --- 発見2: レース番号の荒れ度 ---
+RACE_STABLE = {11, 12}     # R11-R12: 1kaku 67-69%
+RACE_CHAOTIC = {2, 3, 4}   # R2-R4: 1kaku 45-48%
 
 
 def _load_config():
@@ -31,6 +46,7 @@ def _load_config():
                 'odds_discount_factor': 0.90,
                 'max_recommended_bets': 3,
                 'min_bet_amount': 100,
+                'max_odds': 80,
             },
             'standard': {
                 'kelly_fraction': 0.25,
@@ -40,6 +56,7 @@ def _load_config():
                 'odds_discount_factor': 0.95,
                 'max_recommended_bets': 5,
                 'min_bet_amount': 100,
+                'max_odds': 150,
             },
         },
     }
@@ -52,6 +69,40 @@ def _load_config():
     return defaults
 
 
+def _adjust_max_odds(base_max_odds, venue_id, race_number):
+    """場とレース番号でオッズ上限を動的調整
+
+    堅い場 × 堅いR → base × 0.7（絞る）
+    荒れる場 × 荒れるR → base × 1.5（広げる）
+    """
+    factor = 1.0
+
+    # 場の調整
+    if venue_id in VENUE_STABLE:
+        factor *= 0.8
+    elif venue_id in VENUE_CHAOTIC:
+        factor *= 1.3
+
+    # レース番号の調整
+    if race_number in RACE_STABLE:
+        factor *= 0.8
+    elif race_number in RACE_CHAOTIC:
+        factor *= 1.3
+
+    return base_max_odds * factor
+
+
+def _should_skip_by_top_boat(probs_1st):
+    """発見3: モデルが5-6号艇を1着最有力と予測 → ゾーン外なのでスキップ
+
+    5-6号艇が1着の場合、80x以下に収まるのは41%しかない。
+    モデルの1着予測トップが5番or6番ならベットしない。
+    """
+    top_boat = max(range(6), key=lambda i: probs_1st[i])
+    # 0-indexed: 4=5号艇, 5=6号艇
+    return top_boat >= 4
+
+
 class KellyBettingStrategy:
     """ケリー基準 + A/Bテスト ベッティング戦略"""
 
@@ -62,8 +113,22 @@ class KellyBettingStrategy:
         )
 
     def calculate_all_strategies(self, probs_1st, probs_2nd, probs_3rd,
-                                  odds_data, bankroll=None):
-        """conservative + standard 両戦略を計算して返す"""
+                                  odds_data, bankroll=None,
+                                  venue_id=None, race_number=None):
+        """conservative + standard 両戦略を計算して返す
+
+        venue_id, race_number を渡すと条件別最適化が有効になる。
+        """
+        # 発見3: 5-6号艇軸ならスキップ
+        if _should_skip_by_top_boat(probs_1st):
+            top_boat = max(range(6), key=lambda i: probs_1st[i]) + 1
+            logger.info(
+                f"5-6号艇軸スキップ: "
+                f"モデル1着予測={top_boat}号艇 "
+                f"(場{venue_id} R{race_number})"
+            )
+            return {name: [] for name in self.config['strategies']}
+
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(
             probs_1st, probs_2nd, probs_3rd
         )
@@ -78,14 +143,16 @@ class KellyBettingStrategy:
                 br = float(self.initial_bankroll + profit)
 
             bets = self._strategy_kelly(
-                strategy_config, sanrentan_probs, odds_data, br, strategy_name
+                strategy_config, sanrentan_probs, odds_data, br,
+                strategy_name, venue_id, race_number,
             )
             results[strategy_name] = bets
 
         return results
 
     def _strategy_kelly(self, config, sanrentan_probs, odds_data,
-                         bankroll, strategy_name):
+                         bankroll, strategy_name,
+                         venue_id=None, race_number=None):
         """共通ケリー戦略: オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
         candidates = []
         kelly_frac = config['kelly_fraction']
@@ -95,14 +162,20 @@ class KellyBettingStrategy:
         max_total = bankroll * config['max_total_bet_ratio']
         min_bet = config['min_bet_amount']
         odds_discount = config['odds_discount_factor']
-        max_odds = config.get('max_odds', 9999)
+        base_max_odds = config.get('max_odds', 9999)
+
+        # 発見1+2: 場・R番号でオッズ上限を動的調整
+        if venue_id is not None and race_number is not None:
+            max_odds = _adjust_max_odds(base_max_odds, venue_id, race_number)
+        else:
+            max_odds = base_max_odds
 
         for combo, prob in sanrentan_probs.items():
             raw_odds = odds_data.get(combo, 0.0)
             if raw_odds <= 1.0 or prob <= 0:
                 continue
 
-            # オッズ上限フィルター
+            # オッズ上限フィルター（動的調整済み）
             if raw_odds > max_odds:
                 continue
 
