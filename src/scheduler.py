@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 NUM_VENUES = 24
 
 # 締切前リードタイム（分）
-# 処理時間 ~20秒 + 購入バッファ ~60秒 → 最低1.5分必要
-# ウィンドウ: LEAD_TIME_MIN 〜 LEAD_TIME_MAX 分前
-LEAD_TIME_MIN = 2  # 最小リードタイム（これ未満はスキップ）
-LEAD_TIME_MAX = 3  # 最大リードタイム（この範囲内で処理開始）
+# 締切4分前からオッズが急落するため、5〜6分前にオッズ取得を開始する。
+# 処理時間 ~20秒を考慮し、実質4.5〜5分前のオッズでベット計算。
+LEAD_TIME_MIN = 4  # 最小リードタイム（これ未満はスキップ）
+LEAD_TIME_MAX = 6  # 最大リードタイム（この範囲内で処理開始）
 
 
 class DynamicRaceScheduler:

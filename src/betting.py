@@ -95,10 +95,15 @@ class KellyBettingStrategy:
         max_total = bankroll * config['max_total_bet_ratio']
         min_bet = config['min_bet_amount']
         odds_discount = config['odds_discount_factor']
+        max_odds = config.get('max_odds', 9999)
 
         for combo, prob in sanrentan_probs.items():
             raw_odds = odds_data.get(combo, 0.0)
             if raw_odds <= 1.0 or prob <= 0:
+                continue
+
+            # オッズ上限フィルター
+            if raw_odds > max_odds:
                 continue
 
             # オッズ割引

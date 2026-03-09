@@ -8,7 +8,8 @@
             "min_expected_value": 1.15,
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 3,
-            "min_bet_amount": 100
+            "min_bet_amount": 100,
+            "max_odds": 80
         },
         "standard": {
             "kelly_fraction": 0.25,
@@ -17,7 +18,8 @@
             "min_expected_value": 1.10,
             "odds_discount_factor": 0.95,
             "max_recommended_bets": 5,
-            "min_bet_amount": 100
+            "min_bet_amount": 100,
+            "max_odds": 150
         }
     }
 }
