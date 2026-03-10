@@ -182,8 +182,26 @@ class EnsemblePredictor:
 
         results = []
         for path, model in self.models.items():
+            # モデルの入力次元を取得し、特徴量次元と不一致なら切り詰め
+            try:
+                model_input_dim = model.shared[0].in_features
+            except Exception:
+                model_input_dim = None
+
+            x_input = x
+            if model_input_dim and x.shape[1] != model_input_dim:
+                if x.shape[1] > model_input_dim:
+                    x_input = x[:, :model_input_dim]
+                    logger.info(
+                        f"アンサンブル次元補正: {x.shape[1]}→{model_input_dim} ({path})"
+                    )
+                else:
+                    # モデルの方が大きい場合はゼロパディング
+                    pad = torch.zeros(x.shape[0], model_input_dim - x.shape[1])
+                    x_input = torch.cat([x, pad], dim=1)
+
             with torch.no_grad():
-                out_1st, out_2nd, out_3rd = model(x)
+                out_1st, out_2nd, out_3rd = model(x_input)
 
             probs_1st = torch.softmax(out_1st, dim=1).squeeze().numpy()
             probs_2nd = torch.softmax(out_2nd, dim=1).squeeze().numpy()
