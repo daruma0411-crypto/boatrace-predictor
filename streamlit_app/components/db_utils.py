@@ -1,16 +1,13 @@
 """Streamlit用データベースユーティリティ（接続プーリング対応）"""
 import os
 import logging
-import threading
 from contextlib import contextmanager
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import ThreadedConnectionPool
+import streamlit as st
 
 logger = logging.getLogger(__name__)
-
-_pool = None
-_pool_lock = threading.Lock()
 
 
 def _get_database_url():
@@ -20,19 +17,16 @@ def _get_database_url():
     return url
 
 
+@st.cache_resource
 def _get_pool():
-    """接続プールを取得（遅延初期化・スレッドセーフ）"""
-    global _pool
-    if _pool is None or _pool.closed:
-        with _pool_lock:
-            if _pool is None or _pool.closed:
-                _pool = SimpleConnectionPool(
-                    minconn=1,
-                    maxconn=5,
-                    dsn=_get_database_url(),
-                    cursor_factory=RealDictCursor,
-                )
-    return _pool
+    """接続プールを取得（Streamlitリソースキャッシュで1回だけ初期化）"""
+    return ThreadedConnectionPool(
+        minconn=1,
+        maxconn=5,
+        dsn=_get_database_url(),
+        cursor_factory=RealDictCursor,
+        connect_timeout=10,
+    )
 
 
 @contextmanager
@@ -46,11 +40,17 @@ def get_db_connection():
         conn.commit()
     except Exception:
         if conn:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
         raise
     finally:
         if conn:
-            pool.putconn(conn)
+            try:
+                pool.putconn(conn)
+            except Exception:
+                pass
 
 
 def get_recent_predictions(limit=50, strategy_type=None):

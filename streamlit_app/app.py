@@ -16,7 +16,6 @@ from streamlit_app.components.db_utils import (
     get_daily_stats_by_period,
 )
 from streamlit_app.components.mobile_css import inject_mobile_css
-from src.database import init_database, get_current_bankroll
 
 st.set_page_config(
     page_title="ボートレース予想AI",
@@ -27,12 +26,17 @@ st.set_page_config(
 
 inject_mobile_css()
 
-if 'db_initialized' not in st.session_state:
+# DB初期化は1回だけ（@st.cache_resourceで永続化）
+@st.cache_resource
+def _init_db_once():
     try:
+        from src.database import init_database
         init_database()
     except Exception:
         pass
-    st.session_state.db_initialized = True
+    return True
+
+_init_db_once()
 
 # --- キャッシュ付きDB取得 (TTL=300秒=5分) ---
 @st.cache_data(ttl=300, show_spinner=False)
@@ -70,7 +74,14 @@ def _cached_strategy_summary(start_date, end_date):
 @st.cache_data(ttl=300, show_spinner=False)
 def _cached_bankroll(strategy_type):
     try:
-        profit = get_current_bankroll(strategy_type=strategy_type)
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT COALESCE(SUM(payout - amount), 0) as profit
+                FROM bets WHERE result IS NOT NULL AND strategy_type = %s
+            """, (strategy_type,))
+            row = cur.fetchone()
+            profit = row['profit'] if row else 0
         return 200000 + profit
     except Exception:
         return 200000
