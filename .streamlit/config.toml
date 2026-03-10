@@ -6,6 +6,8 @@ primaryColor = "#4fc3f7"
 headless = true
 maxUploadSize = 5
 enableStaticServing = true
+enableCORS = false
+enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
