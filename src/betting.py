@@ -200,9 +200,7 @@ class KellyBettingStrategy:
                 f"5-6号艇軸: 全戦略スキップ "
                 f"(モデル1着予測={top_boat}号艇, 場{venue_id} R{race_number})"
             )
-            for strategy_name in self.config['strategies']:
-                results[strategy_name] = []
-            return results
+            return {name: [] for name in self.config['strategies']}
 
         # 通常の3連単確率（A/B/C/D/F用）
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(
