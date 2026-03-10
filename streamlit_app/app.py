@@ -217,6 +217,20 @@ def tab1_bets_fragment():
             st.info(f"{selected_venue}の買い目はまだありません。")
             return
 
+        # サマリーを先に表示
+        summary = pd.DataFrame(all_bets)
+        summary['会場'] = summary['venue_id'].map(_venue_name)
+        venue_summary = summary.groupby('会場').agg(
+            点数=('combination', 'count'),
+            投資額=('amount', 'sum'),
+        ).reset_index()
+        venue_summary['投資額'] = venue_summary['投資額'].map(lambda x: f'\u00a5{x:,}')
+        st.markdown("**会場別サマリー**")
+        st.dataframe(venue_summary, use_container_width=True, hide_index=True)
+
+        st.divider()
+
+        # レース別詳細（閉じた状態で表示 → クリックで展開）
         for (venue_id, race_num), group in df.groupby(['venue_id', 'race_number']):
             venue = _venue_name(venue_id)
             total_amount = group['amount'].sum()
@@ -224,7 +238,7 @@ def tab1_bets_fragment():
             with st.expander(
                 f"{venue} {race_num}R  "
                 f"（{len(group)}点 / 計 \u00a5{total_amount:,}）",
-                expanded=True,
+                expanded=False,
             ):
                 for strategy, sgroup in group.groupby('strategy_type'):
                     st.markdown(f"**{_strategy_name(strategy)}**")
@@ -243,17 +257,6 @@ def tab1_bets_fragment():
                         display.reset_index(drop=True),
                         use_container_width=True, hide_index=True,
                     )
-
-        st.divider()
-        summary = pd.DataFrame(all_bets)
-        summary['会場'] = summary['venue_id'].map(_venue_name)
-        venue_summary = summary.groupby('会場').agg(
-            点数=('combination', 'count'),
-            投資額=('amount', 'sum'),
-        ).reset_index()
-        venue_summary['投資額'] = venue_summary['投資額'].map(lambda x: f'\u00a5{x:,}')
-        st.markdown("**会場別サマリー**")
-        st.dataframe(venue_summary, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"データ取得エラー: {e}")
