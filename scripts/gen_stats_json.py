@@ -116,14 +116,19 @@ def main():
 
     conn.close()
 
-    # 出力先
-    out_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                           'streamlit_app', 'static')
+    # 出力先 (プロジェクトルートの static/ に配置)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out_dir = os.path.join(project_root, 'static')
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, 'stats.json')
-    with open(out_path, 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False, indent=2)
-    print(f"Stats written to {out_path}")
+    # streamlit_app/static/ にもコピー
+    app_static = os.path.join(project_root, 'streamlit_app', 'static')
+    os.makedirs(app_static, exist_ok=True)
+    app_out = os.path.join(app_static, 'stats.json')
+    for p in [out_path, app_out]:
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        print(f"Stats written to {p}")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":
