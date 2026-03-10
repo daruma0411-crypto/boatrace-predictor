@@ -21,11 +21,11 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-st.set_page_config(page_title="システム状態", page_icon="🔧", layout="wide",
+st.set_page_config(page_title="システム状態", page_icon="\U0001f527", layout="wide",
                    initial_sidebar_state="collapsed")
 if DB_AVAILABLE:
     inject_mobile_css()
-st.title("🔧 システム状態")
+st.title("\U0001f527 システム状態")
 
 VENUE_NAMES = {
     1: '桐生', 2: '戸田', 3: '江戸川', 4: '平和島', 5: '多摩川',
@@ -43,24 +43,14 @@ if not DB_AVAILABLE:
 try:
     with get_db_connection() as conn:
         cur = conn.cursor()
-
-        # 総レース数
         cur.execute("SELECT COUNT(*) as cnt FROM races")
         total_races = cur.fetchone()['cnt']
-
-        # 結果あり
         cur.execute("SELECT COUNT(*) as cnt FROM races WHERE result_1st IS NOT NULL")
         finished_races = cur.fetchone()['cnt']
-
-        # 総boats数
         cur.execute("SELECT COUNT(*) as cnt FROM boats")
         total_boats = cur.fetchone()['cnt']
-
-        # 日付範囲
         cur.execute("SELECT MIN(race_date) as min_d, MAX(race_date) as max_d FROM races")
         date_range = cur.fetchone()
-
-        # 月別レース数
         cur.execute("""
             SELECT DATE_TRUNC('month', race_date)::date as month,
                    COUNT(*) as cnt
@@ -127,126 +117,125 @@ else:
 
 st.divider()
 
-# === 手動予測 ===
-st.subheader("手動予測テスト")
-st.caption("特定のレースに対してモデルの予測を実行します")
+# === 手動予測（fragment で分離 → ボタン押下時だけ再実行）===
+@st.fragment
+def manual_prediction_fragment():
+    st.subheader("手動予測テスト")
+    st.caption("特定のレースに対してモデルの予測を実行します")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    venue_id = st.selectbox(
-        "会場",
-        options=list(VENUE_NAMES.keys()),
-        format_func=lambda x: f"{x} {VENUE_NAMES[x]}",
-    )
-with col2:
-    race_number = st.selectbox("レース番号", options=list(range(1, 13)))
-with col3:
-    race_date = st.date_input("レース日", value=datetime.now().date())
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        venue_id = st.selectbox(
+            "会場",
+            options=list(VENUE_NAMES.keys()),
+            format_func=lambda x: f"{x} {VENUE_NAMES[x]}",
+        )
+    with col2:
+        race_number = st.selectbox("レース番号", options=list(range(1, 13)))
+    with col3:
+        race_date = st.date_input("レース日", value=datetime.now().date())
 
-if st.button("予測実行", type="primary"):
-    try:
-        from src.scraper import _get_session, scrape_racelist
-        from src.predictor import RealtimePredictor
-        import numpy as np
+    if st.button("予測実行", type="primary"):
+        try:
+            from src.scraper import _get_session, scrape_racelist
+            from src.predictor import RealtimePredictor
 
-        with st.spinner("出走表取得中..."):
-            session = _get_session()
-            boats = scrape_racelist(session, race_date, venue_id, race_number)
+            with st.spinner("出走表取得中..."):
+                session = _get_session()
+                boats = scrape_racelist(session, race_date, venue_id, race_number)
 
-        if not boats or len(boats) != 6:
-            st.error("出走表を取得できませんでした（非開催 or データなし）")
-        else:
-            st.success(f"出走表取得成功: {len(boats)}艇")
+            if not boats or len(boats) != 6:
+                st.error("出走表を取得できませんでした（非開催 or データなし）")
+            else:
+                st.success(f"出走表取得成功: {len(boats)}艇")
 
-            # 選手情報テーブル表示
-            boat_df = pd.DataFrame(boats)
-            display_cols = ['boat_number', 'player_name', 'player_class',
-                           'win_rate', 'win_rate_2', 'avg_st']
-            available_cols = [c for c in display_cols if c in boat_df.columns]
-            st.dataframe(
-                boat_df[available_cols].rename(columns={
-                    'boat_number': '艇番',
-                    'player_name': '選手名',
-                    'player_class': '級別',
-                    'win_rate': '勝率',
-                    'win_rate_2': '2連率',
-                    'avg_st': '平均ST',
-                }),
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            # 予測実行
-            with st.spinner("予測計算中..."):
-                predictor = RealtimePredictor()
-                race_data = {
-                    'venue_id': venue_id,
-                    'month': race_date.month,
-                    'distance': 1800,
-                    'wind_speed': 0,
-                    'wind_direction': 'calm',
-                    'temperature': 20,
-                }
-                boats_data = []
-                for b in boats:
-                    boats_data.append({
-                        'boat_number': b['boat_number'],
-                        'player_class': b.get('player_class'),
-                        'win_rate': b.get('win_rate'),
-                        'win_rate_2': b.get('win_rate_2'),
-                        'win_rate_3': b.get('win_rate_3'),
-                        'local_win_rate': b.get('local_win_rate'),
-                        'local_win_rate_2': b.get('local_win_rate_2'),
-                        'avg_st': b.get('avg_st'),
-                        'motor_win_rate_2': b.get('motor_win_rate_2'),
-                        'motor_win_rate_3': b.get('motor_win_rate_3'),
-                        'boat_win_rate_2': b.get('boat_win_rate_2'),
-                        'weight': b.get('weight'),
-                        'exhibition_time': None,
-                        'approach_course': b['boat_number'],
-                        'is_new_motor': False,
-                        'fallback_flag': False,
-                    })
-
-                prediction = predictor.predict(race_data, boats_data)
-
-            # 結果表示
-            probs_1st = prediction['probs_1st']
-            st.markdown("### 1着予測確率")
-
-            prob_df = pd.DataFrame({
-                '艇番': [f'{i+1}号艇' for i in range(6)],
-                '確率': [f'{p*100:.1f}%' for p in probs_1st],
-                'バー': probs_1st,
-            })
-
-            col1, col2 = st.columns([1, 2])
-            with col1:
+                boat_df = pd.DataFrame(boats)
+                display_cols = ['boat_number', 'player_name', 'player_class',
+                               'win_rate', 'win_rate_2', 'avg_st']
+                available_cols = [c for c in display_cols if c in boat_df.columns]
                 st.dataframe(
-                    prob_df[['艇番', '確率']],
+                    boat_df[available_cols].rename(columns={
+                        'boat_number': '艇番',
+                        'player_name': '選手名',
+                        'player_class': '級別',
+                        'win_rate': '勝率',
+                        'win_rate_2': '2連率',
+                        'avg_st': '平均ST',
+                    }),
                     use_container_width=True,
                     hide_index=True,
                 )
-            with col2:
-                st.bar_chart(
-                    pd.DataFrame({
-                        '確率': probs_1st,
-                    }, index=[f'{i+1}号艇' for i in range(6)]),
+
+                with st.spinner("予測計算中..."):
+                    predictor = RealtimePredictor()
+                    race_data = {
+                        'venue_id': venue_id,
+                        'month': race_date.month,
+                        'distance': 1800,
+                        'wind_speed': 0,
+                        'wind_direction': 'calm',
+                        'temperature': 20,
+                    }
+                    boats_data = []
+                    for b in boats:
+                        boats_data.append({
+                            'boat_number': b['boat_number'],
+                            'player_class': b.get('player_class'),
+                            'win_rate': b.get('win_rate'),
+                            'win_rate_2': b.get('win_rate_2'),
+                            'win_rate_3': b.get('win_rate_3'),
+                            'local_win_rate': b.get('local_win_rate'),
+                            'local_win_rate_2': b.get('local_win_rate_2'),
+                            'avg_st': b.get('avg_st'),
+                            'motor_win_rate_2': b.get('motor_win_rate_2'),
+                            'motor_win_rate_3': b.get('motor_win_rate_3'),
+                            'boat_win_rate_2': b.get('boat_win_rate_2'),
+                            'weight': b.get('weight'),
+                            'exhibition_time': None,
+                            'approach_course': b['boat_number'],
+                            'is_new_motor': False,
+                            'fallback_flag': False,
+                        })
+
+                    prediction = predictor.predict(race_data, boats_data)
+
+                probs_1st = prediction['probs_1st']
+                st.markdown("### 1着予測確率")
+
+                prob_df = pd.DataFrame({
+                    '艇番': [f'{i+1}号艇' for i in range(6)],
+                    '確率': [f'{p*100:.1f}%' for p in probs_1st],
+                    'バー': probs_1st,
+                })
+
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    st.dataframe(
+                        prob_df[['艇番', '確率']],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                with col2:
+                    st.bar_chart(
+                        pd.DataFrame({
+                            '確率': probs_1st,
+                        }, index=[f'{i+1}号艇' for i in range(6)]),
+                    )
+
+                pred_1st = int(np.argmax(probs_1st)) + 1
+                probs_2nd = prediction['probs_2nd']
+                probs_3rd = prediction['probs_3rd']
+                pred_2nd = int(np.argmax(probs_2nd)) + 1
+                pred_3rd = int(np.argmax(probs_3rd)) + 1
+
+                st.markdown(
+                    f"### 予測: **{pred_1st}-{pred_2nd}-{pred_3rd}** "
+                    f"(1着{probs_1st[pred_1st-1]*100:.1f}%)"
                 )
 
-            # 3連単上位
-            pred_1st = int(np.argmax(probs_1st)) + 1
-            probs_2nd = prediction['probs_2nd']
-            probs_3rd = prediction['probs_3rd']
-            pred_2nd = int(np.argmax(probs_2nd)) + 1
-            pred_3rd = int(np.argmax(probs_3rd)) + 1
+        except Exception as e:
+            st.error(f"予測エラー: {e}")
+            import traceback
+            st.code(traceback.format_exc())
 
-            st.markdown(
-                f"### 予測: **{pred_1st}-{pred_2nd}-{pred_3rd}** "
-                f"(1着{probs_1st[pred_1st-1]*100:.1f}%)"
-            )
-
-    except Exception as e:
-        st.error(f"予測エラー: {e}")
-        import traceback
-        st.code(traceback.format_exc())
+manual_prediction_fragment()

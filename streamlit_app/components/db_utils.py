@@ -229,6 +229,22 @@ def get_daily_stats_by_period(start_date, end_date):
         return cur.fetchall()
 
 
+def get_all_bankrolls():
+    """全戦略のbankrollを1クエリで取得"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT strategy_type, COALESCE(SUM(payout - amount), 0) as profit
+            FROM bets WHERE result IS NOT NULL
+            GROUP BY strategy_type
+        """)
+        rows = cur.fetchall()
+    result = {}
+    for row in rows:
+        result[row['strategy_type']] = 200000 + row['profit']
+    return result
+
+
 def get_today_predictions():
     """本日の予想データ（レース選択用）"""
     with get_db_connection() as conn:
