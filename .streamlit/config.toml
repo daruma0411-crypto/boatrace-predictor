@@ -5,6 +5,7 @@ primaryColor = "#4fc3f7"
 [server]
 headless = true
 maxUploadSize = 5
+enableStaticServing = true
 
 [browser]
 gatherUsageStats = false
