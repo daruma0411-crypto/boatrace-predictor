@@ -45,7 +45,7 @@
             "min_bet_amount": 100,
             "max_odds": 120,
             "filter_type": "entropy",
-            "max_entropy": 1.5
+            "max_entropy": 2.2
         },
         "ensemble": {
             "kelly_fraction": 0.20,
@@ -69,7 +69,7 @@
             "max_odds": 120,
             "filter_type": "div_confidence",
             "min_divergence_ratio": 2.0,
-            "max_entropy": 1.5
+            "max_entropy": 2.2
         }
     }
 }
