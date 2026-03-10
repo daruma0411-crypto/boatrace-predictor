@@ -4,9 +4,9 @@ A/Bテスト → 6戦略並列テスト:
 - 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、最大3点、filter=none
 - 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、最大5点、filter=none
 - 戦略C (divergence):   市場乖離度フィルター、model_prob/market_prob≥2.0
-- 戦略D (high_confidence): エントロピーフィルター、H<1.5の確信レースのみ
-- 戦略E (ensemble):     4モデル合議、1着予測一致時のみ平均確率でKelly
-- 戦略F (div_confidence): C+D合わせ技、乖離度+エントロピー両方パス
+- 戦略D (high_confidence): エントロピーフィルター、H<2.3の確信レースのみ
+- 戦略E (ensemble):     4モデル合議、3/4多数決一致時のみ平均確率でKelly
+- 戦略F (div_confidence): C+D合わせ技、乖離度≥1.5+エントロピーH<2.3両方パス
 
 条件別最適化:
 - 場の荒れ度でオッズ上限を動的調整
@@ -122,8 +122,11 @@ def _calculate_entropy(probs):
     return h
 
 
-def _check_ensemble_agreement(ensemble_predictions):
-    """全モデルの1着予測が一致するかチェック
+def _check_ensemble_agreement(ensemble_predictions, min_agreement=3):
+    """モデル多数決による1着予測一致チェック
+
+    min_agreement=3: 4モデル中3つ以上が一致すればOK（デフォルト）
+    min_agreement=4: 全一致（旧動作）
 
     Returns:
         tuple: (agreed: bool, top_boat_idx: int or None)
@@ -137,8 +140,12 @@ def _check_ensemble_agreement(ensemble_predictions):
         top = max(range(6), key=lambda i: probs[i])
         top_boats.append(top)
 
-    if len(set(top_boats)) == 1:
-        return True, top_boats[0]
+    from collections import Counter
+    counts = Counter(top_boats)
+    most_common_boat, most_common_count = counts.most_common(1)[0]
+
+    if most_common_count >= min_agreement:
+        return True, most_common_boat
     return False, None
 
 
@@ -211,13 +218,15 @@ class KellyBettingStrategy:
         # エントロピー計算（D/F用）
         entropy_1st = _calculate_entropy(probs_1st)
 
-        # アンサンブル合議（E用）
+        # アンサンブル合議（E用）— configからmin_agreement取得
         ensemble_agreed = False
         ensemble_top_boat = None
         ensemble_sanrentan = None
+        ens_config = self.config['strategies'].get('ensemble', {})
+        min_agreement = ens_config.get('min_agreement', 3)
         if ensemble_predictions and len(ensemble_predictions) >= 2:
             ensemble_agreed, ensemble_top_boat = _check_ensemble_agreement(
-                ensemble_predictions
+                ensemble_predictions, min_agreement=min_agreement
             )
             if ensemble_agreed:
                 avg = _average_ensemble_probs(ensemble_predictions)
