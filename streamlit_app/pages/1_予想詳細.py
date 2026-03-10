@@ -7,7 +7,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from streamlit_app.components.db_utils import get_db_connection
+from streamlit_app.components.db_utils import get_today_predictions, get_prediction_by_id
 from streamlit_app.components.mobile_css import inject_mobile_css
 
 st.set_page_config(page_title="予想詳細", page_icon="🎯", layout="wide",
@@ -23,19 +23,18 @@ VENUE_NAMES = {
     21: '芦屋', 22: '福岡', 23: '唐津', 24: '大村',
 }
 
+# --- キャッシュ付きDB取得 (TTL=300秒) ---
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_today_predictions():
+    return get_today_predictions()
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_prediction(prediction_id):
+    return get_prediction_by_id(prediction_id)
+
 # --- レース選択 ---
 try:
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT DISTINCT r.venue_id, r.race_number, r.race_date,
-                   p.strategy_type, p.id as prediction_id
-            FROM predictions p
-            JOIN races r ON p.race_id = r.id
-            WHERE r.race_date = CURRENT_DATE
-            ORDER BY r.venue_id, r.race_number
-        """)
-        available = cur.fetchall()
+    available = _cached_today_predictions()
 except Exception:
     available = []
 
@@ -54,13 +53,7 @@ selected = available[selected_idx]
 
 # --- 予測データ取得 ---
 try:
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM predictions WHERE id = %s",
-            (selected['prediction_id'],)
-        )
-        pred = cur.fetchone()
+    pred = _cached_prediction(selected['prediction_id'])
 except Exception as e:
     st.error(f"データ取得エラー: {e}")
     st.stop()
@@ -100,7 +93,7 @@ fig.update_layout(
     font=dict(size=12),
 )
 st.plotly_chart(fig, use_container_width=True,
-               config={'responsive': True, 'displayModeBar': False})
+               config={'displayModeBar': False})
 
 # --- 推奨買い目 ---
 st.subheader("推奨買い目")

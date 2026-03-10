@@ -50,12 +50,26 @@ STRATEGY_ORDER = [
     'high_confidence', 'ensemble', 'div_confidence',
 ]
 
+# --- キャッシュ付きDB取得 (TTL=300秒) ---
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_performance_stats(days):
+    return get_performance_stats(days=days)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_daily_stats(days):
+    return get_daily_stats(days=days)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_venue_stats():
+    return get_venue_stats()
+
+
 days = st.slider("分析期間（日数）", min_value=7, max_value=90, value=30)
 
 # --- 戦略別6戦略比較 ---
 st.subheader("戦略別比較 (A〜F)")
 try:
-    stats = get_performance_stats(days=days)
+    stats = _cached_performance_stats(days)
     if stats:
         df = pd.DataFrame(stats)
 
@@ -101,13 +115,14 @@ try:
             ))
         fig.update_layout(
             barmode='group', title='戦略比較',
+            height=400,
             margin=dict(l=30, r=20, t=50, b=30),
             font=dict(size=12),
             legend=dict(orientation="h", yanchor="bottom", y=1.02,
                         xanchor="right", x=1),
         )
         st.plotly_chart(fig, use_container_width=True,
-                       config={'responsive': True, 'displayModeBar': False})
+                       config={'displayModeBar': False})
     else:
         st.info("パフォーマンスデータがまだありません。")
 except Exception as e:
@@ -116,7 +131,7 @@ except Exception as e:
 # --- 時系列推移 ---
 st.subheader("日別収支推移")
 try:
-    daily = get_daily_stats(days=days)
+    daily = _cached_daily_stats(days)
     if daily:
         df_daily = pd.DataFrame(daily)
         df_daily['profit'] = (
@@ -140,6 +155,7 @@ try:
             labels={'race_date': '日付', 'profit': '損益 (円)'},
         )
         fig.update_layout(
+            height=400,
             margin=dict(l=30, r=20, t=50, b=30),
             font=dict(size=12),
             legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -147,7 +163,7 @@ try:
         )
         fig.add_hline(y=0, line_dash="dash", line_color="gray")
         st.plotly_chart(fig, use_container_width=True,
-                       config={'responsive': True, 'displayModeBar': False})
+                       config={'displayModeBar': False})
 
         fig_roi = px.line(
             df_daily, x='race_date', y='roi',
@@ -157,6 +173,7 @@ try:
             labels={'race_date': '日付', 'roi': 'ROI (%)'},
         )
         fig_roi.update_layout(
+            height=400,
             margin=dict(l=30, r=20, t=50, b=30),
             font=dict(size=12),
             legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -165,7 +182,7 @@ try:
         fig_roi.add_hline(y=100, line_dash="dash", line_color="gray",
                           annotation_text="損益分岐点")
         st.plotly_chart(fig_roi, use_container_width=True,
-                       config={'responsive': True, 'displayModeBar': False})
+                       config={'displayModeBar': False})
     else:
         st.info("日別データがまだありません。")
 except Exception as e:
@@ -174,7 +191,7 @@ except Exception as e:
 # --- 場別パフォーマンス ---
 st.subheader("場別パフォーマンス")
 try:
-    venue_data = get_venue_stats()
+    venue_data = _cached_venue_stats()
     if venue_data:
         df_venue = pd.DataFrame(venue_data)
         df_venue['venue_name'] = df_venue['venue_id'].map(
@@ -198,6 +215,7 @@ try:
             labels={'venue_name': '競艇場', 'roi': 'ROI (%)'},
         )
         fig.update_layout(
+            height=400,
             margin=dict(l=30, r=20, t=50, b=50),
             font=dict(size=11),
             xaxis=dict(tickangle=-45),
@@ -207,7 +225,7 @@ try:
         fig.add_hline(y=100, line_dash="dash", line_color="red",
                       annotation_text="損益分岐点")
         st.plotly_chart(fig, use_container_width=True,
-                       config={'responsive': True, 'displayModeBar': False})
+                       config={'displayModeBar': False})
     else:
         st.info("場別データがまだありません。")
 except Exception as e:

@@ -34,20 +34,20 @@ if 'db_initialized' not in st.session_state:
         pass
     st.session_state.db_initialized = True
 
-# --- キャッシュ付きDB取得 ---
-@st.cache_data(ttl=60, show_spinner=False)
+# --- キャッシュ付きDB取得 (TTL=300秒=5分) ---
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_predictions(limit):
     return get_recent_predictions(limit=limit)
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_bets():
     return get_today_bets()
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_venues():
     return get_today_venues()
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_counts():
     try:
         with get_db_connection() as conn:
@@ -63,17 +63,21 @@ def _cached_today_counts():
     except Exception:
         return 0, 0, False
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_strategy_summary(start_date, end_date):
     return get_strategy_summary(start_date, end_date)
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_bankroll(strategy_type):
     try:
         profit = get_current_bankroll(strategy_type=strategy_type)
         return 200000 + profit
     except Exception:
         return 200000
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_daily_stats_by_period(start_date, end_date):
+    return get_daily_stats_by_period(start_date, end_date)
 
 # --- 場名マッピング ---
 VENUE_NAMES = {
@@ -286,7 +290,7 @@ with tab1:
 with tab2:
     st.subheader("日別収支推移")
     try:
-        daily = get_daily_stats_by_period(str(start_date), str(end_date))
+        daily = _cached_daily_stats_by_period(str(start_date), str(end_date))
         if daily:
             import plotly.express as px
 
@@ -304,6 +308,7 @@ with tab2:
                 labels={'race_date': '日付', 'profit': '損益 (円)'},
             )
             fig.update_layout(
+                height=400,
                 margin=dict(l=30, r=20, t=50, b=30),
                 font=dict(size=12),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -311,7 +316,7 @@ with tab2:
             )
             fig.add_hline(y=0, line_dash="dash", line_color="gray")
             st.plotly_chart(fig, use_container_width=True,
-                           config={'responsive': True, 'displayModeBar': False})
+                           config={'displayModeBar': False})
 
             # 累積損益
             for strategy in df_daily['strategy_type'].unique():
@@ -327,6 +332,7 @@ with tab2:
                 labels={'race_date': '日付', 'cumulative_profit': '累積損益 (円)'},
             )
             fig_cum.update_layout(
+                height=400,
                 margin=dict(l=30, r=20, t=50, b=30),
                 font=dict(size=12),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02,
@@ -334,7 +340,7 @@ with tab2:
             )
             fig_cum.add_hline(y=0, line_dash="dash", line_color="gray")
             st.plotly_chart(fig_cum, use_container_width=True,
-                           config={'responsive': True, 'displayModeBar': False})
+                           config={'displayModeBar': False})
         else:
             st.info("この期間のデータがまだありません。")
     except Exception as e:

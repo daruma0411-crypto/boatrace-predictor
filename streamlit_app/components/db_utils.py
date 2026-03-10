@@ -1,11 +1,16 @@
-"""Streamlit用データベースユーティリティ"""
+"""Streamlit用データベースユーティリティ（接続プーリング対応）"""
 import os
 import logging
+import threading
 from contextlib import contextmanager
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
 
 logger = logging.getLogger(__name__)
+
+_pool = None
+_pool_lock = threading.Lock()
 
 
 def _get_database_url():
@@ -15,12 +20,28 @@ def _get_database_url():
     return url
 
 
+def _get_pool():
+    """接続プールを取得（遅延初期化・スレッドセーフ）"""
+    global _pool
+    if _pool is None or _pool.closed:
+        with _pool_lock:
+            if _pool is None or _pool.closed:
+                _pool = SimpleConnectionPool(
+                    minconn=1,
+                    maxconn=5,
+                    dsn=_get_database_url(),
+                    cursor_factory=RealDictCursor,
+                )
+    return _pool
+
+
 @contextmanager
 def get_db_connection():
-    """PostgreSQL接続（Streamlit用）"""
+    """PostgreSQL接続（プーリング版）"""
+    pool = _get_pool()
     conn = None
     try:
-        conn = psycopg2.connect(_get_database_url(), cursor_factory=RealDictCursor)
+        conn = pool.getconn()
         yield conn
         conn.commit()
     except Exception:
@@ -29,7 +50,7 @@ def get_db_connection():
         raise
     finally:
         if conn:
-            conn.close()
+            pool.putconn(conn)
 
 
 def get_recent_predictions(limit=50, strategy_type=None):
@@ -158,12 +179,7 @@ def get_daily_stats(days=30):
 
 
 def get_strategy_summary(start_date, end_date):
-    """全戦略サマリー（期間指定）
-
-    Returns:
-        list of dict: [{strategy_type, total_bets, total_amount, total_payout,
-                        roi, wins, total_races}]
-    """
+    """全戦略サマリー（期間指定）"""
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -189,12 +205,7 @@ def get_strategy_summary(start_date, end_date):
 
 
 def get_daily_stats_by_period(start_date, end_date):
-    """期間指定の日別統計
-
-    Returns:
-        list of dict: [{race_date, strategy_type, total_bets,
-                        total_amount, total_payout, roi}]
-    """
+    """期間指定の日別統計"""
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -216,3 +227,29 @@ def get_daily_stats_by_period(start_date, end_date):
             ORDER BY r.race_date
         """, (start_date, end_date))
         return cur.fetchall()
+
+
+def get_today_predictions():
+    """本日の予想データ（レース選択用）"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT r.venue_id, r.race_number, r.race_date,
+                   p.strategy_type, p.id as prediction_id
+            FROM predictions p
+            JOIN races r ON p.race_id = r.id
+            WHERE r.race_date = CURRENT_DATE
+            ORDER BY r.venue_id, r.race_number
+        """)
+        return cur.fetchall()
+
+
+def get_prediction_by_id(prediction_id):
+    """予測データを取得"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM predictions WHERE id = %s",
+            (prediction_id,)
+        )
+        return cur.fetchone()
