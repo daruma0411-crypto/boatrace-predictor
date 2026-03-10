@@ -91,9 +91,20 @@ if 'start_date' not in st.session_state:
     st.session_state['end_date'] = str(date.today())
 
 
-# --- サイドバー ---
+# --- サイドバー（fragment外で描画）---
 with st.sidebar:
     st.title("\U0001f6a4 ボートレース予想AI")
+    st.divider()
+    st.subheader("システム状態")
+    _sidebar_dashboard = _cached_dashboard(
+        st.session_state['start_date'], st.session_state['end_date']
+    )
+    if _sidebar_dashboard['db_ok']:
+        st.success("DB接続: OK")
+    else:
+        st.error("DB接続: エラー")
+    st.metric("本日のレース", _sidebar_dashboard['today_races'])
+    st.metric("本日の予測", _sidebar_dashboard['today_preds'])
 
 # --- メインコンテンツ ---
 st.title("\U0001f6a4 ボートレース予想AIダッシュボード")
@@ -135,17 +146,6 @@ def period_and_cards_fragment():
 
     # 一括DB取得
     dashboard = _cached_dashboard(str(start_date), str(end_date))
-
-    # サイドバーの状態更新
-    with st.sidebar:
-        st.divider()
-        st.subheader("システム状態")
-        if dashboard['db_ok']:
-            st.success("DB接続: OK")
-        else:
-            st.error("DB接続: エラー")
-        st.metric("本日のレース", dashboard['today_races'])
-        st.metric("本日の予測", dashboard['today_preds'])
 
     # 戦略カード
     st.subheader("戦略別サマリー")
