@@ -20,13 +20,36 @@ def _get_database_url():
 @st.cache_resource
 def _get_pool():
     """接続プールを取得（Streamlitリソースキャッシュで1回だけ初期化）"""
-    return ThreadedConnectionPool(
+    pool = ThreadedConnectionPool(
         minconn=1,
         maxconn=5,
         dsn=_get_database_url(),
         cursor_factory=RealDictCursor,
         connect_timeout=10,
+        options='-c statement_timeout=8000',
     )
+    # インデックス作成（初回のみ）
+    try:
+        conn = pool.getconn()
+        cur = conn.cursor()
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_bets_result ON bets(result)",
+            "CREATE INDEX IF NOT EXISTS idx_bets_strategy ON bets(strategy_type)",
+            "CREATE INDEX IF NOT EXISTS idx_bets_race_id ON bets(race_id)",
+            "CREATE INDEX IF NOT EXISTS idx_races_date ON races(race_date)",
+            "CREATE INDEX IF NOT EXISTS idx_predictions_created ON predictions(created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_races_date_venue ON races(race_date, venue_id)",
+        ]:
+            try:
+                cur.execute(idx_sql)
+            except Exception:
+                conn.rollback()
+                cur = conn.cursor()
+        conn.commit()
+        pool.putconn(conn)
+    except Exception:
+        pass
+    return pool
 
 
 @contextmanager
