@@ -231,9 +231,29 @@ class DynamicRaceScheduler:
 
             time.sleep(60)
 
+    def _already_bet(self, race_id):
+        """このレースに既にベットが存在するか確認（重複防止）"""
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT COUNT(*) as cnt FROM bets WHERE race_id = %s",
+                    (race_id,),
+                )
+                return cur.fetchone()['cnt'] > 0
+        except Exception:
+            return False
+
     def predict_and_bet_safe(self, race):
         """展示データ取得 → 予測 → ベット計算"""
         try:
+            # 重複ベット防止: 既にベット済みならスキップ
+            if self._already_bet(race['race_id']):
+                logger.info(
+                    f"スキップ(ベット済): 場{race['venue_id']} R{race['race_number']}"
+                )
+                return
+
             today = now_jst().date()
             deadline = race.get(
                 'deadline_time',
