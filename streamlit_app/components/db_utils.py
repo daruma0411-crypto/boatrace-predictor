@@ -245,6 +245,61 @@ def get_all_bankrolls():
     return result
 
 
+def get_dashboard_data(start_date, end_date):
+    """ダッシュボードに必要な全データを1回のDB接続で取得"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+
+        # 1. 本日のレース数・予測数
+        cur.execute("SELECT COUNT(*) as cnt FROM races WHERE race_date = CURRENT_DATE")
+        today_races = cur.fetchone()['cnt']
+        cur.execute(
+            "SELECT COUNT(*) as cnt FROM predictions "
+            "WHERE created_at::date = CURRENT_DATE"
+        )
+        today_preds = cur.fetchone()['cnt']
+
+        # 2. 戦略サマリー
+        cur.execute("""
+            SELECT
+                b.strategy_type,
+                COUNT(*) as total_bets,
+                SUM(b.amount) as total_amount,
+                SUM(b.payout) as total_payout,
+                CASE WHEN SUM(b.amount) > 0
+                     THEN SUM(b.payout)::float / SUM(b.amount) * 100
+                     ELSE 0 END as roi,
+                COUNT(CASE WHEN b.payout > 0 THEN 1 END) as wins,
+                COUNT(DISTINCT b.race_id) as total_races
+            FROM bets b
+            JOIN races r ON b.race_id = r.id
+            WHERE b.result IS NOT NULL
+              AND r.race_date >= %s AND r.race_date <= %s
+            GROUP BY b.strategy_type
+            ORDER BY b.strategy_type
+        """, (start_date, end_date))
+        strategy_summary = cur.fetchall()
+
+        # 3. 全戦略bankroll
+        cur.execute("""
+            SELECT strategy_type, COALESCE(SUM(payout - amount), 0) as profit
+            FROM bets WHERE result IS NOT NULL
+            GROUP BY strategy_type
+        """)
+        bankroll_rows = cur.fetchall()
+        bankrolls = {}
+        for row in bankroll_rows:
+            bankrolls[row['strategy_type']] = 200000 + row['profit']
+
+    return {
+        'today_races': today_races,
+        'today_preds': today_preds,
+        'strategy_summary': strategy_summary,
+        'bankrolls': bankrolls,
+        'db_ok': True,
+    }
+
+
 def get_today_predictions():
     """本日の予想データ（レース選択用）"""
     with get_db_connection() as conn:

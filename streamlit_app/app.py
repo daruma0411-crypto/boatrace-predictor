@@ -11,9 +11,8 @@ from streamlit_app.components.db_utils import (
     get_recent_predictions,
     get_today_bets,
     get_today_venues,
-    get_strategy_summary,
     get_daily_stats_by_period,
-    get_all_bankrolls,
+    get_dashboard_data,
 )
 from streamlit_app.components.mobile_css import inject_mobile_css
 
@@ -26,19 +25,24 @@ st.set_page_config(
 
 inject_mobile_css()
 
-# DB初期化は1回だけ（@st.cache_resourceで永続化）
-@st.cache_resource
-def _init_db_once():
+# --- init_databaseは不要（テーブルはバックエンドschedulerが作成済み）---
+
+# --- ダッシュボードデータを1回のDB接続で一括取得 (TTL=300秒) ---
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_dashboard(start_date, end_date):
     try:
-        from src.database import init_database
-        init_database()
-    except Exception:
-        pass
-    return True
+        return get_dashboard_data(start_date, end_date)
+    except Exception as e:
+        return {
+            'today_races': 0,
+            'today_preds': 0,
+            'strategy_summary': [],
+            'bankrolls': {},
+            'db_ok': False,
+            'error': str(e),
+        }
 
-_init_db_once()
-
-# --- キャッシュ付きDB取得 (TTL=300秒=5分) ---
+# タブ用の遅延読み込みキャッシュ
 @st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_bets():
     return get_today_bets()
@@ -46,33 +50,6 @@ def _cached_today_bets():
 @st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_venues():
     return get_today_venues()
-
-@st.cache_data(ttl=300, show_spinner=False)
-def _cached_today_counts():
-    try:
-        with get_db_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) as cnt FROM races WHERE race_date = CURRENT_DATE")
-            races = cur.fetchone()['cnt']
-            cur.execute(
-                "SELECT COUNT(*) as cnt FROM predictions "
-                "WHERE created_at::date = CURRENT_DATE"
-            )
-            preds = cur.fetchone()['cnt']
-        return races, preds, True
-    except Exception:
-        return 0, 0, False
-
-@st.cache_data(ttl=300, show_spinner=False)
-def _cached_strategy_summary(start_date, end_date):
-    return get_strategy_summary(start_date, end_date)
-
-@st.cache_data(ttl=300, show_spinner=False)
-def _cached_all_bankrolls():
-    try:
-        return get_all_bankrolls()
-    except Exception:
-        return {}
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _cached_daily_stats_by_period(start_date, end_date):
@@ -114,109 +91,94 @@ def _strategy_name(strategy_type):
     return STRATEGY_NAMES.get(strategy_type, strategy_type)
 
 
-# --- サイドバー（fragment で分離）---
-@st.fragment
-def sidebar_fragment():
-    with st.sidebar:
-        st.title("\U0001f6a4 ボートレース予想AI")
-        st.divider()
-        st.subheader("システム状態")
-        today_races, today_preds, db_ok = _cached_today_counts()
-        if db_ok:
-            st.success("DB接続: OK")
-        else:
-            st.error("DB接続: エラー")
-        st.metric("本日のレース", today_races)
-        st.metric("本日の予測", today_preds)
-
-sidebar_fragment()
-
-
 # --- メインコンテンツ ---
 st.title("\U0001f6a4 ボートレース予想AIダッシュボード")
 
-# --- 期間セレクター + 戦略カード（fragment で分離）---
-@st.fragment
-def strategy_cards_fragment():
-    today = date.today()
-    period = st.radio(
-        "分析期間",
-        ["デイリー", "1W", "1M", "1Y", "カスタム"],
-        horizontal=True,
-        key="period_selector",
-    )
+# --- 期間セレクター ---
+today = date.today()
+period = st.radio(
+    "分析期間",
+    ["デイリー", "1W", "1M", "1Y", "カスタム"],
+    horizontal=True,
+    key="period_selector",
+)
 
-    if period == "デイリー":
-        start_date = today
-        end_date = today
-    elif period == "1W":
-        start_date = today - timedelta(days=7)
-        end_date = today
-    elif period == "1M":
-        start_date = today - timedelta(days=30)
-        end_date = today
-    elif period == "1Y":
-        start_date = today - timedelta(days=365)
-        end_date = today
+if period == "デイリー":
+    start_date = today
+    end_date = today
+elif period == "1W":
+    start_date = today - timedelta(days=7)
+    end_date = today
+elif period == "1M":
+    start_date = today - timedelta(days=30)
+    end_date = today
+elif period == "1Y":
+    start_date = today - timedelta(days=365)
+    end_date = today
+else:
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        start_date = st.date_input("開始日", today - timedelta(days=30))
+    with col_d2:
+        end_date = st.date_input("終了日", today)
+
+# --- 一括データ取得（1回のDB接続）---
+dashboard = _cached_dashboard(str(start_date), str(end_date))
+
+# --- サイドバー（データは取得済み、DB呼び出しなし）---
+with st.sidebar:
+    st.title("\U0001f6a4 ボートレース予想AI")
+    st.divider()
+    st.subheader("システム状態")
+    if dashboard['db_ok']:
+        st.success("DB接続: OK")
     else:
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            start_date = st.date_input("開始日", today - timedelta(days=30))
-        with col_d2:
-            end_date = st.date_input("終了日", today)
+        st.error("DB接続: エラー")
+    st.metric("本日のレース", dashboard['today_races'])
+    st.metric("本日の予測", dashboard['today_preds'])
 
-    # session_state に期間を保存（他の fragment から参照）
-    st.session_state['start_date'] = str(start_date)
-    st.session_state['end_date'] = str(end_date)
+# --- 6戦略サマリーカード（データは取得済み）---
+st.subheader("戦略別サマリー")
+summary_data = dashboard['strategy_summary']
+summary_dict = {s['strategy_type']: s for s in summary_data} if summary_data else {}
+bankrolls = dashboard['bankrolls']
 
-    st.subheader("戦略別サマリー")
-    try:
-        summary_data = _cached_strategy_summary(str(start_date), str(end_date))
-        summary_dict = {s['strategy_type']: s for s in summary_data} if summary_data else {}
-        bankrolls = _cached_all_bankrolls()
+row1 = st.columns(3)
+row2 = st.columns(3)
+all_cols = row1 + row2
 
-        row1 = st.columns(3)
-        row2 = st.columns(3)
-        all_cols = row1 + row2
+for idx, strategy_key in enumerate(STRATEGY_ORDER):
+    with all_cols[idx]:
+        label = _strategy_name(strategy_key)
+        s = summary_dict.get(strategy_key)
+        bankroll = bankrolls.get(strategy_key, 200000)
 
-        for idx, strategy_key in enumerate(STRATEGY_ORDER):
-            with all_cols[idx]:
-                label = _strategy_name(strategy_key)
-                s = summary_dict.get(strategy_key)
-                bankroll = bankrolls.get(strategy_key, 200000)
+        st.markdown(f"**{label}**")
+        if s and s['total_bets'] > 0:
+            total_amount = s['total_amount'] or 0
+            roi = s['roi'] or 0
+            wins = s['wins'] or 0
+            total_bets = s['total_bets']
+            total_races = s['total_races'] or 0
+            win_rate = wins / total_bets * 100 if total_bets > 0 else 0
 
-                st.markdown(f"**{label}**")
-                if s and s['total_bets'] > 0:
-                    total_amount = s['total_amount'] or 0
-                    total_payout = s['total_payout'] or 0
-                    roi = s['roi'] or 0
-                    wins = s['wins'] or 0
-                    total_bets = s['total_bets']
-                    total_races = s['total_races'] or 0
-                    win_rate = wins / total_bets * 100 if total_bets > 0 else 0
-
-                    st.metric("残金", f"\u00a5{bankroll:,.0f}")
-                    st.metric("投資額", f"\u00a5{total_amount:,}")
-                    st.metric("レース数", total_races)
-                    roi_delta = f"{'+'if roi >= 100 else ''}{roi - 100:.1f}%"
-                    st.metric("ROI", f"{roi:.1f}%", delta=roi_delta)
-                    st.metric("的中率", f"{win_rate:.1f}%")
-                else:
-                    st.metric("残金", f"\u00a5{bankroll:,.0f}")
-                    st.info("データなし")
-
-    except Exception as e:
-        st.error(f"サマリー取得エラー: {e}")
-
-strategy_cards_fragment()
+            st.metric("残金", f"\u00a5{bankroll:,.0f}")
+            st.metric("投資額", f"\u00a5{total_amount:,}")
+            st.metric("レース数", total_races)
+            roi_delta = f"{'+'if roi >= 100 else ''}{roi - 100:.1f}%"
+            st.metric("ROI", f"{roi:.1f}%", delta=roi_delta)
+            st.metric("的中率", f"{win_rate:.1f}%")
+        else:
+            st.metric("残金", f"\u00a5{bankroll:,.0f}")
+            st.info("データなし")
 
 st.divider()
 
-# --- タブ ---
+# --- タブ（fragment でそれぞれ分離 → タブ切り替え時に部分再実行のみ）---
 tab1, tab2, tab3 = st.tabs(["\U0001f4ca 本日の買い目", "\U0001f4b0 期間別推移", "\U0001f504 予測詳細"])
 
 
-# ========== タブ1: 本日の買い目（fragment で分離） ==========
+# ========== タブ1: 本日の買い目 ==========
 @st.fragment
 def tab1_bets_fragment():
     try:
@@ -288,14 +250,12 @@ with tab1:
     tab1_bets_fragment()
 
 
-# ========== タブ2: 期間別推移（fragment で分離） ==========
+# ========== タブ2: 期間別推移 ==========
 @st.fragment
 def tab2_trend_fragment():
     st.subheader("日別収支推移")
     try:
-        start_date = st.session_state.get('start_date', str(date.today()))
-        end_date = st.session_state.get('end_date', str(date.today()))
-        daily = _cached_daily_stats_by_period(start_date, end_date)
+        daily = _cached_daily_stats_by_period(str(start_date), str(end_date))
         if daily:
             import plotly.express as px
 
@@ -354,7 +314,7 @@ with tab2:
     tab2_trend_fragment()
 
 
-# ========== タブ3: 予測詳細（fragment で分離） ==========
+# ========== タブ3: 予測詳細 ==========
 @st.fragment
 def tab3_predictions_fragment():
     st.subheader("最新予測結果（確率分布）")
