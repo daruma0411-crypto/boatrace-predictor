@@ -24,19 +24,52 @@ def _start_scheduler_once():
 
     import time as _time
 
+    def _write_health(status, detail=''):
+        """スケジューラーの状態をDBに記録"""
+        try:
+            import psycopg2
+            db_url = os.environ.get('DATABASE_URL', '')
+            if db_url.startswith('postgres://'):
+                db_url = db_url.replace('postgres://', 'postgresql://', 1)
+            if not db_url:
+                return
+            conn = psycopg2.connect(db_url)
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS scheduler_health (
+                    id SERIAL PRIMARY KEY,
+                    status VARCHAR(50),
+                    detail TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                )
+            """)
+            cur.execute(
+                "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                (status, detail[:500] if detail else ''),
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
     def _run():
         slog = logging.getLogger('scheduler_thread')
         slog.info("スケジューラー: 30秒後に起動予定")
+        _write_health('waiting', '30秒待機中')
         _time.sleep(30)
         try:
+            _write_health('initializing', 'DB初期化中')
             from src.database import init_database
             init_database()
+            _write_health('loading_model', 'モデル読込中')
             from src.scheduler import DynamicRaceScheduler
             scheduler = DynamicRaceScheduler()
+            _write_health('running', 'ポーリング開始')
             slog.info("スケジューラースレッド起動完了")
             scheduler.run_polling()
         except Exception as e:
             slog.error(f"スケジューラースレッド異常終了: {e}", exc_info=True)
+            _write_health('crashed', str(e))
 
     t = threading.Thread(target=_run, daemon=True, name="scheduler")
     t.start()
@@ -106,9 +139,9 @@ STRATEGY_NAMES = {
     'high_confidence': 'D: 高確信',
     'ensemble': 'E: 合議制',
     'div_confidence': 'F: 乖離+確信',
-    'bt_none': 'G: BT基本 (odds≤10)',
-    'bt_entropy': 'H: BT確信 (odds≤10+H<2.3)',
-    'bt_ensemble': 'I: BT合議 (odds≤10+3/4)',
+    'bt_none': 'G: BT基本 (odds≤30)',
+    'bt_entropy': 'H: BT確信 (odds≤30+H<2.3)',
+    'bt_ensemble': 'I: BT合議 (odds≤30+3/4)',
 }
 
 STRATEGY_ORDER = [

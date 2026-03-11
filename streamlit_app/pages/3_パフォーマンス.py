@@ -34,9 +34,9 @@ STRATEGY_NAMES = {
     'high_confidence': 'D: 高確信',
     'ensemble': 'E: 合議制',
     'div_confidence': 'F: 乖離+確信',
-    'bt_none': 'G: BT基本',
-    'bt_entropy': 'H: BT確信',
-    'bt_ensemble': 'I: BT合議',
+    'bt_none': 'G: BT基本(30)',
+    'bt_entropy': 'H: BT確信(30)',
+    'bt_ensemble': 'I: BT合議(30)',
 }
 
 STRATEGY_COLORS = {
