@@ -37,6 +37,7 @@ class DynamicRaceScheduler:
         self.result_collector = ResultCollector()
         self.processed_races = set()
         self.settled_today = False
+        self._schedule_date = None  # 現在のスケジュールの対象日
 
     def fetch_daily_schedule(self):
         """当日のレーススケジュールを取得しDBに保存
@@ -163,12 +164,14 @@ class DynamicRaceScheduler:
         """
         logger.info("ポーリング開始")
         schedule = self.fetch_daily_schedule()
+        self._schedule_date = now_jst().date()
 
         # 起動時キャッチアップ: 締切超過の未処理レースを遡って予測
         self._catch_up_missed_races(schedule)
 
         while True:
             current = now_jst()
+            today = current.date()
             remaining = len(schedule) - len(self.processed_races)
             logger.info(
                 f"ポーリング: {format_jst(current)} "
@@ -187,11 +190,20 @@ class DynamicRaceScheduler:
                     self.settled_today = True
                 schedule = []
 
-            if current.hour == 7 and current.minute == 0:
+            # 日付ベースのスケジュール更新（7:00以降、日付が変わったら自動更新）
+            # exact minute matchを廃止 → 確実に1日1回更新される
+            if self._schedule_date != today and current.hour >= 7:
+                logger.info(
+                    f"日次スケジュール更新: {self._schedule_date} → {today}"
+                )
                 self.settled_today = False
                 self.processed_races = set()
                 schedule = self.fetch_daily_schedule()
-                self._catch_up_missed_races(schedule)
+                if schedule:
+                    self._schedule_date = today
+                    self._catch_up_missed_races(schedule)
+                else:
+                    logger.warning("スケジュール取得失敗、次回リトライ")
 
             # 締切時間フィルター: 締切2〜3分前のレースを処理
             for race in schedule:

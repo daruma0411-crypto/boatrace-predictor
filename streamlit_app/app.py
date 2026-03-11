@@ -57,28 +57,36 @@ def _start_scheduler_once():
         slog.info("スケジューラー: 30秒後に起動予定")
         _write_health('waiting', '30秒待機中')
         _time.sleep(30)
-        try:
-            # 起動時統計JSON生成（旧Procfileから移動）
-            try:
-                slog.info("統計JSON生成中...")
-                from scripts.gen_stats_json import main as gen_stats
-                gen_stats()
-                slog.info("統計JSON生成完了")
-            except Exception as e:
-                slog.warning(f"統計JSON生成スキップ: {e}")
 
-            _write_health('initializing', 'DB初期化中')
-            from src.database import init_database
-            init_database()
-            _write_health('loading_model', 'モデル読込中')
-            from src.scheduler import DynamicRaceScheduler
-            scheduler = DynamicRaceScheduler()
-            _write_health('running', 'ポーリング開始')
-            slog.info("スケジューラースレッド起動完了")
-            scheduler.run_polling()
+        # 起動時統計JSON生成（旧Procfileから移動）
+        try:
+            slog.info("統計JSON生成中...")
+            from scripts.gen_stats_json import main as gen_stats
+            gen_stats()
+            slog.info("統計JSON生成完了")
         except Exception as e:
-            slog.error(f"スケジューラースレッド異常終了: {e}", exc_info=True)
-            _write_health('crashed', str(e))
+            slog.warning(f"統計JSON生成スキップ: {e}")
+
+        # クラッシュ時自動復帰ループ（最大10回リトライ）
+        for attempt in range(10):
+            try:
+                _write_health('initializing', f'DB初期化中 (attempt={attempt+1})')
+                from src.database import init_database
+                init_database()
+                _write_health('loading_model', 'モデル読込中')
+                from src.scheduler import DynamicRaceScheduler
+                scheduler = DynamicRaceScheduler()
+                _write_health('running', 'ポーリング開始')
+                slog.info("スケジューラースレッド起動完了")
+                scheduler.run_polling()
+            except Exception as e:
+                slog.error(
+                    f"スケジューラースレッド異常終了 (attempt={attempt+1}): {e}",
+                    exc_info=True,
+                )
+                _write_health('crashed', f'attempt={attempt+1}: {str(e)[:400]}')
+                _time.sleep(60)  # 1分後にリトライ
+        slog.error("スケジューラー: 最大リトライ回数到達、停止")
 
     t = threading.Thread(target=_run, daemon=True, name="scheduler")
     t.start()
