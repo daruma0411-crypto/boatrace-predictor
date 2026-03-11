@@ -95,7 +95,9 @@ def _adjust_max_odds(base_max_odds, venue_id, race_number):
     elif race_number in RACE_CHAOTIC:
         factor *= 1.3
 
-    return base_max_odds * factor
+    adjusted = base_max_odds * factor
+    # 絶対上限: configの値を超えない（動的拡張を禁止）
+    return min(adjusted, base_max_odds)
 
 
 def _should_skip_by_top_boat(probs_1st):
@@ -309,6 +311,7 @@ class KellyBettingStrategy:
         base_max_odds = config.get('max_odds', 9999)
         filter_type = config.get('filter_type', 'none')
         min_divergence = config.get('min_divergence_ratio', 2.0)
+        min_prob = config.get('min_probability', 0.0)
 
         # 発見1+2: 場・R番号でオッズ上限を動的調整
         if venue_id is not None and race_number is not None:
@@ -319,6 +322,10 @@ class KellyBettingStrategy:
         for combo, prob in sanrentan_probs.items():
             raw_odds = odds_data.get(combo, 0.0)
             if raw_odds <= 1.0 or prob <= 0:
+                continue
+
+            # 最低確率フィルター: 宝くじ買い目を排除
+            if prob < min_prob:
                 continue
 
             # オッズ上限フィルター（動的調整済み）
