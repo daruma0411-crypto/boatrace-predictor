@@ -58,6 +58,15 @@ def _start_scheduler_once():
         _write_health('waiting', '30秒待機中')
         _time.sleep(30)
         try:
+            # 起動時統計JSON生成（旧Procfileから移動）
+            try:
+                slog.info("統計JSON生成中...")
+                from scripts.gen_stats_json import main as gen_stats
+                gen_stats()
+                slog.info("統計JSON生成完了")
+            except Exception as e:
+                slog.warning(f"統計JSON生成スキップ: {e}")
+
             _write_health('initializing', 'DB初期化中')
             from src.database import init_database
             init_database()
