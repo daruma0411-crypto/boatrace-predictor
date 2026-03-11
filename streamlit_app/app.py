@@ -1,11 +1,43 @@
 """ボートレース予想AIシステム メインUI"""
 import sys
 import os
+import threading
+import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
+
+# --- スケジューラーをデーモンスレッドで起動（プロセス内で1回だけ） ---
+_scheduler_lock = threading.Lock()
+_scheduler_started = False
+
+
+def _start_scheduler_once():
+    global _scheduler_started
+    with _scheduler_lock:
+        if _scheduler_started:
+            return
+        _scheduler_started = True
+
+    def _run():
+        slog = logging.getLogger('scheduler_thread')
+        try:
+            from src.database import init_database
+            init_database()
+            from src.scheduler import DynamicRaceScheduler
+            scheduler = DynamicRaceScheduler()
+            slog.info("スケジューラースレッド起動")
+            scheduler.run_polling()
+        except Exception as e:
+            slog.error(f"スケジューラースレッド異常終了: {e}", exc_info=True)
+
+    t = threading.Thread(target=_run, daemon=True, name="scheduler")
+    t.start()
+
+
+_start_scheduler_once()
 from streamlit_app.components.db_utils import (
     get_db_connection,
     get_recent_predictions,
