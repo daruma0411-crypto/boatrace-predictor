@@ -10,6 +10,7 @@ import pandas as pd
 from datetime import date, timedelta
 
 # --- スケジューラーをデーモンスレッドで起動（プロセス内で1回だけ） ---
+# UIの初期ロードを妨げないよう30秒遅延してから起動
 _scheduler_lock = threading.Lock()
 _scheduler_started = False
 
@@ -21,14 +22,18 @@ def _start_scheduler_once():
             return
         _scheduler_started = True
 
+    import time as _time
+
     def _run():
         slog = logging.getLogger('scheduler_thread')
+        slog.info("スケジューラー: 30秒後に起動予定")
+        _time.sleep(30)
         try:
             from src.database import init_database
             init_database()
             from src.scheduler import DynamicRaceScheduler
             scheduler = DynamicRaceScheduler()
-            slog.info("スケジューラースレッド起動")
+            slog.info("スケジューラースレッド起動完了")
             scheduler.run_polling()
         except Exception as e:
             slog.error(f"スケジューラースレッド異常終了: {e}", exc_info=True)
