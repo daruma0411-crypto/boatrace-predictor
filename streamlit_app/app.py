@@ -29,12 +29,14 @@ def _start_scheduler_once():
 
     def _write_health(status, detail=''):
         """スケジューラーの状態をDBに記録"""
+        print(f"[HEALTH] {status}: {detail}", flush=True)
         try:
             import psycopg2
             db_url = os.environ.get('DATABASE_URL', '')
             if db_url.startswith('postgres://'):
                 db_url = db_url.replace('postgres://', 'postgresql://', 1)
             if not db_url:
+                print("[HEALTH] WARNING: DATABASE_URL not set!", flush=True)
                 return
             conn = psycopg2.connect(db_url)
             cur = conn.cursor()
@@ -52,8 +54,8 @@ def _start_scheduler_once():
             )
             conn.commit()
             conn.close()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[HEALTH] DB write failed: {e}", flush=True)
 
     def _run():
         slog = logging.getLogger('scheduler_thread')
@@ -97,6 +99,7 @@ def _start_scheduler_once():
 
 
 _start_scheduler_once()
+print(f"[APP] Module loaded, version={_DEPLOY_VERSION}", flush=True)
 from streamlit_app.components.db_utils import (
     get_db_connection,
     get_recent_predictions,
@@ -108,7 +111,7 @@ from streamlit_app.components.db_utils import (
 from streamlit_app.components.mobile_css import inject_mobile_css
 
 st.set_page_config(
-    page_title="ボートレース予想AI",
+    page_title=f"BoatAI [{_DEPLOY_VERSION}]",
     page_icon="\U0001f6a4",
     layout="wide",
     initial_sidebar_state="collapsed",
