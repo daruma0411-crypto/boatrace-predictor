@@ -192,15 +192,14 @@ class KellyBettingStrategy:
         C-F戦略はフィルタ判定後にKelly計算。
         ensemble_predictions: EnsemblePredictor.predict_all()の結果（戦略E用）
         """
-        # 5-6号艇軸なら全戦略スキップ（的中率が極端に低い）
+        # 5-6号艇軸: ログのみ（max_oddsフィルタに委ねる）
         skip_56 = _should_skip_by_top_boat(probs_1st)
         if skip_56:
             top_boat = max(range(6), key=lambda i: probs_1st[i]) + 1
             logger.info(
-                f"5-6号艇軸: 全戦略スキップ "
+                f"5-6号艇軸: 注意 "
                 f"(モデル1着予測={top_boat}号艇, 場{venue_id} R{race_number})"
             )
-            return {name: [] for name in self.config['strategies']}
 
         # 通常の3連単確率（A/B/C/D/F用）
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(

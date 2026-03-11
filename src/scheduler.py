@@ -411,12 +411,13 @@ class DynamicRaceScheduler:
             )
 
             for strategy_type, bets in all_bets.items():
+                # ベット有無に関わらず予測を保存（結果照合・分析用）
+                pred_id = self.predictor.save_prediction(
+                    race['race_id'], prediction,
+                    recommended_bets=bets if bets else [],
+                    strategy_type=strategy_type,
+                )
                 if bets:
-                    pred_id = self.predictor.save_prediction(
-                        race['race_id'], prediction,
-                        recommended_bets=bets,
-                        strategy_type=strategy_type,
-                    )
                     self.betting.save_bets(bets, pred_id, race['race_id'])
 
             total_bets = sum(len(b) for b in all_bets.values())
