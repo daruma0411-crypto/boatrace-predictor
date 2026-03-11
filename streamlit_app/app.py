@@ -5,6 +5,9 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# デプロイ確認用バージョン情報（起動時にDBに記録）
+_DEPLOY_VERSION = "2921baf-v2"
+
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
@@ -54,8 +57,9 @@ def _start_scheduler_once():
 
     def _run():
         slog = logging.getLogger('scheduler_thread')
-        slog.info("スケジューラー: 30秒後に起動予定")
-        _write_health('waiting', '30秒待機中')
+        slog.info(f"スケジューラー起動: version={_DEPLOY_VERSION}")
+        print(f"[SCHEDULER] Starting version={_DEPLOY_VERSION}", flush=True)
+        _write_health('waiting', f'version={_DEPLOY_VERSION}, 30秒待機中')
         _time.sleep(30)
 
         # 起動時統計JSON生成（旧Procfileから移動）
