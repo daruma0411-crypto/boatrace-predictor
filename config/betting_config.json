@@ -11,7 +11,7 @@
             "min_bet_amount": 100,
             "max_odds": 80,
             "filter_type": "none",
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "standard": {
             "kelly_fraction": 0.25,
@@ -23,7 +23,7 @@
             "min_bet_amount": 100,
             "max_odds": 80,
             "filter_type": "none",
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "divergence": {
             "kelly_fraction": 0.20,
@@ -36,7 +36,7 @@
             "max_odds": 80,
             "filter_type": "divergence",
             "min_divergence_ratio": 1.5,
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "high_confidence": {
             "kelly_fraction": 0.20,
@@ -49,7 +49,7 @@
             "max_odds": 80,
             "filter_type": "entropy",
             "max_entropy": 2.3,
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "ensemble": {
             "kelly_fraction": 0.20,
@@ -62,7 +62,7 @@
             "max_odds": 80,
             "filter_type": "ensemble",
             "min_agreement": 3,
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "div_confidence": {
             "kelly_fraction": 0.20,
@@ -76,7 +76,7 @@
             "filter_type": "div_confidence",
             "min_divergence_ratio": 1.5,
             "max_entropy": 2.3,
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "bt_none": {
             "kelly_fraction": 0.125,
@@ -88,7 +88,7 @@
             "min_bet_amount": 100,
             "max_odds": 80,
             "filter_type": "none",
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "bt_entropy": {
             "kelly_fraction": 0.125,
@@ -101,7 +101,7 @@
             "max_odds": 80,
             "filter_type": "entropy",
             "max_entropy": 2.3,
-            "min_probability": 0.015
+            "min_probability": 0.01
         },
         "bt_ensemble": {
             "kelly_fraction": 0.10,
@@ -114,7 +114,7 @@
             "max_odds": 80,
             "filter_type": "ensemble",
             "min_agreement": 3,
-            "min_probability": 0.015
+            "min_probability": 0.01
         }
     }
 }
