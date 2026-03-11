@@ -9,7 +9,7 @@
             "odds_discount_factor": 0.85,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 30,
+            "max_odds": 50,
             "filter_type": "none"
         },
         "standard": {
@@ -31,7 +31,7 @@
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "max_odds": 60,
+            "max_odds": 50,
             "filter_type": "divergence",
             "min_divergence_ratio": 1.5
         },
@@ -67,7 +67,7 @@
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "max_odds": 60,
+            "max_odds": 50,
             "filter_type": "div_confidence",
             "min_divergence_ratio": 1.5,
             "max_entropy": 2.3
@@ -80,7 +80,7 @@
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 30,
+            "max_odds": 50,
             "filter_type": "none"
         },
         "bt_entropy": {
@@ -91,7 +91,7 @@
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 30,
+            "max_odds": 50,
             "filter_type": "entropy",
             "max_entropy": 2.3
         },
@@ -103,7 +103,7 @@
             "odds_discount_factor": 0.90,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 30,
+            "max_odds": 50,
             "filter_type": "ensemble",
             "min_agreement": 3
         }
