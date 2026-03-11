@@ -319,17 +319,33 @@ class KellyBettingStrategy:
         else:
             max_odds = base_max_odds
 
+        # デバッグ: フィルター状態ログ
+        odds_available = sum(1 for c in sanrentan_probs if odds_data.get(c, 0.0) > 1.0)
+        logger.info(
+            f"[{strategy_name}] フィルター設定: "
+            f"max_odds={max_odds}(base={base_max_odds}), "
+            f"min_ev={min_ev}, min_prob={min_prob}, "
+            f"odds_discount={odds_discount}, "
+            f"odds有効={odds_available}/{len(sanrentan_probs)}件"
+        )
+
+        skip_counts = {'no_odds': 0, 'low_prob': 0, 'high_odds': 0,
+                       'low_ev': 0, 'divergence': 0, 'kelly_neg': 0}
+
         for combo, prob in sanrentan_probs.items():
             raw_odds = odds_data.get(combo, 0.0)
             if raw_odds <= 1.0 or prob <= 0:
+                skip_counts['no_odds'] += 1
                 continue
 
             # 最低確率フィルター: 宝くじ買い目を排除
             if prob < min_prob:
+                skip_counts['low_prob'] += 1
                 continue
 
             # オッズ上限フィルター（動的調整済み）
             if raw_odds > max_odds:
+                skip_counts['high_odds'] += 1
                 continue
 
             # --- 乖離度フィルター (C, F) ---
@@ -337,6 +353,7 @@ class KellyBettingStrategy:
                 if divergence_map:
                     div_ratio = divergence_map.get(combo, 0.0)
                     if div_ratio < min_divergence:
+                        skip_counts['divergence'] += 1
                         continue
 
             # オッズ割引
@@ -345,16 +362,19 @@ class KellyBettingStrategy:
             # 割引後EVで判定
             ev = prob * discounted_odds
             if ev < min_ev:
+                skip_counts['low_ev'] += 1
                 continue
 
             # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
             b = discounted_odds - 1.0
             if b <= 0:
+                skip_counts['kelly_neg'] += 1
                 continue
             q = 1.0 - prob
             kelly = (b * prob - q) / b
 
             if kelly <= 0:
+                skip_counts['kelly_neg'] += 1
                 continue
 
             # フラクショナル・ケリー
@@ -375,6 +395,18 @@ class KellyBettingStrategy:
                     'probability': prob,
                     'strategy_type': strategy_name,
                 })
+
+        # デバッグ: フィルターサマリ
+        logger.info(
+            f"[{strategy_name}] スキップ内訳: "
+            f"odds無し={skip_counts['no_odds']}, "
+            f"低確率={skip_counts['low_prob']}, "
+            f"高オッズ={skip_counts['high_odds']}, "
+            f"低EV={skip_counts['low_ev']}, "
+            f"乖離={skip_counts['divergence']}, "
+            f"Kelly負={skip_counts['kelly_neg']}, "
+            f"→ 候補={len(candidates)}件"
+        )
 
         # 割引EV上位N点に絞る
         candidates.sort(key=lambda x: x['expected_value'], reverse=True)
