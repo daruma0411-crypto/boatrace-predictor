@@ -69,11 +69,15 @@ STRATEGY_NAMES = {
     'high_confidence': 'D: 高確信',
     'ensemble': 'E: 合議制',
     'div_confidence': 'F: 乖離+確信',
+    'bt_none': 'G: BT基本 (odds≤10)',
+    'bt_entropy': 'H: BT確信 (odds≤10+H<2.3)',
+    'bt_ensemble': 'I: BT合議 (odds≤10+3/4)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'divergence',
     'high_confidence', 'ensemble', 'div_confidence',
+    'bt_none', 'bt_entropy', 'bt_ensemble',
 ]
 
 

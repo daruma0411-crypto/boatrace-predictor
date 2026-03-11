@@ -34,6 +34,9 @@ STRATEGY_NAMES = {
     'high_confidence': 'D: 高確信',
     'ensemble': 'E: 合議制',
     'div_confidence': 'F: 乖離+確信',
+    'bt_none': 'G: BT基本',
+    'bt_entropy': 'H: BT確信',
+    'bt_ensemble': 'I: BT合議',
 }
 
 STRATEGY_COLORS = {
@@ -43,11 +46,15 @@ STRATEGY_COLORS = {
     'high_confidence': '#d62728',
     'ensemble': '#9467bd',
     'div_confidence': '#8c564b',
+    'bt_none': '#17becf',
+    'bt_entropy': '#bcbd22',
+    'bt_ensemble': '#e377c2',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'divergence',
     'high_confidence', 'ensemble', 'div_confidence',
+    'bt_none', 'bt_entropy', 'bt_ensemble',
 ]
 
 # --- キャッシュ付きDB取得 (TTL=300秒) ---
@@ -73,8 +80,8 @@ def performance_fragment():
         value=30,
     )
 
-    # --- 戦略別6戦略比較 ---
-    st.subheader("戦略別比較 (A\u301cF)")
+    # --- 戦略別比較 ---
+    st.subheader("戦略別比較 (A\u301cI)")
     try:
         stats = _cached_performance_stats(days)
         if stats:
@@ -82,13 +89,16 @@ def performance_fragment():
 
             row1 = st.columns(3)
             row2 = st.columns(3)
-            all_cols = row1 + row2
+            row3 = st.columns(3)
+            all_cols = row1 + row2 + row3
 
             strategy_map = {s['strategy_type']: s for s in stats}
 
             for idx, strategy_key in enumerate(STRATEGY_ORDER):
                 if strategy_key not in strategy_map:
                     continue
+                if idx >= len(all_cols):
+                    break
                 row = strategy_map[strategy_key]
                 with all_cols[idx]:
                     label = STRATEGY_NAMES.get(strategy_key, strategy_key)

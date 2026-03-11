@@ -71,6 +71,41 @@
             "filter_type": "div_confidence",
             "min_divergence_ratio": 1.5,
             "max_entropy": 2.3
+        },
+        "bt_none": {
+            "kelly_fraction": 0.125,
+            "max_total_bet_ratio": 0.02,
+            "max_ticket_bet_ratio": 0.008,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.90,
+            "max_recommended_bets": 2,
+            "min_bet_amount": 100,
+            "max_odds": 10,
+            "filter_type": "none"
+        },
+        "bt_entropy": {
+            "kelly_fraction": 0.125,
+            "max_total_bet_ratio": 0.02,
+            "max_ticket_bet_ratio": 0.008,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.90,
+            "max_recommended_bets": 2,
+            "min_bet_amount": 100,
+            "max_odds": 10,
+            "filter_type": "entropy",
+            "max_entropy": 2.3
+        },
+        "bt_ensemble": {
+            "kelly_fraction": 0.10,
+            "max_total_bet_ratio": 0.02,
+            "max_ticket_bet_ratio": 0.008,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.90,
+            "max_recommended_bets": 2,
+            "min_bet_amount": 100,
+            "max_odds": 10,
+            "filter_type": "ensemble",
+            "min_agreement": 3
         }
     }
 }
