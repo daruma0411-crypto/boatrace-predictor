@@ -170,76 +170,79 @@ class DynamicRaceScheduler:
         self._catch_up_missed_races(schedule)
 
         while True:
-            current = now_jst()
-            today = current.date()
-            remaining = len(schedule) - len(self.processed_races)
-            logger.info(
-                f"ポーリング: {format_jst(current)} "
-                f"(未処理: {remaining}件)"
-            )
-
-            if current.hour >= 23:
-                # 23時以降: 結果収集 → 翌日待機
-                if not self.settled_today:
-                    logger.info("23時以降: レース結果収集開始")
-                    try:
-                        count = self.result_collector.settle_today()
-                        logger.info(f"結果収集完了: {count}件精算")
-                    except Exception as e:
-                        logger.error(f"結果収集エラー: {e}", exc_info=True)
-                    self.settled_today = True
-                schedule = []
-
-            # 日付ベースのスケジュール更新（7:00以降、日付が変わったら自動更新）
-            # exact minute matchを廃止 → 確実に1日1回更新される
-            if self._schedule_date != today and current.hour >= 7:
+            try:
+                current = now_jst()
+                today = current.date()
+                remaining = len(schedule) - len(self.processed_races)
                 logger.info(
-                    f"日次スケジュール更新: {self._schedule_date} → {today}"
+                    f"ポーリング: {format_jst(current)} "
+                    f"(未処理: {remaining}件)"
                 )
-                self.settled_today = False
-                self.processed_races = set()
-                schedule = self.fetch_daily_schedule()
-                if schedule:
-                    self._schedule_date = today
-                    self._catch_up_missed_races(schedule)
-                else:
-                    logger.warning("スケジュール取得失敗、次回リトライ")
 
-            # 締切時間フィルター: 締切2〜3分前のレースを処理
-            for race in schedule:
-                race_key = (race['venue_id'], race['race_number'])
-                if race_key in self.processed_races:
-                    continue
+                if current.hour >= 23:
+                    # 23時以降: 結果収集 → 翌日待機
+                    if not self.settled_today:
+                        logger.info("23時以降: レース結果収集開始")
+                        try:
+                            count = self.result_collector.settle_today()
+                            logger.info(f"結果収集完了: {count}件精算")
+                        except Exception as e:
+                            logger.error(f"結果収集エラー: {e}", exc_info=True)
+                        self.settled_today = True
+                    schedule = []
 
-                deadline = race.get('deadline_time')
-                if deadline is None:
-                    # 締切時刻不明 → 旧方式フォールバック
-                    if 8 <= current.hour <= 17:
+                # 日付ベースのスケジュール更新（7:00以降、日付が変わったら自動更新）
+                if self._schedule_date != today and current.hour >= 7:
+                    logger.info(
+                        f"日次スケジュール更新: {self._schedule_date} → {today}"
+                    )
+                    self.settled_today = False
+                    self.processed_races = set()
+                    schedule = self.fetch_daily_schedule()
+                    if schedule:
+                        self._schedule_date = today
+                        self._catch_up_missed_races(schedule)
+                    else:
+                        logger.warning("スケジュール取得失敗、次回リトライ")
+
+                # 締切時間フィルター: 締切2〜3分前のレースを処理
+                for race in schedule:
+                    race_key = (race['venue_id'], race['race_number'])
+                    if race_key in self.processed_races:
+                        continue
+
+                    deadline = race.get('deadline_time')
+                    if deadline is None:
+                        # 締切時刻不明 → 旧方式フォールバック
+                        if 8 <= current.hour <= 17:
+                            logger.info(
+                                f"予測開始(締切不明): 場{race['venue_id']} "
+                                f"R{race['race_number']}"
+                            )
+                            self.predict_and_bet_safe(race)
+                            self.processed_races.add(race_key)
+                            break
+                        continue
+
+                    minutes_left = (deadline - current).total_seconds() / 60
+
+                    if minutes_left < LEAD_TIME_MIN:
+                        # キャッチアップ済みなのでスキップのみ
+                        self.processed_races.add(race_key)
+                        continue
+
+                    if LEAD_TIME_MIN <= minutes_left <= LEAD_TIME_MAX:
                         logger.info(
-                            f"予測開始(締切不明): 場{race['venue_id']} "
-                            f"R{race['race_number']}"
+                            f"予測開始: 場{race['venue_id']} "
+                            f"R{race['race_number']} "
+                            f"(締切まで{minutes_left:.0f}分)"
                         )
                         self.predict_and_bet_safe(race)
                         self.processed_races.add(race_key)
-                        break
-                    continue
+                        break  # 1レースずつ処理して次のポーリングへ
 
-                minutes_left = (deadline - current).total_seconds() / 60
-
-                if minutes_left < LEAD_TIME_MIN:
-                    # キャッチアップ済みなのでスキップのみ
-                    self.processed_races.add(race_key)
-                    continue
-
-                if LEAD_TIME_MIN <= minutes_left <= LEAD_TIME_MAX:
-                    logger.info(
-                        f"予測開始: 場{race['venue_id']} "
-                        f"R{race['race_number']} "
-                        f"(締切まで{minutes_left:.0f}分)"
-                    )
-                    self.predict_and_bet_safe(race)
-                    self.processed_races.add(race_key)
-                    break  # 1レースずつ処理して次のポーリングへ
+            except Exception as e:
+                logger.error(f"ポーリングサイクルエラー: {e}", exc_info=True)
 
             time.sleep(60)
 

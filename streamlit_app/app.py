@@ -6,7 +6,7 @@ import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # デプロイ確認用バージョン情報（起動時にDBに記録）
-_DEPLOY_VERSION = "2921baf-v2"
+_DEPLOY_VERSION = "7a7f91b-v3"
 
 import streamlit as st
 import pandas as pd
@@ -73,26 +73,30 @@ def _start_scheduler_once():
         except Exception as e:
             slog.warning(f"統計JSON生成スキップ: {e}")
 
-        # クラッシュ時自動復帰ループ（最大10回リトライ）
-        for attempt in range(10):
+        # クラッシュ時自動復帰ループ（無限リトライ）
+        attempt = 0
+        while True:
+            attempt += 1
             try:
-                _write_health('initializing', f'DB初期化中 (attempt={attempt+1})')
+                _write_health('initializing', f'DB初期化中 (attempt={attempt})')
                 from src.database import init_database
                 init_database()
                 _write_health('loading_model', 'モデル読込中')
                 from src.scheduler import DynamicRaceScheduler
                 scheduler = DynamicRaceScheduler()
                 _write_health('running', 'ポーリング開始')
-                slog.info("スケジューラースレッド起動完了")
+                slog.info(f"スケジューラースレッド起動完了 (attempt={attempt})")
                 scheduler.run_polling()
+                # run_polling()が正常returnした場合もリトライ
+                slog.warning(f"run_polling()が正常終了、再起動 (attempt={attempt})")
+                _write_health('restarting', f'正常終了後の再起動 attempt={attempt}')
             except Exception as e:
                 slog.error(
-                    f"スケジューラースレッド異常終了 (attempt={attempt+1}): {e}",
+                    f"スケジューラースレッド異常終了 (attempt={attempt}): {e}",
                     exc_info=True,
                 )
-                _write_health('crashed', f'attempt={attempt+1}: {str(e)[:400]}')
-                _time.sleep(60)  # 1分後にリトライ
-        slog.error("スケジューラー: 最大リトライ回数到達、停止")
+                _write_health('crashed', f'attempt={attempt}: {str(e)[:400]}')
+            _time.sleep(60)  # 1分後にリトライ
 
     t = threading.Thread(target=_run, daemon=True, name="scheduler")
     t.start()
