@@ -163,11 +163,18 @@ class DynamicRaceScheduler:
         起動時に見逃しレースをキャッチアップしてから通常ポーリングに移行。
         """
         logger.info("ポーリング開始")
-        schedule = self.fetch_daily_schedule()
+        try:
+            schedule = self.fetch_daily_schedule()
+        except Exception as e:
+            logger.error(f"初期スケジュール取得失敗: {e}", exc_info=True)
+            schedule = []
         self._schedule_date = now_jst().date()
 
         # 起動時キャッチアップ: 締切超過の未処理レースを遡って予測
-        self._catch_up_missed_races(schedule)
+        try:
+            self._catch_up_missed_races(schedule)
+        except Exception as e:
+            logger.error(f"キャッチアップ失敗: {e}", exc_info=True)
 
         while True:
             try:
@@ -247,7 +254,10 @@ class DynamicRaceScheduler:
             time.sleep(60)
 
     def _already_bet(self, race_id):
-        """このレースに既にベットが存在するか確認（重複防止）"""
+        """このレースに既にベットが存在するか確認（重複防止）
+
+        DB障害時は安全側（ベット済み扱い）でスキップする。
+        """
         try:
             with get_db_connection() as conn:
                 cur = conn.cursor()
@@ -256,8 +266,9 @@ class DynamicRaceScheduler:
                     (race_id,),
                 )
                 return cur.fetchone()['cnt'] > 0
-        except Exception:
-            return False
+        except Exception as e:
+            logger.critical(f"重複チェックDB障害 race_id={race_id}: {e}")
+            return True  # 安全側: ベット済み扱いでスキップ
 
     def predict_and_bet_safe(self, race):
         """展示データ取得 → 予測 → ベット計算"""

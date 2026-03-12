@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "7c2f15a-v4"
+_DEPLOY_VERSION = "286d13f-v5"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -46,6 +46,7 @@ def _start_scheduler_once():
         _scheduler_started = True
 
     import time as _time
+    import traceback as _tb
 
     def _write_health(status, detail=''):
         """スケジューラーの状態をDBに記録"""
@@ -78,48 +79,60 @@ def _start_scheduler_once():
             print(f"[HEALTH] DB write failed: {e}", flush=True)
 
     def _run():
-        slog = logging.getLogger('scheduler_thread')
-        slog.info(f"スケジューラー起動: version={_DEPLOY_VERSION}")
-        print(f"[SCHEDULER] Starting version={_DEPLOY_VERSION}", flush=True)
-        _write_health('waiting', f'version={_DEPLOY_VERSION}, 30秒待機中')
+        try:
+            slog = logging.getLogger('scheduler_thread')
+            slog.info(f"スケジューラー起動: version={_DEPLOY_VERSION}")
+            print(f"[SCHEDULER] Starting version={_DEPLOY_VERSION}", flush=True)
+        except Exception as e:
+            print(f"[SCHEDULER] Logger init failed: {e}", flush=True)
+
+        try:
+            _write_health('waiting', f'version={_DEPLOY_VERSION}, 30秒待機中')
+        except Exception as e:
+            print(f"[SCHEDULER] Health write failed: {e}", flush=True)
+
         _time.sleep(30)
 
         # 起動時統計JSON生成（旧Procfileから移動）
         try:
-            slog.info("統計JSON生成中...")
+            print("[SCHEDULER] Generating stats JSON...", flush=True)
             from scripts.gen_stats_json import main as gen_stats
             gen_stats()
-            slog.info("統計JSON生成完了")
+            print("[SCHEDULER] Stats JSON done", flush=True)
         except Exception as e:
-            slog.warning(f"統計JSON生成スキップ: {e}")
+            print(f"[SCHEDULER] Stats JSON skipped: {e}", flush=True)
 
         # クラッシュ時自動復帰ループ（無限リトライ）
         attempt = 0
         while True:
             attempt += 1
             try:
+                print(f"[SCHEDULER] Attempt {attempt}: initializing...", flush=True)
                 _write_health('initializing', f'DB初期化中 (attempt={attempt})')
                 from src.database import init_database
                 init_database()
+                print(f"[SCHEDULER] Attempt {attempt}: loading model...", flush=True)
                 _write_health('loading_model', 'モデル読込中')
                 from src.scheduler import DynamicRaceScheduler
                 scheduler = DynamicRaceScheduler()
+                print(f"[SCHEDULER] Attempt {attempt}: starting polling...", flush=True)
                 _write_health('running', 'ポーリング開始')
-                slog.info(f"スケジューラースレッド起動完了 (attempt={attempt})")
                 scheduler.run_polling()
                 # run_polling()が正常returnした場合もリトライ
-                slog.warning(f"run_polling()が正常終了、再起動 (attempt={attempt})")
+                print(f"[SCHEDULER] run_polling() returned normally, restarting (attempt={attempt})", flush=True)
                 _write_health('restarting', f'正常終了後の再起動 attempt={attempt}')
             except Exception as e:
-                slog.error(
-                    f"スケジューラースレッド異常終了 (attempt={attempt}): {e}",
-                    exc_info=True,
-                )
+                tb_str = _tb.format_exc()
+                print(f"[SCHEDULER] CRASHED (attempt={attempt}): {e}\n{tb_str}", flush=True)
                 _write_health('crashed', f'attempt={attempt}: {str(e)[:400]}')
             _time.sleep(60)  # 1分後にリトライ
 
-    t = threading.Thread(target=_run, daemon=True, name="scheduler")
-    t.start()
+    try:
+        t = threading.Thread(target=_run, daemon=True, name="scheduler")
+        t.start()
+        print(f"[APP] Scheduler thread started", flush=True)
+    except Exception as e:
+        print(f"[APP] Failed to start scheduler thread: {e}", flush=True)
 
 
 _start_scheduler_once()

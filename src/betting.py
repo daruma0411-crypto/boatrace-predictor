@@ -175,6 +175,29 @@ def _average_ensemble_probs(ensemble_predictions):
     }
 
 
+DAILY_LOSS_LIMIT = 50000  # 全戦略合計の1日最大損失額
+
+
+def _get_today_total_loss():
+    """本日の全戦略合計損失額をDBから取得"""
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT COALESCE(SUM(amount), 0) as total_wagered,
+                       COALESCE(SUM(payout), 0) as total_payout
+                FROM bets
+                WHERE created_at >= CURRENT_DATE
+            """)
+            row = cur.fetchone()
+            wagered = float(row['total_wagered'])
+            payout = float(row['total_payout'])
+            return wagered - payout  # 正=損失, 負=利益
+    except Exception as e:
+        logger.warning(f"日次損失チェックDB障害: {e}")
+        return 0  # DB障害時は継続（bankroll制限が別途効く）
+
+
 class KellyBettingStrategy:
     """ケリー基準 + 6戦略並列テスト ベッティング戦略"""
 
@@ -194,6 +217,14 @@ class KellyBettingStrategy:
         C-F戦略はフィルタ判定後にKelly計算。
         ensemble_predictions: EnsemblePredictor.predict_all()の結果（戦略E用）
         """
+        # 日次損失制限チェック
+        today_loss = _get_today_total_loss()
+        if today_loss >= DAILY_LOSS_LIMIT:
+            logger.warning(
+                f"日次損失上限到達: {today_loss:,.0f}円 >= {DAILY_LOSS_LIMIT:,}円 → 全戦略スキップ"
+            )
+            return {name: [] for name in self.config['strategies']}
+
         # 5-6号艇軸: ログのみ（max_oddsフィルタに委ねる）
         skip_56 = _should_skip_by_top_boat(probs_1st)
         if skip_56:
@@ -367,7 +398,8 @@ class KellyBettingStrategy:
 
             # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
             b = discounted_odds - 1.0
-            if b <= 0:
+            if b < 0.01:
+                # b が 0 に近いとケリー値が数値爆発するためスキップ
                 skip_counts['kelly_neg'] += 1
                 continue
             q = 1.0 - prob
