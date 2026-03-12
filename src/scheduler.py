@@ -41,30 +41,48 @@ class DynamicRaceScheduler:
     def fetch_daily_schedule(self):
         """当日のレーススケジュールを取得しDBに保存
 
-        全24場のR1出走表を試行し、レスポンスがあった場を当日開催と判定。
+        全24場のR1出走表を4並列で試行し、レスポンスがあった場を当日開催と判定。
         開催場のR1〜R12を全てDB登録する。
+        全体タイムアウト120秒でhealthcheckタイムアウトを防ぐ。
         """
         today = now_jst().date()
         races = []
-        session = _get_session()
 
-        for venue_id in range(1, NUM_VENUES + 1):
+        def _probe_venue(venue_id):
+            """1会場のプローブ: 独立sessionでスレッドセーフ"""
+            s = _get_session()
             try:
-                test_boats = scrape_racelist(session, today, venue_id, 1)
+                test_boats = scrape_racelist(s, today, venue_id, 1)
                 if not test_boats:
-                    continue
+                    return None
             except Exception:
-                continue
+                return None
+            time.sleep(0.3)
+            deadlines = scrape_race_deadlines(s, today, venue_id)
+            return (venue_id, deadlines)
 
-            time.sleep(0.5)
+        from concurrent.futures import as_completed
+        results = []
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(_probe_venue, v): v
+                for v in range(1, NUM_VENUES + 1)
+            }
+            try:
+                for future in as_completed(futures, timeout=120):
+                    try:
+                        result = future.result(timeout=15)
+                        if result:
+                            results.append(result)
+                    except Exception as e:
+                        v = futures[future]
+                        logger.debug(f"場{v}プローブ失敗: {e}")
+            except TimeoutError:
+                logger.warning("スケジュール取得: 全体タイムアウト(120秒)")
 
-            # 締切時刻を一括取得
-            deadlines = scrape_race_deadlines(session, today, venue_id)
-            time.sleep(0.5)
-
-            # この会場は開催中 → R1〜R12を登録
+        # 結果をDB登録
+        for venue_id, deadlines in results:
             for race_number in range(1, 13):
-                # 締切時刻を datetime に変換
                 deadline_dt = None
                 dl_str = deadlines.get(race_number)
                 if dl_str:
@@ -91,7 +109,7 @@ class DynamicRaceScheduler:
             dl_summary = f"{deadlines.get(1, '?')}〜{deadlines.get(12, '?')}"
             logger.info(f"場{venue_id}: 12R登録完了 (締切: {dl_summary})")
 
-        logger.info(f"本日のレース: {len(races)}件")
+        logger.info(f"本日のレース: {len(races)}件 ({len(results)}場開催)")
         return races
 
     def _catch_up_missed_races(self, schedule):

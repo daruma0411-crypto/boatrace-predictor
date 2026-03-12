@@ -125,7 +125,10 @@ def _start_scheduler_once():
                 tb_str = _tb.format_exc()
                 print(f"[SCHEDULER] CRASHED (attempt={attempt}): {e}\n{tb_str}", flush=True)
                 _write_health('crashed', f'attempt={attempt}: {str(e)[:400]}')
-            _time.sleep(60)  # 1分後にリトライ
+            # 指数バックオフ: 60→120→240→480→600秒上限
+            wait = min(60 * (2 ** min(attempt - 1, 3)), 600)
+            _write_health('backoff', f'attempt={attempt}, wait={wait}秒')
+            _time.sleep(wait)
 
     try:
         t = threading.Thread(target=_run, daemon=True, name="scheduler")
