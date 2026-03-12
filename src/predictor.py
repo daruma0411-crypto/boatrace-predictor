@@ -4,7 +4,7 @@ import logging
 import os
 import numpy as np
 import torch
-from src.models import load_model, BoatraceMultiTaskModel
+from src.models import load_model
 from src.features import FeatureEngineer
 from src.database import get_db_connection
 from utils.timezone import now_jst
@@ -30,14 +30,9 @@ class RealtimePredictor:
         self.device = torch.device('cpu')
 
     def _ensure_model(self):
-        """モデルをロード（未ロード時）"""
+        """モデルをロード（未ロード時）。ファイル未発見時は例外を伝搬"""
         if self.model is None:
-            try:
-                self.model = load_model(self.model_path, self.device)
-            except FileNotFoundError:
-                logger.warning("モデルファイルが見つかりません。ダミーモデルを使用")
-                self.model = BoatraceMultiTaskModel()
-                self.model.eval()
+            self.model = load_model(self.model_path, self.device)
 
     def predict(self, race_data, boats_data):
         """特徴量生成→PyTorchモデル推論→確率を返却"""
@@ -196,9 +191,12 @@ class EnsemblePredictor:
                         f"アンサンブル次元補正: {x.shape[1]}→{model_input_dim} ({path})"
                     )
                 else:
-                    # モデルの方が大きい場合はゼロパディング
-                    pad = torch.zeros(x.shape[0], model_input_dim - x.shape[1])
-                    x_input = torch.cat([x, pad], dim=1)
+                    # 特徴量 < モデル次元: ゼロパディングは精度劣化するためスキップ
+                    logger.warning(
+                        f"アンサンブルスキップ: 特徴量{x.shape[1]}次元 < "
+                        f"モデル{model_input_dim}次元 ({path})"
+                    )
+                    continue
 
             with torch.no_grad():
                 out_1st, out_2nd, out_3rd = model(x_input)

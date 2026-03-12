@@ -28,16 +28,33 @@ class FeatureEngineer:
     TOTAL_DIM = GLOBAL_DIM + PER_BOAT_DIM * NUM_BOATS  # 208
 
     def transform(self, race_data, boats_data):
-        """レースデータと艇データから特徴量ベクトルを生成"""
+        """レースデータと艇データから特徴量ベクトルを生成
+
+        Raises:
+            ValueError: 3艇以上の主要データが欠損している場合
+        """
         global_features = self._extract_global(race_data)
         boat_features = []
+        missing_count = 0
 
         for i in range(self.NUM_BOATS):
             if i < len(boats_data):
-                bf = self._extract_boat(boats_data[i], boats_data)
+                boat = boats_data[i]
+                # 主要フィールドの欠損チェック
+                key_fields = ['win_rate', 'win_rate_2', 'motor_win_rate_2']
+                if all(not boat.get(f) for f in key_fields):
+                    missing_count += 1
+                bf = self._extract_boat(boat, boats_data)
             else:
+                missing_count += 1
                 bf = np.zeros(self.PER_BOAT_DIM)
             boat_features.append(bf)
+
+        # 3艇以上の主要データ欠損（50%超）→ 予測不可
+        if missing_count >= 3:
+            raise ValueError(
+                f"データ欠損率過大: {missing_count}/6艇の主要データなし"
+            )
 
         features = np.concatenate([global_features] + boat_features)
         features = self._clean_features(features)
