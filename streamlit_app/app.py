@@ -290,7 +290,8 @@ def period_and_cards_fragment():
 
     row1 = st.columns(3)
     row2 = st.columns(3)
-    all_cols = row1 + row2
+    row3 = st.columns(3)
+    all_cols = row1 + row2 + row3
 
     for idx, strategy_key in enumerate(STRATEGY_ORDER):
         with all_cols[idx]:
