@@ -5,8 +5,28 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# デプロイ確認用バージョン情報（起動時にDBに記録）
-_DEPLOY_VERSION = "7a7f91b-v3"
+_DEPLOY_VERSION = "7c2f15a-v4"
+
+# モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
+try:
+    import psycopg2 as _pg2
+    _db_url = os.environ.get('DATABASE_URL', '')
+    if _db_url.startswith('postgres://'):
+        _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+    if _db_url:
+        _c = _pg2.connect(_db_url)
+        _cur = _c.cursor()
+        _cur.execute(
+            "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+            ('module_loaded', f'version={_DEPLOY_VERSION}'),
+        )
+        _c.commit()
+        _c.close()
+        print(f"[APP] module_loaded marker written, version={_DEPLOY_VERSION}", flush=True)
+    else:
+        print("[APP] WARNING: DATABASE_URL is empty!", flush=True)
+except Exception as _e:
+    print(f"[APP] module_loaded write failed: {_e}", flush=True)
 
 import streamlit as st
 import pandas as pd
