@@ -5,116 +5,116 @@
             "kelly_fraction": 0.125,
             "max_total_bet_ratio": 0.02,
             "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.15,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 30,
             "filter_type": "none",
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "standard": {
             "kelly_fraction": 0.25,
             "max_total_bet_ratio": 0.03,
             "max_ticket_bet_ratio": 0.012,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.10,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 5,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 50,
             "filter_type": "none",
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "divergence": {
             "kelly_fraction": 0.20,
             "max_total_bet_ratio": 0.025,
             "max_ticket_bet_ratio": 0.01,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.08,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 60,
             "filter_type": "divergence",
             "min_divergence_ratio": 1.5,
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "high_confidence": {
             "kelly_fraction": 0.20,
             "max_total_bet_ratio": 0.025,
             "max_ticket_bet_ratio": 0.01,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.08,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 60,
             "filter_type": "entropy",
             "max_entropy": 2.3,
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "ensemble": {
             "kelly_fraction": 0.20,
             "max_total_bet_ratio": 0.025,
             "max_ticket_bet_ratio": 0.01,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.08,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 60,
             "filter_type": "ensemble",
             "min_agreement": 3,
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "div_confidence": {
             "kelly_fraction": 0.20,
             "max_total_bet_ratio": 0.025,
             "max_ticket_bet_ratio": 0.01,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.08,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 60,
             "filter_type": "div_confidence",
             "min_divergence_ratio": 1.5,
             "max_entropy": 2.3,
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "bt_none": {
             "kelly_fraction": 0.125,
             "max_total_bet_ratio": 0.02,
             "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.15,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 30,
             "filter_type": "none",
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "bt_entropy": {
             "kelly_fraction": 0.125,
             "max_total_bet_ratio": 0.02,
             "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.08,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 60,
             "filter_type": "entropy",
             "max_entropy": 2.3,
-            "min_probability": 0.01
+            "min_probability": 0.02
         },
         "bt_ensemble": {
             "kelly_fraction": 0.10,
             "max_total_bet_ratio": 0.02,
             "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 1.01,
-            "odds_discount_factor": 1.0,
+            "min_expected_value": 1.08,
+            "odds_discount_factor": 0.85,
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
-            "max_odds": 80,
+            "max_odds": 60,
             "filter_type": "ensemble",
             "min_agreement": 3,
-            "min_probability": 0.01
+            "min_probability": 0.02
         }
     }
 }
