@@ -207,6 +207,7 @@ class DynamicRaceScheduler:
         起動時に見逃しレースをキャッチアップしてから通常ポーリングに移行。
         """
         logger.info("ポーリング開始")
+        # スケジュール取得結果をhealthに書き込み
         try:
             schedule = self.fetch_daily_schedule()
         except Exception as e:
@@ -214,29 +215,62 @@ class DynamicRaceScheduler:
             schedule = []
         self._schedule_date = now_jst().date()
 
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                    ('schedule_fetched', f'races={len(schedule)}'),
+                )
+        except Exception:
+            pass
+
         # キャッチアップ: 締切超過レースを処理済みマークのみ（予測スキップ）
-        # データ取得タイムアウトが長いため、キャッチアップで予測を試みると
-        # 通常ポーリングの開始が大幅に遅延する問題あり
         current = now_jst()
         skipped = 0
+        future_count = 0
         for race in schedule:
             race_key = (race['venue_id'], race['race_number'])
             deadline = race.get('deadline_time')
             if deadline and (deadline - current).total_seconds() / 60 < LEAD_TIME_MIN:
                 self.processed_races.add(race_key)
                 skipped += 1
-        if skipped:
-            logger.info(f"起動時スキップ: {skipped}件の締切超過レースを処理済みマーク")
+            elif deadline:
+                future_count += 1
+        logger.info(f"起動時: {skipped}件スキップ, {future_count}件未来レース")
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                    ('ready', f'skipped={skipped}, future={future_count}'),
+                )
+        except Exception:
+            pass
 
+        # ポーリングサイクルカウンター（診断用health書き込み）
+        _poll_count = 0
         while True:
             try:
                 current = now_jst()
                 today = current.date()
                 remaining = len(schedule) - len(self.processed_races)
+                _poll_count += 1
                 logger.info(
-                    f"ポーリング: {format_jst(current)} "
+                    f"ポーリング#{_poll_count}: {format_jst(current)} "
                     f"(未処理: {remaining}件)"
                 )
+                # 5サイクルごとにhealthに書き込み
+                if _poll_count % 5 == 1:
+                    try:
+                        with get_db_connection() as conn:
+                            cur = conn.cursor()
+                            cur.execute(
+                                "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                                ('polling', f'cycle={_poll_count}, remaining={remaining}'),
+                            )
+                    except Exception:
+                        pass
 
                 if current.hour >= 23:
                     # 23時以降: 結果収集 → 翌日待機
