@@ -29,7 +29,6 @@ class DynamicRaceScheduler:
     """動的レーススケジューラ: 1分間隔ポーリング"""
 
     def __init__(self, model_path='models/boatrace_model.pth'):
-        self.session = _get_session()
         self.collector = RealtimeDataCollector()
         self.predictor = RealtimePredictor(model_path)
         self.ensemble_predictor = EnsemblePredictor()
@@ -47,10 +46,11 @@ class DynamicRaceScheduler:
         """
         today = now_jst().date()
         races = []
+        session = _get_session()
 
         for venue_id in range(1, NUM_VENUES + 1):
             try:
-                test_boats = scrape_racelist(self.session, today, venue_id, 1)
+                test_boats = scrape_racelist(session, today, venue_id, 1)
                 if not test_boats:
                     continue
             except Exception:
@@ -59,7 +59,7 @@ class DynamicRaceScheduler:
             time.sleep(0.5)
 
             # 締切時刻を一括取得
-            deadlines = scrape_race_deadlines(self.session, today, venue_id)
+            deadlines = scrape_race_deadlines(session, today, venue_id)
             time.sleep(0.5)
 
             # この会場は開催中 → R1〜R12を登録
@@ -460,7 +460,8 @@ class DynamicRaceScheduler:
 
     def _fetch_and_store_boats(self, race_date, venue_id, race_number, race_id):
         """出走表をスクレイピングしてDB格納、boats_dataとして返す"""
-        boats = scrape_racelist(self.session, race_date, venue_id, race_number)
+        session = _get_session()
+        boats = scrape_racelist(session, race_date, venue_id, race_number)
         if not boats or len(boats) != 6:
             return None
 

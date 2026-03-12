@@ -15,8 +15,11 @@ class RealtimeDataCollector:
     """レース直前データの収集"""
 
     def __init__(self):
-        self.session = _get_session()
         self._odds_provider = None
+
+    def _new_session(self):
+        """スレッドセーフ: 呼び出しごとに新しいセッションを作成"""
+        return _get_session()
 
     def _get_odds_provider(self):
         """RealtimeOddsProvider を遅延初期化"""
@@ -37,7 +40,8 @@ class RealtimeDataCollector:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                data = scrape_beforeinfo(self.session, race_date, venue_id, race_number)
+                session = self._new_session()
+                data = scrape_beforeinfo(session, race_date, venue_id, race_number)
                 if data and data.get('boats'):
                     logger.info(
                         f"直前情報取得成功: 場{venue_id} R{race_number}"
@@ -65,7 +69,8 @@ class RealtimeDataCollector:
     def get_racelist_data(self, race_date, venue_id, race_number):
         """出走表データを取得"""
         try:
-            boats = scrape_racelist(self.session, race_date, venue_id, race_number)
+            session = self._new_session()
+            boats = scrape_racelist(session, race_date, venue_id, race_number)
             if boats:
                 logger.info(f"出走表取得成功: 場{venue_id} R{race_number}")
             return boats
