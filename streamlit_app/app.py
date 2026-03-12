@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "cd7a801-v6"
+_DEPLOY_VERSION = "fast-catchup-v7"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:

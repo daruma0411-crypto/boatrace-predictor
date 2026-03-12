@@ -113,9 +113,11 @@ class DynamicRaceScheduler:
         return races
 
     def _catch_up_missed_races(self, schedule):
-        """起動時キャッチアップ: 締切超過だが未処理のレースを遡って予測
+        """起動時キャッチアップ: 締切超過だが未処理のレースをスキップ
 
-        レース結果がまだ確定していないレースのみ処理する。
+        キャッチアップは通常ポーリングをブロックするため、
+        古いレースは処理済みマークだけして即座に通常ポーリングへ移行する。
+        直近30分以内のレースのみ予測を試行する。
         """
         current = now_jst()
         missed = []
@@ -134,6 +136,30 @@ class DynamicRaceScheduler:
             logger.info("キャッチアップ: 見逃しレースなし")
             return
 
+        # 直近30分以内のレースのみ予測対象、それより古いものはスキップ
+        recent_missed = []
+        old_missed = []
+        for race in missed:
+            deadline = race.get('deadline_time')
+            if deadline:
+                minutes_ago = (current - deadline).total_seconds() / 60
+                if minutes_ago <= 30:
+                    recent_missed.append(race)
+                else:
+                    old_missed.append(race)
+            else:
+                old_missed.append(race)
+
+        # 古いレースは即座に処理済みマーク
+        for r in old_missed:
+            self.processed_races.add((r['venue_id'], r['race_number']))
+        if old_missed:
+            logger.info(f"キャッチアップ: {len(old_missed)}件の古いレースをスキップ")
+
+        if not recent_missed:
+            logger.info("キャッチアップ: 直近30分の見逃しレースなし")
+            return
+
         # 結果確定済みのレースを除外
         settled_keys = set()
         try:
@@ -149,17 +175,17 @@ class DynamicRaceScheduler:
             logger.warning(f"キャッチアップ: 確定済みレース取得失敗: {e}")
 
         targets = [
-            r for r in missed
+            r for r in recent_missed
             if (r['venue_id'], r['race_number']) not in settled_keys
         ]
 
         if not targets:
             logger.info("キャッチアップ: 全て結果確定済み、スキップ")
-            for r in missed:
+            for r in recent_missed:
                 self.processed_races.add((r['venue_id'], r['race_number']))
             return
 
-        logger.info(f"キャッチアップ開始: {len(targets)}レースを遡って予測")
+        logger.info(f"キャッチアップ開始: {len(targets)}レース(直近30分)")
         for race in targets:
             race_key = (race['venue_id'], race['race_number'])
             logger.info(
@@ -169,11 +195,11 @@ class DynamicRaceScheduler:
             self.predict_and_bet_safe(race)
             self.processed_races.add(race_key)
 
-        # 結果確定済みも処理済みマーク
-        for r in missed:
+        # 処理済みマーク
+        for r in recent_missed:
             self.processed_races.add((r['venue_id'], r['race_number']))
 
-        logger.info(f"キャッチアップ完了: {len(targets)}レース予測保存")
+        logger.info(f"キャッチアップ完了: {len(targets)}レース処理")
 
     def run_polling(self):
         """1分間隔ポーリング、各レースを順番に予測実行
