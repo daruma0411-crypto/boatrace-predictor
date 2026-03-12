@@ -22,7 +22,7 @@ NUM_VENUES = 24
 # 締切直前の確定オッズに近い値で計算するため2〜3分前に処理。
 # 処理時間 ~20秒 + 購入バッファ ~60秒 → 最低1.5分必要。
 LEAD_TIME_MIN = 2  # 最小リードタイム（これ未満はスキップ）
-LEAD_TIME_MAX = 3  # 最大リードタイム（この範囲内で処理開始）
+LEAD_TIME_MAX = 5  # 最大リードタイム（この範囲内で処理開始）
 
 
 class DynamicRaceScheduler:
@@ -363,6 +363,17 @@ class DynamicRaceScheduler:
 
     def predict_and_bet_safe(self, race):
         """展示データ取得 → 予測 → ベット計算"""
+        vid, rn = race['venue_id'], race['race_number']
+        logger.info(f"predict_and_bet_safe開始: 場{vid} R{rn}")
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                    ('predict_start', f'venue={vid} R={rn}'),
+                )
+        except Exception:
+            pass
         try:
             # 重複ベット防止: 既にベット済みならスキップ
             if self._already_bet(race['race_id']):
@@ -539,15 +550,33 @@ class DynamicRaceScheduler:
 
             total_bets = sum(len(b) for b in all_bets.values())
             logger.info(
-                f"予測完了: 場{race['venue_id']} R{race['race_number']} "
+                f"予測完了: 場{vid} R{rn} "
                 f"({total_bets}件)"
             )
+            try:
+                with get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                        ('predict_done', f'venue={vid} R={rn} bets={total_bets}'),
+                    )
+            except Exception:
+                pass
 
         except Exception as e:
             logger.error(
-                f"予測エラー: 場{race['venue_id']} R{race['race_number']}: {e}",
+                f"予測エラー: 場{vid} R{rn}: {e}",
                 exc_info=True,
             )
+            try:
+                with get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                        ('predict_error', f'venue={vid} R={rn}: {str(e)[:200]}'),
+                    )
+            except Exception:
+                pass
 
     def _fetch_and_store_boats(self, race_date, venue_id, race_number, race_id):
         """出走表をスクレイピングしてDB格納、boats_dataとして返す"""
