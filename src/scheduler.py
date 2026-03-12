@@ -214,11 +214,19 @@ class DynamicRaceScheduler:
             schedule = []
         self._schedule_date = now_jst().date()
 
-        # 起動時キャッチアップ: 締切超過の未処理レースを遡って予測
-        try:
-            self._catch_up_missed_races(schedule)
-        except Exception as e:
-            logger.error(f"キャッチアップ失敗: {e}", exc_info=True)
+        # キャッチアップ: 締切超過レースを処理済みマークのみ（予測スキップ）
+        # データ取得タイムアウトが長いため、キャッチアップで予測を試みると
+        # 通常ポーリングの開始が大幅に遅延する問題あり
+        current = now_jst()
+        skipped = 0
+        for race in schedule:
+            race_key = (race['venue_id'], race['race_number'])
+            deadline = race.get('deadline_time')
+            if deadline and (deadline - current).total_seconds() / 60 < LEAD_TIME_MIN:
+                self.processed_races.add(race_key)
+                skipped += 1
+        if skipped:
+            logger.info(f"起動時スキップ: {skipped}件の締切超過レースを処理済みマーク")
 
         while True:
             try:
@@ -252,7 +260,12 @@ class DynamicRaceScheduler:
                     schedule = self.fetch_daily_schedule()
                     if schedule:
                         self._schedule_date = today
-                        self._catch_up_missed_races(schedule)
+                        # 締切超過レースを処理済みマーク（予測は試みない）
+                        for race in schedule:
+                            rk = (race['venue_id'], race['race_number'])
+                            dl = race.get('deadline_time')
+                            if dl and (dl - current).total_seconds() / 60 < LEAD_TIME_MIN:
+                                self.processed_races.add(rk)
                     else:
                         logger.warning("スケジュール取得失敗、次回リトライ")
 
