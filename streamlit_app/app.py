@@ -371,49 +371,52 @@ def tab1_bets_fragment():
 
         st.divider()
 
-        # レース別詳細（閉じた状態で表示 → クリックで展開）
-        for (venue_id, race_num), group in df.groupby(['venue_id', 'race_number']):
-            venue = _venue_name(venue_id)
-            total_amount = group['amount'].sum()
-            # レース結果表示
-            first_row = group.iloc[0]
-            result_str = ""
-            if first_row.get('is_finished'):
-                trifecta = first_row.get('actual_result_trifecta', '')
-                hit_count = group['is_hit'].sum() if 'is_hit' in group.columns else 0
-                result_str = f" | 結果: {trifecta}" if trifecta else ""
-                if hit_count > 0:
-                    result_str += f" \u2705{hit_count}的中"
+        # ベット一覧テーブル（フラット表示）
+        display = df.copy()
 
-            with st.expander(
-                f"{venue} {race_num}R  "
-                f"（{len(group)}点 / 計 \u00a5{total_amount:,}）{result_str}",
-                expanded=False,
-            ):
-                for strategy, sgroup in group.groupby('strategy_type'):
-                    st.markdown(f"**{_strategy_name(strategy)}**")
-                    display = sgroup[[
-                        'combination', 'amount', 'odds', 'expected_value',
-                        'is_hit', 'return_amount',
-                    ]].copy()
-                    display.columns = ['組み合わせ', '金額', 'オッズ', '期待値', '的中', '払戻']
-                    display['金額'] = display['金額'].map(lambda x: f'\u00a5{x:,}')
-                    display['オッズ'] = display['オッズ'].map(
-                        lambda x: f'{x:.1f}' if x else '-'
-                    )
-                    display['期待値'] = display['期待値'].map(
-                        lambda x: f'{x:.2f}' if x else '-'
-                    )
-                    display['的中'] = display['的中'].map(
-                        lambda x: '\u25cb' if x is True else ('\u00d7' if x is False else '-')
-                    )
-                    display['払戻'] = display['払戻'].map(
-                        lambda x: f'\u00a5{int(x):,}' if x and x > 0 else '-'
-                    )
-                    st.dataframe(
-                        display.reset_index(drop=True),
-                        use_container_width=True, hide_index=True,
-                    )
+        # 時間: deadline_time → HH:MM 形式
+        display['時間'] = display['deadline_time'].apply(
+            lambda x: x.strftime('%H:%M') if hasattr(x, 'strftime') else str(x)[:5] if x else '-'
+        )
+
+        # レース: venue_id + race_number → "桐生 1R" 形式
+        display['レース'] = display.apply(
+            lambda r: f"{_venue_name(r['venue_id'])} {r['race_number']}R", axis=1
+        )
+
+        # 結果: is_finished, is_hit, return_amount, actual_result_trifecta を統合
+        def _format_result(row):
+            if not row.get('is_finished'):
+                return '\u23f3 判定中'
+            if row.get('is_hit') is True:
+                amt = row.get('return_amount', 0)
+                return f'\U0001f3af 的中 (+\u00a5{int(amt):,})'
+            trifecta = row.get('actual_result_trifecta', '')
+            if trifecta:
+                return f'\u274c ハズレ (正解: {trifecta})'
+            return '\u274c ハズレ'
+
+        display['結果'] = display.apply(_format_result, axis=1)
+
+        # 数値フォーマット
+        display['金額'] = display['amount'].map(lambda x: f'\u00a5{int(x):,}')
+        display['オッズ'] = display['odds'].map(
+            lambda x: f'{x:.1f}倍' if x else '-'
+        )
+        display['期待値'] = display['expected_value'].map(
+            lambda x: f'{x:.2f}' if x else '-'
+        )
+
+        # カラム絞り込み・リネーム
+        display = display[['時間', 'レース', 'strategy_type', 'combination',
+                           '金額', 'オッズ', '期待値', '結果']].copy()
+        display.columns = ['時間', 'レース', '戦略', '買い目',
+                           '金額', 'オッズ', '期待値', '結果']
+
+        st.dataframe(
+            display.reset_index(drop=True),
+            use_container_width=True, hide_index=True,
+        )
 
     except Exception as e:
         st.error(f"データ取得エラー: {e}")
