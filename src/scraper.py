@@ -595,3 +595,75 @@ def scrape_beforeinfo(session, race_date, venue_id, race_number):
     )
 
     return {'weather': weather, 'boats': boats}
+
+
+def scrape_race_result(session, race_date, venue_id, race_number):
+    """レース結果ページから3連単の着順と払戻金を抽出する
+
+    戻り値: {"trifecta": "1-5-2", "payout": 5830} （未確定や失敗時はNone）
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/raceresult?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+
+    try:
+        r = session.get(url, timeout=15)
+        if r.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+
+        # ページ内の全行(tr)をループして「3連単」の行を探す
+        rows = soup.find_all('tr')
+        for tr in rows:
+            tds = tr.find_all('td')
+            if not tds:
+                continue
+            if '3連単' not in tds[0].get_text(strip=True):
+                continue
+
+            # 1. 払戻金の抽出 (td[2]: "¥15,260" -> 15260)
+            if len(tds) < 3:
+                continue
+            pay_text = tds[2].get_text(strip=True)
+            payout_match = re.search(r'([0-9,]+)', pay_text.replace('¥', ''))
+            if not payout_match:
+                continue
+            payout = int(payout_match.group(1).replace(',', ''))
+
+            # 2. 着順の抽出 (td[1]: spanのis-typeXクラスから)
+            result_numbers = []
+
+            # パターンA: is-typeX クラスから艇番号を抽出
+            for span in tds[1].find_all(
+                'span', class_=re.compile(r'is-type[1-6]')
+            ):
+                classes = " ".join(span.get('class', []))
+                m = re.search(r'is-type([1-6])', classes)
+                if m:
+                    result_numbers.append(m.group(1))
+
+            # パターンB: テキストから直接拾う (フォールバック)
+            if not result_numbers:
+                td1_text = tds[1].get_text(strip=True)
+                # "2-5-1" のようなハイフン区切り
+                m = re.findall(r'[1-6]', td1_text)
+                if len(m) >= 3:
+                    result_numbers = m[:3]
+
+            # 3つの数字が取れていれば成功
+            if len(result_numbers) >= 3:
+                trifecta = (
+                    f"{result_numbers[0]}-"
+                    f"{result_numbers[1]}-"
+                    f"{result_numbers[2]}"
+                )
+                return {
+                    "trifecta": trifecta,
+                    "payout": payout,
+                }
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"結果取得エラー 場{venue_id} R{race_number}: {e}")
+        return None
