@@ -14,6 +14,7 @@ from src.collector import RealtimeDataCollector
 from src.predictor import RealtimePredictor, EnsemblePredictor
 from src.betting import KellyBettingStrategy
 from src.result_collector import ResultCollector
+from src.notifier import send_line_bet_notification
 from utils.timezone import now_jst, format_jst
 
 logger = logging.getLogger(__name__)
@@ -687,6 +688,11 @@ class DynamicRaceScheduler:
                             f"kelly={bet.get('kelly_fraction', 0):.5f}"
                         )
                 logger.info("==========================================")
+                # LINE通知
+                try:
+                    send_line_bet_notification(vid, rn, all_bets)
+                except Exception as e:
+                    logger.warning(f"LINE通知失敗: {e}")
             else:
                 logger.info(f"予測完了: 場{vid} R{rn} (ベット0件)")
             try:
