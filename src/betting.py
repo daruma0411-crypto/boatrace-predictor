@@ -500,9 +500,10 @@ class KellyBettingStrategy:
         return sanrentan
 
     def save_bets(self, bets, prediction_id, race_id):
-        """ベットをDBに保存"""
+        """ベットをDBに保存（重複時はスキップ）"""
         with get_db_connection() as conn:
             cur = conn.cursor()
+            saved = 0
             for bet in bets:
                 cur.execute("""
                     INSERT INTO bets
@@ -510,6 +511,8 @@ class KellyBettingStrategy:
                      amount, odds, expected_value, kelly_fraction,
                      strategy_type)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (race_id, strategy_type, combination)
+                    DO NOTHING
                 """, (
                     prediction_id, race_id,
                     bet['bet_type'], bet['combination'],
@@ -517,4 +520,5 @@ class KellyBettingStrategy:
                     bet['expected_value'], bet['kelly_fraction'],
                     bet['strategy_type'],
                 ))
-            logger.info(f"ベット保存: {len(bets)}件 (race_id={race_id})")
+                saved += cur.rowcount
+            logger.info(f"ベット保存: {saved}/{len(bets)}件 (race_id={race_id})")

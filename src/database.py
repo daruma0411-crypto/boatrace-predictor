@@ -265,7 +265,25 @@ def init_database():
             )
         """)
 
-        logger.info("データベース初期化完了（5テーブル作成）")
+        # レース処理ロック（複数プロセス間の重複防止用）
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS race_processing (
+                race_id INTEGER PRIMARY KEY REFERENCES races(id),
+                locked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+
+        # bets重複防止用ユニーク制約（安全ネット）
+        try:
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_bets_race_strategy_combo
+                ON bets (race_id, strategy_type, combination)
+            """)
+        except Exception:
+            conn.rollback()
+            cur = conn.cursor()
+
+        logger.info("データベース初期化完了（5テーブル + race_processing作成）")
 
 
 def get_current_bankroll(strategy_type=None):

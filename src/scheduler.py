@@ -293,6 +293,19 @@ class DynamicRaceScheduler:
                     )
                     self.settled_today = False
                     self.processed_races = set()
+                    # 前日の race_processing ロックをクリア
+                    try:
+                        with get_db_connection() as conn:
+                            cur = conn.cursor()
+                            cur.execute("""
+                                DELETE FROM race_processing
+                                WHERE locked_at < NOW() - INTERVAL '12 hours'
+                            """)
+                            deleted = cur.rowcount
+                            if deleted > 0:
+                                logger.info(f"race_processing クリア: {deleted}件")
+                    except Exception as e:
+                        logger.warning(f"race_processing クリア失敗: {e}")
                     schedule = self.fetch_daily_schedule()
                     if schedule:
                         self._schedule_date = today
@@ -433,22 +446,43 @@ class DynamicRaceScheduler:
         except Exception as e:
             logger.error(f"結果照合プロセスエラー: {e}")
 
-    def _already_bet(self, race_id):
-        """このレースに既にベットが存在するか確認（重複防止）
+    def _try_claim_race(self, race_id):
+        """レース処理権をアトミックに取得（複数プロセス間の重複防止）
 
-        DB障害時は安全側（ベット済み扱い）でスキップする。
+        race_processing テーブルに INSERT を試行。
+        先着1プロセスだけが True を返し、後続は False を返す。
+        DB障害時は安全側（処理しない）。
+
+        Returns:
+            True: 処理権を取得できた（このプロセスが処理すべき）
+            False: 既に他プロセスが処理済み/処理中
         """
         try:
             with get_db_connection() as conn:
                 cur = conn.cursor()
-                cur.execute(
-                    "SELECT COUNT(*) as cnt FROM bets WHERE race_id = %s",
-                    (race_id,),
-                )
-                return cur.fetchone()['cnt'] > 0
+                # race_processing テーブルが未作成の場合に備える
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS race_processing (
+                        race_id INTEGER PRIMARY KEY,
+                        locked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """)
+                # アトミックINSERT: 先着1プロセスだけ RETURNING が返る
+                cur.execute("""
+                    INSERT INTO race_processing (race_id)
+                    VALUES (%s)
+                    ON CONFLICT (race_id) DO NOTHING
+                    RETURNING race_id
+                """, (race_id,))
+                row = cur.fetchone()
+                if row is None:
+                    # 別プロセスが既に claim 済み
+                    logger.info(f"スキップ(別プロセス処理済): race_id={race_id}")
+                    return False
+                return True
         except Exception as e:
-            logger.critical(f"重複チェックDB障害 race_id={race_id}: {e}")
-            return True  # 安全側: ベット済み扱いでスキップ
+            logger.critical(f"レース占有チェック障害 race_id={race_id}: {e}")
+            return False  # 安全側: 処理しない
 
     def predict_and_bet_safe(self, race):
         """展示データ取得 → 予測 → ベット計算"""
@@ -464,10 +498,10 @@ class DynamicRaceScheduler:
         except Exception:
             pass
         try:
-            # 重複ベット防止: 既にベット済みならスキップ
-            if self._already_bet(race['race_id']):
+            # 重複ベット防止: DB レベルでアトミックにレース処理権を取得
+            if not self._try_claim_race(race['race_id']):
                 logger.info(
-                    f"スキップ(ベット済): 場{race['venue_id']} R{race['race_number']}"
+                    f"スキップ(処理済): 場{race['venue_id']} R{race['race_number']}"
                 )
                 return
 
