@@ -550,10 +550,22 @@ class DynamicRaceScheduler:
                     self.betting.save_bets(bets, pred_id, race['race_id'])
 
             total_bets = sum(len(b) for b in all_bets.values())
-            logger.info(
-                f"予測完了: 場{vid} R{rn} "
-                f"({total_bets}件)"
-            )
+            if total_bets > 0:
+                logger.info("==========================================")
+                logger.info(
+                    f"[場{vid} R{rn}] ベット完了！ ({total_bets}件)"
+                )
+                for strategy_type, bets_list in all_bets.items():
+                    for bet in bets_list:
+                        logger.info(
+                            f"   {strategy_type}: {bet['combination']} | "
+                            f"{bet['amount']}円 | odds={bet['odds']} | "
+                            f"EV={bet['expected_value']:.2f} | "
+                            f"kelly={bet.get('kelly_fraction', 0):.5f}"
+                        )
+                logger.info("==========================================")
+            else:
+                logger.info(f"予測完了: 場{vid} R{rn} (ベット0件)")
             try:
                 with get_db_connection() as conn:
                     cur = conn.cursor()
