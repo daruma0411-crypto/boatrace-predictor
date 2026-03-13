@@ -6,7 +6,9 @@ import time
 import logging
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
-from src.scraper import _get_session, scrape_racelist, scrape_race_deadlines
+from src.scraper import (
+    _get_session, scrape_racelist, scrape_race_deadlines, scrape_race_result,
+)
 from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
 from src.predictor import RealtimePredictor, EnsemblePredictor
@@ -339,10 +341,97 @@ class DynamicRaceScheduler:
                         self.processed_races.add(race_key)
                         break  # 1レースずつ処理して次のポーリングへ
 
+                # 5サイクルごとに結果照合を実行
+                if _poll_count % 5 == 0:
+                    try:
+                        self._check_and_update_results()
+                    except Exception as e:
+                        logger.warning(f"結果照合エラー: {e}")
+
             except Exception as e:
                 logger.error(f"ポーリングサイクルエラー: {e}", exc_info=True)
 
             time.sleep(60)
+
+    def _check_and_update_results(self):
+        """終了済みレースの結果を取得し、races/betsテーブルを更新する"""
+        session = _get_session()
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+
+                # 締切から20分以上経過 & 未取得 & 過去3日以内
+                cur.execute("""
+                    SELECT id, venue_id, race_number, race_date
+                    FROM races
+                    WHERE is_finished = FALSE
+                      AND deadline_time < NOW() - INTERVAL '20 minutes'
+                      AND deadline_time > NOW() - INTERVAL '3 days'
+                """)
+                target_races = cur.fetchall()
+
+                if not target_races:
+                    return
+
+                logger.info(f"結果照合: {len(target_races)}件の未取得レース")
+                updated = 0
+
+                for race in target_races:
+                    race_id = race['id']
+                    venue_id = race['venue_id']
+                    race_number = race['race_number']
+                    race_date = race['race_date']
+
+                    result = scrape_race_result(
+                        session, race_date, venue_id, race_number
+                    )
+
+                    if result and result.get("trifecta"):
+                        actual_trifecta = result["trifecta"]
+                        payout = result["payout"]
+
+                        try:
+                            # racesテーブル更新
+                            cur.execute("""
+                                UPDATE races
+                                SET actual_result_trifecta = %s,
+                                    payout_amount = %s,
+                                    is_finished = TRUE
+                                WHERE id = %s
+                            """, (actual_trifecta, payout, race_id))
+
+                            # betsテーブル: 的中判定 + 回収額計算
+                            # payout は100円あたりの払戻金
+                            cur.execute("""
+                                UPDATE bets
+                                SET is_hit = (combination = %s),
+                                    return_amount = CASE
+                                        WHEN combination = %s
+                                        THEN %s * (amount / 100)
+                                        ELSE 0
+                                    END
+                                WHERE race_id = %s
+                            """, (
+                                actual_trifecta, actual_trifecta,
+                                payout, race_id,
+                            ))
+
+                            updated += 1
+                            logger.info(
+                                f"結果反映: 場{venue_id} R{race_number} "
+                                f"{actual_trifecta} ({payout}円)"
+                            )
+                        except Exception as e:
+                            conn.rollback()
+                            logger.error(
+                                f"結果DB更新エラー race_id={race_id}: {e}"
+                            )
+
+                if updated > 0:
+                    logger.info(f"結果照合完了: {updated}/{len(target_races)}件更新")
+
+        except Exception as e:
+            logger.error(f"結果照合プロセスエラー: {e}")
 
     def _already_bet(self, race_id):
         """このレースに既にベットが存在するか確認（重複防止）
