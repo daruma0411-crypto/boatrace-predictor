@@ -16,7 +16,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-_WORKER_VERSION = "fast-catchup-v7"
+_WORKER_VERSION = "split-br-fix-v8"
 
 
 def _write_health(status, detail):
