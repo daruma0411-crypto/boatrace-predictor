@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "fast-catchup-v7"
+_DEPLOY_VERSION = "dashboard-result-v9"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -243,6 +243,8 @@ with st.sidebar:
         st.error("DB接続: エラー")
     st.metric("本日のレース", _sidebar_dashboard['today_races'])
     st.metric("本日の予測", _sidebar_dashboard['today_preds'])
+    st.metric("本日のベット", _sidebar_dashboard.get('today_bets', 0))
+    st.metric("本日の的中", _sidebar_dashboard.get('today_hits', 0))
 
 # --- メインコンテンツ ---
 st.title("\U0001f6a4 ボートレース予想AIダッシュボード")
@@ -373,24 +375,40 @@ def tab1_bets_fragment():
         for (venue_id, race_num), group in df.groupby(['venue_id', 'race_number']):
             venue = _venue_name(venue_id)
             total_amount = group['amount'].sum()
+            # レース結果表示
+            first_row = group.iloc[0]
+            result_str = ""
+            if first_row.get('is_finished'):
+                trifecta = first_row.get('actual_result_trifecta', '')
+                hit_count = group['is_hit'].sum() if 'is_hit' in group.columns else 0
+                result_str = f" | 結果: {trifecta}" if trifecta else ""
+                if hit_count > 0:
+                    result_str += f" \u2705{hit_count}的中"
 
             with st.expander(
                 f"{venue} {race_num}R  "
-                f"（{len(group)}点 / 計 \u00a5{total_amount:,}）",
+                f"（{len(group)}点 / 計 \u00a5{total_amount:,}）{result_str}",
                 expanded=False,
             ):
                 for strategy, sgroup in group.groupby('strategy_type'):
                     st.markdown(f"**{_strategy_name(strategy)}**")
                     display = sgroup[[
                         'combination', 'amount', 'odds', 'expected_value',
+                        'is_hit', 'return_amount',
                     ]].copy()
-                    display.columns = ['組み合わせ', '金額', 'オッズ', '期待値']
+                    display.columns = ['組み合わせ', '金額', 'オッズ', '期待値', '的中', '払戻']
                     display['金額'] = display['金額'].map(lambda x: f'\u00a5{x:,}')
                     display['オッズ'] = display['オッズ'].map(
                         lambda x: f'{x:.1f}' if x else '-'
                     )
                     display['期待値'] = display['期待値'].map(
                         lambda x: f'{x:.2f}' if x else '-'
+                    )
+                    display['的中'] = display['的中'].map(
+                        lambda x: '\u25cb' if x is True else ('\u00d7' if x is False else '-')
+                    )
+                    display['払戻'] = display['払戻'].map(
+                        lambda x: f'\u00a5{int(x):,}' if x and x > 0 else '-'
                     )
                     st.dataframe(
                         display.reset_index(drop=True),
