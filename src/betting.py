@@ -175,6 +175,22 @@ def _average_ensemble_probs(ensemble_predictions):
     }
 
 
+def _get_dynamic_discount(raw_odds):
+    """オッズ帯別の動的ディスカウントファクター
+
+    データ分析結果:
+    - 低オッズ(<25x): 確定時に大きく下落(-34%まで) → 厳しく割引
+    - 中オッズ(25-40x): 中程度の変動(-11%程度) → やや割引
+    - 高オッズ(40x+): 変動小(+6%〜-5%) → 軽い割引
+    """
+    if raw_odds < 25.0:
+        return 0.85
+    elif raw_odds < 40.0:
+        return 0.88
+    else:
+        return 0.95
+
+
 DAILY_LOSS_LIMIT = 50000  # 全戦略合計の1日最大損失額
 
 
@@ -338,7 +354,8 @@ class KellyBettingStrategy:
         max_ticket = bankroll * config['max_ticket_bet_ratio']
         max_total = bankroll * config['max_total_bet_ratio']
         min_bet = config['min_bet_amount']
-        odds_discount = config['odds_discount_factor']
+        odds_discount_static = config.get('odds_discount_factor', 0.92)  # fallback
+        use_dynamic_discount = config.get('use_dynamic_discount', True)
         base_max_odds = config.get('max_odds', 9999)
         filter_type = config.get('filter_type', 'none')
         min_divergence = config.get('min_divergence_ratio', 2.0)
@@ -352,11 +369,12 @@ class KellyBettingStrategy:
 
         # デバッグ: フィルター状態ログ
         odds_available = sum(1 for c in sanrentan_probs if odds_data.get(c, 0.0) > 1.0)
+        discount_mode = "dynamic" if use_dynamic_discount else f"static={odds_discount_static}"
         logger.info(
             f"[{strategy_name}] フィルター設定: "
             f"max_odds={max_odds}(base={base_max_odds}), "
             f"min_ev={min_ev}, min_prob={min_prob}, "
-            f"odds_discount={odds_discount}, "
+            f"discount={discount_mode}, "
             f"odds有効={odds_available}/{len(sanrentan_probs)}件"
         )
 
@@ -387,7 +405,11 @@ class KellyBettingStrategy:
                         skip_counts['divergence'] += 1
                         continue
 
-            # オッズ割引
+            # オッズ割引（動的 or 静的）
+            if use_dynamic_discount:
+                odds_discount = _get_dynamic_discount(raw_odds)
+            else:
+                odds_discount = odds_discount_static
             discounted_odds = raw_odds * odds_discount
 
             # 割引後EVで判定
