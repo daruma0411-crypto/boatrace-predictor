@@ -50,14 +50,10 @@ def _parse_int(text):
 
 
 def _split_br(td):
-    """td内の<br/>区切りテキストをリストで返す"""
-    parts = []
-    for item in td.children:
-        if isinstance(item, str):
-            s = item.strip()
-            if s:
-                parts.append(s)
-    return parts
+    """td内のテキストをタグ(spanやbrなど)を無視してリストで返す"""
+    if not td:
+        return []
+    return list(td.stripped_strings)
 
 
 def scrape_race_deadlines(session, race_date, venue_id):
