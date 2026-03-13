@@ -420,16 +420,17 @@ class DynamicRaceScheduler:
             race_data, boats_data = self.predictor._get_pre_race_data(
                 race['race_id']
             )
-            if not race_data:
-                # DBにboatsがない場合、出走表をスクレイピングして登録
+            if not boats_data:
+                # DBにboatsがない/空の場合、出走表をスクレイピングして登録
                 boats_data = self._fetch_and_store_boats(
                     today, race['venue_id'], race['race_number'], race['race_id']
                 )
                 if not boats_data:
                     logger.warning(
-                        f"出走表取得失敗: 場{race['venue_id']} R{race['race_number']}"
+                        f"出走表取得失敗: 場{vid} R{rn}"
                     )
                     return
+            if not race_data:
                 race_data = {
                     'venue_id': race['venue_id'],
                     'month': today.month,
