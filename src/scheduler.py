@@ -667,6 +667,17 @@ class DynamicRaceScheduler:
 
             odds_dict = self._parse_odds(odds_data) if odds_data else {}
 
+            # 診断: オッズ取得状況をhealth記録
+            try:
+                with get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                        ('odds_check', f'venue={vid} R={rn} odds_count={len(odds_dict)}'),
+                    )
+            except Exception:
+                pass
+
             all_bets = self.betting.calculate_all_strategies(
                 prediction['probs_1st'],
                 prediction['probs_2nd'],
