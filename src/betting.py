@@ -419,34 +419,35 @@ class KellyBettingStrategy:
                 odds_discount = odds_discount_static
             discounted_odds = raw_odds * odds_discount
 
-            # 割引後EVで判定
-            ev = prob * discounted_odds
+            # TODO: [TEST MODE] 戦略比較のため一律100円ベット
+            # テスト中は生オッズEVで判定、Kelly計算をスキップ
+            # 戦略間ダービー終了後、このブロックを削除して下のKellyブロックを復活
+            ev = prob * raw_odds  # 生オッズでEV算出（割引なし）
             if ev < min_ev:
                 skip_counts['low_ev'] += 1
                 continue
+            bet_amount = 100
+            kelly = 0.0  # テストモード: Kelly不使用
+            # --- [TEST MODE END] ---
 
-            # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
-            b = discounted_odds - 1.0
-            if b < 0.01:
-                # b が 0 に近いとケリー値が数値爆発するためスキップ
-                skip_counts['kelly_neg'] += 1
-                continue
-            q = 1.0 - prob
-            kelly = (b * prob - q) / b
-
-            if kelly <= 0:
-                skip_counts['kelly_neg'] += 1
-                continue
-
-            # フラクショナル・ケリー
-            kelly_amount = bankroll * kelly * kelly_frac
-            # 1点上限
-            kelly_amount = max(min_bet, min(max_ticket, kelly_amount))
-            kelly_amount = int(round(kelly_amount / 100) * 100)  # 100円単位
-
-            # TODO: [TEST MODE] 戦略比較のため一律100円ベットに固定中
-            # 戦略間ダービー終了後、以下の1行を削除して kelly_amount に戻すこと
-            bet_amount = 100  # テストモード: Kelly複利効果を排除してROI純比較
+            # # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
+            # ev = prob * discounted_odds
+            # if ev < min_ev:
+            #     skip_counts['low_ev'] += 1
+            #     continue
+            # b = discounted_odds - 1.0
+            # if b < 0.01:
+            #     skip_counts['kelly_neg'] += 1
+            #     continue
+            # q = 1.0 - prob
+            # kelly = (b * prob - q) / b
+            # if kelly <= 0:
+            #     skip_counts['kelly_neg'] += 1
+            #     continue
+            # kelly_amount = bankroll * kelly * kelly_frac
+            # kelly_amount = max(min_bet, min(max_ticket, kelly_amount))
+            # kelly_amount = int(round(kelly_amount / 100) * 100)
+            # bet_amount = kelly_amount
 
             if bet_amount >= min_bet:
                 candidates.append({
