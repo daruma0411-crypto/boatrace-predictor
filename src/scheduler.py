@@ -282,9 +282,10 @@ class DynamicRaceScheduler:
                         try:
                             count = self.result_collector.settle_today()
                             logger.info(f"結果収集完了: {count}件精算")
+                            self.settled_today = True
                         except Exception as e:
                             logger.error(f"結果収集エラー: {e}", exc_info=True)
-                        self.settled_today = True
+                            # エラー時は settled_today を False のまま → 次サイクルでリトライ
                     schedule = []
 
                 # 日付ベースのスケジュール更新（7:00以降、日付が変わったら自動更新）
@@ -404,15 +405,28 @@ class DynamicRaceScheduler:
                         actual_trifecta = result["trifecta"]
                         payout = result["payout"]
 
+                        # trifecta "1-5-2" → result_1st=1, result_2nd=5, result_3rd=2
                         try:
-                            # racesテーブル更新
+                            parts = actual_trifecta.split('-')
+                            r1st, r2nd, r3rd = int(parts[0]), int(parts[1]), int(parts[2])
+                        except (ValueError, IndexError):
+                            r1st, r2nd, r3rd = None, None, None
+
+                        try:
+                            # racesテーブル更新（全フィールド統一書き込み）
                             cur.execute("""
                                 UPDATE races
                                 SET actual_result_trifecta = %s,
                                     payout_amount = %s,
+                                    result_1st = %s,
+                                    result_2nd = %s,
+                                    result_3rd = %s,
+                                    payout_sanrentan = %s,
                                     is_finished = TRUE
                                 WHERE id = %s
-                            """, (actual_trifecta, payout, race_id))
+                            """, (actual_trifecta, payout,
+                                  r1st, r2nd, r3rd, payout,
+                                  race_id))
 
                             # betsテーブル: 的中判定 + 回収額計算
                             # payout は100円あたりの払戻金
