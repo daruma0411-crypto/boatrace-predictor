@@ -360,6 +360,7 @@ class KellyBettingStrategy:
         filter_type = config.get('filter_type', 'none')
         min_divergence = config.get('min_divergence_ratio', 2.0)
         min_prob = config.get('min_probability', 0.0)
+        min_odds = config.get('min_odds', 0.0)  # 最低オッズ (ガチガチ本命除外)
 
         # 発見1+2: 場・R番号でオッズ上限を動的調整
         if venue_id is not None and race_number is not None:
@@ -373,13 +374,14 @@ class KellyBettingStrategy:
         logger.info(
             f"[{strategy_name}] フィルター設定: "
             f"max_odds={max_odds}(base={base_max_odds}), "
-            f"min_ev={min_ev}, min_prob={min_prob}, "
+            f"min_odds={min_odds}, min_ev={min_ev}, min_prob={min_prob}, "
             f"discount={discount_mode}, "
             f"odds有効={odds_available}/{len(sanrentan_probs)}件"
         )
 
-        skip_counts = {'no_odds': 0, 'low_prob': 0, 'high_odds': 0,
-                       'low_ev': 0, 'divergence': 0, 'kelly_neg': 0}
+        skip_counts = {'no_odds': 0, 'low_prob': 0, 'low_odds': 0,
+                       'high_odds': 0, 'low_ev': 0, 'divergence': 0,
+                       'kelly_neg': 0}
 
         for combo, prob in sanrentan_probs.items():
             raw_odds = odds_data.get(combo, 0.0)
@@ -390,6 +392,11 @@ class KellyBettingStrategy:
             # 最低確率フィルター: 宝くじ買い目を排除
             if prob < min_prob:
                 skip_counts['low_prob'] += 1
+                continue
+
+            # オッズ下限フィルター: ガチガチ本命を除外
+            if min_odds > 0 and raw_odds < min_odds:
+                skip_counts['low_odds'] += 1
                 continue
 
             # オッズ上限フィルター（動的調整済み）
@@ -432,10 +439,14 @@ class KellyBettingStrategy:
                 continue
 
             # フラクショナル・ケリー
-            bet_amount = bankroll * kelly * kelly_frac
+            kelly_amount = bankroll * kelly * kelly_frac
             # 1点上限
-            bet_amount = max(min_bet, min(max_ticket, bet_amount))
-            bet_amount = int(round(bet_amount / 100) * 100)  # 100円単位
+            kelly_amount = max(min_bet, min(max_ticket, kelly_amount))
+            kelly_amount = int(round(kelly_amount / 100) * 100)  # 100円単位
+
+            # TODO: [TEST MODE] 戦略比較のため一律100円ベットに固定中
+            # 戦略間ダービー終了後、以下の1行を削除して kelly_amount に戻すこと
+            bet_amount = 100  # テストモード: Kelly複利効果を排除してROI純比較
 
             if bet_amount >= min_bet:
                 candidates.append({
@@ -455,6 +466,7 @@ class KellyBettingStrategy:
             f"[{strategy_name}] スキップ内訳: "
             f"odds無し={skip_counts['no_odds']}, "
             f"低確率={skip_counts['low_prob']}, "
+            f"低オッズ={skip_counts['low_odds']}, "
             f"高オッズ={skip_counts['high_odds']}, "
             f"低EV={skip_counts['low_ev']}, "
             f"乖離={skip_counts['divergence']}, "
