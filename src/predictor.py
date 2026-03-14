@@ -128,9 +128,11 @@ class RealtimePredictor:
                 'venue_id': race['venue_id'],
                 'month': race['race_date'].month,
                 'distance': 1800,
-                'wind_speed': 0,
-                'wind_direction': 'calm',
-                'temperature': 20,
+                'wind_speed': race.get('wind_speed') or 0,
+                'wind_direction': race.get('wind_direction') or 'calm',
+                'temperature': race.get('temperature') or 20,
+                'wave_height': race.get('wave_height') or 0,
+                'water_temperature': race.get('water_temperature') or 20,
             }
 
             boats_data = []
@@ -151,6 +153,8 @@ class RealtimePredictor:
                     'exhibition_time': b['exhibition_time'],
                     'approach_course': b['approach_course'],
                     'is_new_motor': b['is_new_motor'],
+                    'tilt': b.get('tilt'),
+                    'parts_changed': b.get('parts_changed', False),
                     'fallback_flag': False,
                 })
 

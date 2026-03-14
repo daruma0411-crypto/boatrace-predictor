@@ -91,6 +91,22 @@
             "max_entropy": 2.3,
             "min_probability": 0.02
         },
+        "optuna": {
+            "kelly_fraction": 0.086,
+            "max_total_bet_ratio": 0.025,
+            "max_ticket_bet_ratio": 0.01,
+            "min_expected_value": 1.019,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 4,
+            "min_bet_amount": 100,
+            "min_odds": 20.0,
+            "max_odds": 141,
+            "filter_type": "optuna",
+            "max_boat1_prob": 0.699,
+            "min_entropy": 1.069,
+            "min_probability": 0.027
+        },
         "bt_none": {
             "kelly_fraction": 0.125,
             "max_total_bet_ratio": 0.02,

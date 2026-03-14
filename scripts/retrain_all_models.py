@@ -149,7 +149,7 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': gamma,
                 'dropout': dropout,
-                'version': 'v3_feature_selection',
+                'version': 'v4_208dim_weather',
             })
         else:
             patience_counter += 1

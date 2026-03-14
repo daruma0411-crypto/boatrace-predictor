@@ -18,7 +18,7 @@ from collections import defaultdict, Counter
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.models import BoatraceMultiTaskModel, BoatraceMultiTaskLoss, save_model
-from src.features import FeatureEngineer
+from src.features import FeatureEngineerLegacy as FeatureEngineer
 from src.database import get_db_connection
 
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +69,7 @@ def load_training_data_fast(years=3):
             FROM races r
             WHERE r.race_date >= %s AND r.status = 'finished'
               AND r.result_1st IS NOT NULL
+              AND r.wind_speed IS NOT NULL
             ORDER BY r.race_date
         """, (cutoff_date.date(),))
         races = cur.fetchall()
@@ -300,7 +301,7 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': focal_gamma,
                 'dropout': dropout,
-                'version': 'v3_feature_selection',
+                'version': 'v4_208dim_weather',
             })
         else:
             patience_counter += 1
