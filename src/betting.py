@@ -463,17 +463,26 @@ class KellyBettingStrategy:
                 })
 
         # デバッグ: フィルターサマリ
-        logger.info(
-            f"[{strategy_name}] スキップ内訳: "
-            f"odds無し={skip_counts['no_odds']}, "
-            f"低確率={skip_counts['low_prob']}, "
-            f"低オッズ={skip_counts['low_odds']}, "
-            f"高オッズ={skip_counts['high_odds']}, "
-            f"低EV={skip_counts['low_ev']}, "
-            f"乖離={skip_counts['divergence']}, "
-            f"Kelly負={skip_counts['kelly_neg']}, "
-            f"→ 候補={len(candidates)}件"
+        skip_summary = (
+            f"no={skip_counts['no_odds']},prob={skip_counts['low_prob']},"
+            f"lo={skip_counts['low_odds']},hi={skip_counts['high_odds']},"
+            f"ev={skip_counts['low_ev']},div={skip_counts['divergence']},"
+            f"kelly={skip_counts['kelly_neg']},ok={len(candidates)}"
         )
+        logger.info(f"[{strategy_name}] skip: {skip_summary}")
+
+        # DB診断: conservativeのスキップ内訳をscheduler_healthに記録
+        if strategy_name == 'conservative':
+            try:
+                from src.database import get_db_connection
+                with get_db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                        ('skip_detail', f'v={venue_id}R={race_number} {skip_summary} min_ev={min_ev} min_odds={min_odds} min_prob={min_prob}'),
+                    )
+            except Exception:
+                pass
 
         # 割引EV上位N点に絞る
         candidates.sort(key=lambda x: x['expected_value'], reverse=True)
