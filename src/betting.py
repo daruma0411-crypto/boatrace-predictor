@@ -193,9 +193,16 @@ def _get_dynamic_discount(raw_odds):
 
 DAILY_LOSS_LIMIT = 50000  # 全戦略合計の1日最大損失額
 
+# TODO: [TEST MODE] テストモード中は日次損失制限を無効化
+# 理由: 一律100円ベットなのでリスク小、旧コードの非テストベットが
+#       未精算(payout=0)のまま損失として誤カウントされるのを防止
+TEST_MODE = True
+
 
 def _get_today_total_loss():
     """本日の全戦略合計損失額をDBから取得"""
+    if TEST_MODE:
+        return 0  # テストモード中は損失制限なし
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
