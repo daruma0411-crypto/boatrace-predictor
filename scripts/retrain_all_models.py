@@ -1,15 +1,21 @@
-"""全モデル一括再学習スクリプト
+"""全モデル一括再学習スクリプト v2: Focal Loss + 1着均等重み
 
-メインモデル + 3つのアンサンブルモデルを208次元で統一再学習する。
-各モデルはクラス重みスムージングパラメータが異なる:
-  - boatrace_model.pth:      smoothing=0.3 (デフォルト)
-  - boatrace_model_s05.pth:  smoothing=0.5
-  - boatrace_model_s07.pth:  smoothing=0.7
-  - boatrace_model_s085.pth: smoothing=0.85
+4つのアンサンブルモデルを異なる Focal Loss gamma で訓練:
+  - boatrace_model.pth:      gamma=2.0 (標準)
+  - boatrace_model_s05.pth:  gamma=1.5 (マイルド)
+  - boatrace_model_s07.pth:  gamma=2.5 (やや強め)
+  - boatrace_model_s085.pth: gamma=3.0 (アグレッシブ)
+
+v2変更点:
+  - 1着: クラス重みなし (均等) → 3号艇バイアス解消
+  - 2着/3着: smoothing=0.7 (軽い補正)
+  - FocalLoss (gamma可変) → メリハリのある確率分布
+  - Dropout: 0.15
+  - lr=0.0005, patience=15, scheduler patience=8/factor=0.7
 
 使い方:
     DATABASE_URL=xxx python scripts/retrain_all_models.py
-    DATABASE_URL=xxx python scripts/retrain_all_models.py --epochs 80 --patience 15
+    DATABASE_URL=xxx python scripts/retrain_all_models.py --epochs 120 --patience 20
 """
 import sys
 import os
@@ -26,26 +32,32 @@ from scripts.train_model import load_training_data_fast, compute_class_weights
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
+# v2: gamma でアンサンブル多様性を確保
 MODELS = [
-    {'path': 'models/boatrace_model.pth', 'smoothing': 0.3},
-    {'path': 'models/boatrace_model_s05.pth', 'smoothing': 0.5},
-    {'path': 'models/boatrace_model_s07.pth', 'smoothing': 0.7},
-    {'path': 'models/boatrace_model_s085.pth', 'smoothing': 0.85},
+    {'path': 'models/boatrace_model.pth', 'gamma': 2.0, 'label': '標準'},
+    {'path': 'models/boatrace_model_s05.pth', 'gamma': 1.5, 'label': 'マイルド'},
+    {'path': 'models/boatrace_model_s07.pth', 'gamma': 2.5, 'label': 'やや強め'},
+    {'path': 'models/boatrace_model_s085.pth', 'gamma': 3.0, 'label': 'アグレッシブ'},
 ]
 
 
 def train_one_model(X_train, y1_train, y2_train, y3_train,
                     X_val, y1_val, y2_val, y3_val,
-                    smoothing, save_path,
-                    epochs=100, batch_size=256, lr=0.001, patience=10):
+                    gamma, save_path, label='',
+                    epochs=100, batch_size=256, lr=0.0005,
+                    patience=15, dropout=0.15,
+                    weight_smoothing_2nd3rd=0.7):
     """1モデルを訓練して保存"""
-    logger.info(f"=== {save_path} (smoothing={smoothing}) ===")
+    logger.info(f"=== {save_path} (gamma={gamma}, {label}) ===")
 
-    cw_1st = compute_class_weights(y1_train, smoothing=smoothing)
-    cw_2nd = compute_class_weights(y2_train, smoothing=smoothing)
-    cw_3rd = compute_class_weights(y3_train, smoothing=smoothing)
+    # 1着: クラス重みなし (均等)
+    cw_1st = None
+    # 2着/3着: 軽い補正
+    cw_2nd = compute_class_weights(y2_train, smoothing=weight_smoothing_2nd3rd)
+    cw_3rd = compute_class_weights(y3_train, smoothing=weight_smoothing_2nd3rd)
 
-    logger.info(f"  class_weights_1st: {['%.2f' % w for w in cw_1st.tolist()]}")
+    logger.info(f"  1着: 均等重み, 2着/3着: smoothing={weight_smoothing_2nd3rd}")
+    logger.info(f"  class_weights_2nd: {['%.2f' % w for w in cw_2nd.tolist()]}")
 
     train_dataset = TensorDataset(
         torch.FloatTensor(X_train),
@@ -66,18 +78,20 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     input_dim = X_train.shape[1]
-    model = BoatraceMultiTaskModel(input_dim=input_dim).to(device)
+    model = BoatraceMultiTaskModel(input_dim=input_dim, dropout=dropout).to(device)
     criterion = BoatraceMultiTaskLoss(
-        class_weights_1st=cw_1st.to(device),
+        class_weights_1st=None,
         class_weights_2nd=cw_2nd.to(device),
         class_weights_3rd=cw_3rd.to(device),
+        gamma=gamma,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=5, factor=0.5
+        optimizer, patience=8, factor=0.7
     )
 
     best_val_loss = float('inf')
+    best_val_acc = 0.0
     patience_counter = 0
 
     for epoch in range(epochs):
@@ -96,6 +110,8 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
 
         model.eval()
         val_loss = 0
+        correct_1st = 0
+        total = 0
         with torch.no_grad():
             for batch_x, batch_y1, batch_y2, batch_y3 in val_loader:
                 batch_x = batch_x.to(device)
@@ -103,44 +119,59 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
                 outputs = model(batch_x)
                 loss = criterion(outputs, targets)
                 val_loss += loss.item()
+                pred_1st = outputs[0].argmax(dim=1)
+                correct_1st += (pred_1st == targets[0]).sum().item()
+                total += targets[0].size(0)
         val_loss /= len(val_loader)
+        val_acc = correct_1st / total * 100
         scheduler.step(val_loss)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            best_val_acc = val_acc
             patience_counter = 0
             save_model(model, path=save_path, metadata={
                 'epoch': epoch + 1,
                 'train_loss': train_loss,
                 'val_loss': val_loss,
+                'val_acc_1st': val_acc,
                 'train_size': len(X_train),
                 'val_size': len(X_val),
-                'class_weights_1st': cw_1st.tolist(),
-                'weight_smoothing': smoothing,
+                'class_weights_1st': 'uniform',
+                'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
+                'focal_gamma': gamma,
+                'dropout': dropout,
+                'version': 'v2_focal',
             })
         else:
             patience_counter += 1
             if patience_counter >= patience:
-                logger.info(f"  Early Stop epoch {epoch+1}, best_val={best_val_loss:.4f}")
+                logger.info(f"  Early Stop epoch {epoch+1}, "
+                            f"best_val={best_val_loss:.4f}, acc_1st={best_val_acc:.1f}%")
                 break
 
         if (epoch + 1) % 10 == 0:
-            logger.info(f"  Epoch {epoch+1}: train={train_loss:.4f} val={val_loss:.4f}")
+            current_lr = optimizer.param_groups[0]['lr']
+            logger.info(f"  Epoch {epoch+1}: train={train_loss:.4f} "
+                        f"val={val_loss:.4f} acc_1st={val_acc:.1f}% lr={current_lr:.6f}")
 
-    logger.info(f"  完了: best_val_loss={best_val_loss:.4f}")
-    return best_val_loss
+    logger.info(f"  完了: best_val_loss={best_val_loss:.4f}, best_acc_1st={best_val_acc:.1f}%")
+    return best_val_loss, best_val_acc
 
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='全モデル一括再学習')
+    parser = argparse.ArgumentParser(description='全モデル一括再学習 v2')
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--patience', type=int, default=10)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--patience', type=int, default=15)
+    parser.add_argument('--lr', type=float, default=0.0005)
     parser.add_argument('--batch-size', type=int, default=256)
+    parser.add_argument('--dropout', type=float, default=0.15)
+    parser.add_argument('--smoothing-2nd3rd', type=float, default=0.7)
     args = parser.parse_args()
 
-    logger.info("=== 全モデル一括再学習 ===")
+    logger.info("=== 全モデル一括再学習 v2 (Focal Loss) ===")
+    logger.info(f"  lr={args.lr}, patience={args.patience}, dropout={args.dropout}")
 
     # データ読み込み（1回だけ）
     X, y1, y2, y3 = load_training_data_fast()
@@ -164,26 +195,36 @@ def main():
 
     results = []
     for m in MODELS:
-        val_loss = train_one_model(
+        val_loss, val_acc = train_one_model(
             X_train, y1_train, y2_train, y3_train,
             X_val, y1_val, y2_val, y3_val,
-            smoothing=m['smoothing'],
+            gamma=m['gamma'],
             save_path=m['path'],
+            label=m['label'],
             epochs=args.epochs,
             batch_size=args.batch_size,
             lr=args.lr,
             patience=args.patience,
+            dropout=args.dropout,
+            weight_smoothing_2nd3rd=args.smoothing_2nd3rd,
         )
-        results.append({'path': m['path'], 'smoothing': m['smoothing'], 'val_loss': val_loss})
+        results.append({
+            'path': m['path'], 'gamma': m['gamma'],
+            'label': m['label'], 'val_loss': val_loss,
+            'val_acc': val_acc,
+        })
 
     logger.info("\n=== 全モデル再学習完了 ===")
     for r in results:
-        logger.info(f"  {r['path']}: smoothing={r['smoothing']}, val_loss={r['val_loss']:.4f}")
+        logger.info(f"  {r['path']}: gamma={r['gamma']} ({r['label']}), "
+                    f"val_loss={r['val_loss']:.4f}, acc_1st={r['val_acc']:.1f}%")
 
     # 次元確認
     for m in MODELS:
         cp = torch.load(m['path'], map_location='cpu', weights_only=False)
-        logger.info(f"  {m['path']}: input_dim={cp.get('input_dim')}")
+        meta = cp.get('metadata', {})
+        logger.info(f"  {m['path']}: input_dim={cp.get('input_dim')}, "
+                    f"dropout={cp.get('dropout')}, version={meta.get('version')}")
 
 
 if __name__ == '__main__':

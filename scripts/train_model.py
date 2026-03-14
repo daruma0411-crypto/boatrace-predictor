@@ -1,4 +1,14 @@
-"""モデル訓練スクリプト: クラス重み付き + 一括データ取得 + Early Stopping"""
+"""モデル訓練スクリプト v2: Focal Loss + 1着均等重み + Dropout低減
+
+v2変更点:
+  - 1着ヘッド: クラス重みなし (均等) → 3号艇バイアス解消
+  - 2着/3着ヘッド: smoothing=0.7 (軽い補正のみ)
+  - 損失関数: CrossEntropyLoss → FocalLoss (gamma=2.0)
+  - Dropout: 0.3 → 0.15
+  - 学習率: 0.001 → 0.0005
+  - Early Stopping patience: 10 → 15
+  - LRスケジューラー: patience=8, factor=0.7
+"""
 import sys
 import os
 import logging
@@ -19,24 +29,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def compute_class_weights(labels, num_classes=6, smoothing=0.3):
+def compute_class_weights(labels, num_classes=6, smoothing=0.7):
     """出現頻度の逆数ベースのクラス重みを計算
 
     smoothing: 0.0=完全逆数, 1.0=均等重み
-        0.3 は穴番を約3倍重視しつつ、1号艇も完全無視しない設定
-
-    例 (54kデータ):
-        1号艇: 54.6% → weight ≈ 0.56
-        2号艇: 13.5% → weight ≈ 1.35
-        3号艇: 12.7% → weight ≈ 1.43
-        4号艇: 10.1% → weight ≈ 1.60
-        5号艇:  5.9% → weight ≈ 2.11
-        6号艇:  3.1% → weight ≈ 2.79
+        v2デフォルト: 0.7 (軽い補正のみ、2着/3着用)
     """
     counts = Counter(labels.tolist())
     total = len(labels)
 
-    # 逆頻度重み: w_i = total / (num_classes * count_i)
     raw_weights = []
     for i in range(num_classes):
         count = counts.get(i, 1)
@@ -141,21 +142,31 @@ def load_training_data_fast(years=3):
     y3 = np.array(y3_list, dtype=np.int64)
 
     logger.info(f"訓練データ: {len(X):,}件, 特徴量次元: {X.shape[1]}")
+
+    # ラベル分布ログ
+    for pos, y in [("1着", y1), ("2着", y2), ("3着", y3)]:
+        counts = Counter(y.tolist())
+        dist = " ".join(f"{i+1}号艇:{counts.get(i,0)/len(y)*100:.1f}%"
+                        for i in range(6))
+        logger.info(f"  {pos}分布: {dist}")
+
     return X, y1, y2, y3
 
 
-def train(epochs=100, batch_size=256, lr=0.001, patience=10,
-          weight_smoothing=0.3):
-    """モデル訓練（クラス重み + Early Stopping）
+def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
+          weight_smoothing_2nd3rd=0.7, focal_gamma=2.0, dropout=0.15):
+    """モデル訓練 v2 (Focal Loss + 1着均等重み + Early Stopping)
 
     Args:
-        weight_smoothing: クラス重みの平滑化パラメータ
-            0.0 = 完全な逆頻度重み（穴番を極端に重視）
-            0.3 = デフォルト（穴番を適度に重視）
-            1.0 = 均等重み（旧来と同じ）
+        lr: 学習率 (v2: 0.0005, 旧: 0.001)
+        patience: Early Stopping許容エポック数 (v2: 15, 旧: 10)
+        weight_smoothing_2nd3rd: 2着/3着クラス重みの平滑化 (v2: 0.7, 旧: 0.3)
+        focal_gamma: Focal Loss の gamma (0=CE, 2.0=推奨)
+        dropout: Dropout率 (v2: 0.15, 旧: 0.3)
     """
-    logger.info("=== モデル訓練開始 ===")
-    logger.info(f"クラス重みスムージング: {weight_smoothing}")
+    logger.info("=== モデル訓練開始 (v2: Focal Loss) ===")
+    logger.info(f"  lr={lr}, patience={patience}, focal_gamma={focal_gamma}, "
+                f"dropout={dropout}, 2nd/3rd smoothing={weight_smoothing_2nd3rd}")
 
     X, y1, y2, y3 = load_training_data_fast()
     if X is None:
@@ -163,12 +174,15 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10,
         return
 
     # === クラス重み計算 ===
-    cw_1st = compute_class_weights(y1, smoothing=weight_smoothing)
-    cw_2nd = compute_class_weights(y2, smoothing=weight_smoothing)
-    cw_3rd = compute_class_weights(y3, smoothing=weight_smoothing)
+    # 1着: 均等重み (None) → 1号艇50%は競技特性であり不均衡ではない
+    cw_1st = None
+    # 2着/3着: 軽い補正 (smoothing=0.7)
+    cw_2nd = compute_class_weights(y2, smoothing=weight_smoothing_2nd3rd)
+    cw_3rd = compute_class_weights(y3, smoothing=weight_smoothing_2nd3rd)
 
-    logger.info(f"1着クラス重み: {['%.2f' % w for w in cw_1st.tolist()]}")
-    logger.info(f"  (1号艇={cw_1st[0]:.2f}, 6号艇={cw_1st[5]:.2f}, 比率={cw_1st[5]/cw_1st[0]:.1f}x)")
+    logger.info(f"1着クラス重み: None (均等)")
+    logger.info(f"2着クラス重み: {['%.2f' % w for w in cw_2nd.tolist()]}")
+    logger.info(f"3着クラス重み: {['%.2f' % w for w in cw_3rd.tolist()]}")
 
     # 訓練/検証 分割 (8:2)
     n = len(X)
@@ -196,15 +210,17 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"デバイス: {device}")
 
-    model = BoatraceMultiTaskModel().to(device)
+    model = BoatraceMultiTaskModel(dropout=dropout).to(device)
     criterion = BoatraceMultiTaskLoss(
-        class_weights_1st=cw_1st.to(device),
+        class_weights_1st=None,  # 1着: 均等
         class_weights_2nd=cw_2nd.to(device),
         class_weights_3rd=cw_3rd.to(device),
+        gamma=focal_gamma,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    # v2: patience=8, factor=0.7 (学習率の早期低下を防止)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=5, factor=0.5
+        optimizer, patience=8, factor=0.7
     )
 
     best_val_loss = float('inf')
@@ -233,6 +249,8 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10,
         # 検証
         model.eval()
         val_loss = 0
+        correct_1st = 0
+        total = 0
         with torch.no_grad():
             for batch_x, batch_y1, batch_y2, batch_y3 in val_loader:
                 batch_x = batch_x.to(device)
@@ -245,13 +263,21 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10,
                 loss = criterion(outputs, targets)
                 val_loss += loss.item()
 
+                # 1着精度モニタリング
+                pred_1st = outputs[0].argmax(dim=1)
+                correct_1st += (pred_1st == targets[0]).sum().item()
+                total += targets[0].size(0)
+
         val_loss /= len(val_loader)
+        val_acc_1st = correct_1st / total * 100
         scheduler.step(val_loss)
 
         if (epoch + 1) % 10 == 0:
+            current_lr = optimizer.param_groups[0]['lr']
             logger.info(
                 f"Epoch {epoch+1}/{epochs}: "
-                f"train_loss={train_loss:.4f}, val_loss={val_loss:.4f}"
+                f"train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, "
+                f"val_acc_1st={val_acc_1st:.1f}%, lr={current_lr:.6f}"
             )
 
         # Early Stopping
@@ -262,10 +288,14 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10,
                 'epoch': epoch + 1,
                 'train_loss': train_loss,
                 'val_loss': val_loss,
+                'val_acc_1st': val_acc_1st,
                 'train_size': len(train_idx),
                 'val_size': len(val_idx),
-                'class_weights_1st': cw_1st.tolist(),
-                'weight_smoothing': weight_smoothing,
+                'class_weights_1st': 'uniform',
+                'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
+                'focal_gamma': focal_gamma,
+                'dropout': dropout,
+                'version': 'v2_focal',
             })
         else:
             patience_counter += 1
@@ -282,16 +312,20 @@ def train(epochs=100, batch_size=256, lr=0.001, patience=10,
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--smoothing', type=float, default=0.3,
-                        help='クラス重みスムージング (0.0=逆頻度, 1.0=均等)')
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--patience', type=int, default=10)
+    parser.add_argument('--lr', type=float, default=0.0005)
+    parser.add_argument('--patience', type=int, default=15)
+    parser.add_argument('--focal-gamma', type=float, default=2.0)
+    parser.add_argument('--dropout', type=float, default=0.15)
+    parser.add_argument('--smoothing-2nd3rd', type=float, default=0.7,
+                        help='2着/3着クラス重みスムージング')
     args = parser.parse_args()
 
     train(
         epochs=args.epochs,
         lr=args.lr,
         patience=args.patience,
-        weight_smoothing=args.smoothing,
+        focal_gamma=args.focal_gamma,
+        dropout=args.dropout,
+        weight_smoothing_2nd3rd=args.smoothing_2nd3rd,
     )
