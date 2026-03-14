@@ -78,7 +78,15 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     input_dim = X_train.shape[1]
-    model = BoatraceMultiTaskModel(input_dim=input_dim, dropout=dropout).to(device)
+    # v3: NN縮小 (43次元入力には[512,256,128]は過大)
+    if input_dim <= 50:
+        hidden_dims = [256, 128, 64]
+    else:
+        hidden_dims = [512, 256, 128]
+    logger.info(f"  モデル構成: input={input_dim}, hidden={hidden_dims}")
+    model = BoatraceMultiTaskModel(
+        input_dim=input_dim, hidden_dims=hidden_dims, dropout=dropout
+    ).to(device)
     criterion = BoatraceMultiTaskLoss(
         class_weights_1st=None,
         class_weights_2nd=cw_2nd.to(device),
@@ -141,7 +149,7 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': gamma,
                 'dropout': dropout,
-                'version': 'v2_focal',
+                'version': 'v3_feature_selection',
             })
         else:
             patience_counter += 1

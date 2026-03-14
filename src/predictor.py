@@ -1,11 +1,16 @@
-"""リアルタイム予測エンジン"""
+"""リアルタイム予測エンジン
+
+v3: モデルの入力次元に応じてFeatureEngineerを自動選択
+    - 43次元モデル → FeatureEngineer (v3)
+    - 208次元モデル → FeatureEngineerLegacy (v2互換)
+"""
 import json
 import logging
 import os
 import numpy as np
 import torch
 from src.models import load_model
-from src.features import FeatureEngineer
+from src.features import FeatureEngineer, FeatureEngineerLegacy
 from src.database import get_db_connection
 from utils.timezone import now_jst
 
@@ -20,19 +25,35 @@ ENSEMBLE_MODEL_PATHS = [
 ]
 
 
+def _get_feature_engineer_for_model(model):
+    """モデルの入力次元に応じたFeatureEngineerを返す"""
+    try:
+        input_dim = model.shared[0].in_features
+    except Exception:
+        input_dim = getattr(model, 'input_dim', 208)
+
+    if input_dim <= FeatureEngineer.TOTAL_DIM:
+        return FeatureEngineer()
+    else:
+        return FeatureEngineerLegacy()
+
+
 class RealtimePredictor:
     """リアルタイム予測: 特徴量生成→モデル推論→結果保存"""
 
     def __init__(self, model_path='models/boatrace_model.pth'):
-        self.feature_engineer = FeatureEngineer()
         self.model_path = model_path
         self.model = None
+        self.feature_engineer = None
         self.device = torch.device('cpu')
 
     def _ensure_model(self):
         """モデルをロード（未ロード時）。ファイル未発見時は例外を伝搬"""
         if self.model is None:
             self.model = load_model(self.model_path, self.device)
+            self.feature_engineer = _get_feature_engineer_for_model(self.model)
+            fe_class = self.feature_engineer.__class__.__name__
+            logger.info(f"FeatureEngineer: {fe_class} ({self.feature_engineer.TOTAL_DIM}次元)")
 
     def predict(self, race_data, boats_data):
         """特徴量生成→PyTorchモデル推論→確率を返却"""
@@ -141,8 +162,8 @@ class EnsemblePredictor:
 
     def __init__(self, model_paths=None):
         self.model_paths = model_paths or ENSEMBLE_MODEL_PATHS
-        self.feature_engineer = FeatureEngineer()
         self.models = {}  # 遅延ロード
+        self.feature_engineers = {}  # モデルごとのFE
         self.device = torch.device('cpu')
 
     def _ensure_models(self):
@@ -154,7 +175,9 @@ class EnsemblePredictor:
                 logger.warning(f"アンサンブルモデル未発見: {path}")
                 continue
             try:
-                self.models[path] = load_model(path, self.device)
+                model = load_model(path, self.device)
+                self.models[path] = model
+                self.feature_engineers[path] = _get_feature_engineer_for_model(model)
                 logger.info(f"アンサンブルモデルロード: {path}")
             except Exception as e:
                 logger.warning(f"アンサンブルモデルロード失敗: {path}: {e}")
@@ -171,35 +194,22 @@ class EnsemblePredictor:
             logger.warning("アンサンブル: ロード済みモデルなし")
             return []
 
-        # 特徴量は1回だけ計算
-        features = self.feature_engineer.transform(race_data, boats_data)
-        x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
+        # 特徴量キャッシュ（同じFEクラスなら再計算不要）
+        features_cache = {}
 
         results = []
         for path, model in self.models.items():
-            # モデルの入力次元を取得し、特徴量次元と不一致なら切り詰め
-            try:
-                model_input_dim = model.shared[0].in_features
-            except Exception:
-                model_input_dim = None
+            fe = self.feature_engineers[path]
+            fe_key = fe.__class__.__name__
 
-            x_input = x
-            if model_input_dim and x.shape[1] != model_input_dim:
-                if x.shape[1] > model_input_dim:
-                    x_input = x[:, :model_input_dim]
-                    logger.info(
-                        f"アンサンブル次元補正: {x.shape[1]}→{model_input_dim} ({path})"
-                    )
-                else:
-                    # 特徴量 < モデル次元: ゼロパディングは精度劣化するためスキップ
-                    logger.warning(
-                        f"アンサンブルスキップ: 特徴量{x.shape[1]}次元 < "
-                        f"モデル{model_input_dim}次元 ({path})"
-                    )
-                    continue
+            if fe_key not in features_cache:
+                features_cache[fe_key] = fe.transform(race_data, boats_data)
+
+            features = features_cache[fe_key]
+            x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
 
             with torch.no_grad():
-                out_1st, out_2nd, out_3rd = model(x_input)
+                out_1st, out_2nd, out_3rd = model(x)
 
             probs_1st = torch.softmax(out_1st, dim=1).squeeze().numpy()
             probs_2nd = torch.softmax(out_2nd, dim=1).squeeze().numpy()

@@ -1,7 +1,12 @@
-"""並列データ収集スクリプト
+"""並列データ収集スクリプト v2: 気象・展示データ対応
 
-公式サイトから出走表+結果を並列スクレイピングでDB格納。
+公式サイトから出走表+結果+直前情報を並列スクレイピングでDB格納。
 日付単位でスレッド分散し、高速に大量データを収集する。
+
+v2変更点:
+  - scrape_beforeinfo() で天候・展示タイム・チルト・部品交換も取得
+  - races INSERT に wind_speed, wind_direction, temperature, wave_height, water_temperature 追加
+  - boats INSERT に exhibition_time, tilt, parts_changed 追加
 
 使い方:
     python scripts/collect_parallel.py --months 3
@@ -19,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.database import get_db_connection, init_database
-from src.scraper import _get_session, scrape_racelist, scrape_result
+from src.scraper import _get_session, scrape_racelist, scrape_result, scrape_beforeinfo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,8 +35,93 @@ logger = logging.getLogger(__name__)
 VENUES = list(range(1, 25))
 
 
+def _insert_race_and_boats(cur, race_date, venue_id, race_number,
+                           result, boats, beforeinfo):
+    """races + boats を INSERT する共通関数
+
+    Args:
+        beforeinfo: scrape_beforeinfo() の返値 (None可)
+    Returns:
+        race_id or None
+    """
+    # 天候データ抽出
+    weather = (beforeinfo or {}).get('weather', {})
+    wind_speed = weather.get('wind_speed')
+    wind_direction = weather.get('wind_direction')
+    temperature = weather.get('temperature')
+    wave_height = weather.get('wave_height')
+    water_temperature = weather.get('water_temperature')
+
+    # races upsert
+    cur.execute("""
+        INSERT INTO races (race_date, venue_id, race_number, status,
+                           result_1st, result_2nd, result_3rd, payout_sanrentan,
+                           wind_speed, wind_direction, temperature,
+                           wave_height, water_temperature)
+        VALUES (%s, %s, %s, 'finished', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (race_date, venue_id, race_number)
+        DO UPDATE SET status = 'finished',
+            result_1st = EXCLUDED.result_1st,
+            result_2nd = EXCLUDED.result_2nd,
+            result_3rd = EXCLUDED.result_3rd,
+            payout_sanrentan = EXCLUDED.payout_sanrentan,
+            wind_speed = COALESCE(EXCLUDED.wind_speed, races.wind_speed),
+            wind_direction = COALESCE(EXCLUDED.wind_direction, races.wind_direction),
+            temperature = COALESCE(EXCLUDED.temperature, races.temperature),
+            wave_height = COALESCE(EXCLUDED.wave_height, races.wave_height),
+            water_temperature = COALESCE(EXCLUDED.water_temperature, races.water_temperature)
+        RETURNING id
+    """, (race_date, venue_id, race_number,
+          result['result_1st'], result['result_2nd'],
+          result['result_3rd'], result['payout_sanrentan'],
+          wind_speed, wind_direction, temperature,
+          wave_height, water_temperature))
+    row = cur.fetchone()
+    if not row:
+        return None
+    race_id = row['id']
+
+    # 直前情報のボートデータをマージ
+    beforeinfo_boats = {}
+    if beforeinfo and beforeinfo.get('boats'):
+        for eb in beforeinfo['boats']:
+            beforeinfo_boats[eb['boat_number']] = eb
+
+    # boats 入れ替え
+    cur.execute("DELETE FROM boats WHERE race_id = %s", (race_id,))
+    for b in boats:
+        bn = b['boat_number']
+        eb = beforeinfo_boats.get(bn, {})
+        cur.execute("""
+            INSERT INTO boats
+            (race_id, boat_number, player_id, player_name,
+             player_class, win_rate, win_rate_2, win_rate_3,
+             local_win_rate, local_win_rate_2,
+             motor_win_rate_2, motor_win_rate_3,
+             boat_win_rate_2, weight, avg_st, approach_course,
+             exhibition_time, tilt, parts_changed)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            race_id, bn,
+            b.get('player_id'), b.get('player_name'),
+            b.get('player_class'),
+            b.get('win_rate'), b.get('win_rate_2'), b.get('win_rate_3'),
+            b.get('local_win_rate'), b.get('local_win_rate_2'),
+            b.get('motor_win_rate_2'), b.get('motor_win_rate_3'),
+            b.get('boat_win_rate_2'),
+            eb.get('weight') or b.get('weight'),
+            b.get('avg_st'),
+            eb.get('approach_course') or bn,
+            eb.get('exhibition_time'),
+            eb.get('tilt'),
+            eb.get('parts_changed', False),
+        ))
+
+    return race_id
+
+
 def _collect_one_race(session, race_date, venue_id, race_number):
-    """1レース分の出走表+結果を取得してDB格納
+    """1レース分の出走表+結果+直前情報を取得してDB格納
 
     Returns:
         (success: bool, race_date, venue_id, race_number)
@@ -47,52 +137,22 @@ def _collect_one_race(session, race_date, venue_id, race_number):
         if not result:
             return (False, race_date, venue_id, race_number)
 
+        # 直前情報（天候・展示タイム・チルト・部品交換）- 取得失敗はNone
+        beforeinfo = None
+        try:
+            beforeinfo = scrape_beforeinfo(session, race_date, venue_id, race_number)
+        except Exception:
+            pass
+
         # DB格納
         with get_db_connection() as conn:
             cur = conn.cursor()
-
-            # races upsert
-            cur.execute("""
-                INSERT INTO races (race_date, venue_id, race_number, status,
-                                   result_1st, result_2nd, result_3rd, payout_sanrentan)
-                VALUES (%s, %s, %s, 'finished', %s, %s, %s, %s)
-                ON CONFLICT (race_date, venue_id, race_number)
-                DO UPDATE SET status = 'finished',
-                    result_1st = EXCLUDED.result_1st,
-                    result_2nd = EXCLUDED.result_2nd,
-                    result_3rd = EXCLUDED.result_3rd,
-                    payout_sanrentan = EXCLUDED.payout_sanrentan
-                RETURNING id
-            """, (race_date, venue_id, race_number,
-                  result['result_1st'], result['result_2nd'],
-                  result['result_3rd'], result['payout_sanrentan']))
-            row = cur.fetchone()
-            if not row:
+            race_id = _insert_race_and_boats(
+                cur, race_date, venue_id, race_number,
+                result, boats, beforeinfo
+            )
+            if not race_id:
                 return (False, race_date, venue_id, race_number)
-            race_id = row['id']
-
-            # boats 入れ替え
-            cur.execute("DELETE FROM boats WHERE race_id = %s", (race_id,))
-            for b in boats:
-                cur.execute("""
-                    INSERT INTO boats
-                    (race_id, boat_number, player_id, player_name,
-                     player_class, win_rate, win_rate_2, win_rate_3,
-                     local_win_rate, local_win_rate_2,
-                     motor_win_rate_2, motor_win_rate_3,
-                     boat_win_rate_2, weight, avg_st, approach_course)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                """, (
-                    race_id, b['boat_number'],
-                    b.get('player_id'), b.get('player_name'),
-                    b.get('player_class'),
-                    b.get('win_rate'), b.get('win_rate_2'), b.get('win_rate_3'),
-                    b.get('local_win_rate'), b.get('local_win_rate_2'),
-                    b.get('motor_win_rate_2'), b.get('motor_win_rate_3'),
-                    b.get('boat_win_rate_2'),
-                    b.get('weight'), b.get('avg_st'),
-                    b['boat_number'],
-                ))
 
         return (True, race_date, venue_id, race_number)
 
@@ -120,51 +180,28 @@ def _collect_one_date(race_date, delay=0.3):
 
         for race_number in range(1, 13):
             if race_number == 1:
-                # R1は既にtest_boatsで取得済み → 結果だけ取得
+                # R1は既にtest_boatsで取得済み → 結果+直前情報取得
                 result = scrape_result(session, race_date, venue_id, 1)
                 if result:
+                    beforeinfo = None
+                    try:
+                        beforeinfo = scrape_beforeinfo(
+                            session, race_date, venue_id, 1
+                        )
+                    except Exception:
+                        pass
+
                     try:
                         with get_db_connection() as conn:
                             cur = conn.cursor()
-                            cur.execute("""
-                                INSERT INTO races (race_date, venue_id, race_number, status,
-                                                   result_1st, result_2nd, result_3rd, payout_sanrentan)
-                                VALUES (%s, %s, %s, 'finished', %s, %s, %s, %s)
-                                ON CONFLICT (race_date, venue_id, race_number)
-                                DO UPDATE SET status = 'finished',
-                                    result_1st = EXCLUDED.result_1st,
-                                    result_2nd = EXCLUDED.result_2nd,
-                                    result_3rd = EXCLUDED.result_3rd,
-                                    payout_sanrentan = EXCLUDED.payout_sanrentan
-                                RETURNING id
-                            """, (race_date, venue_id, 1,
-                                  result['result_1st'], result['result_2nd'],
-                                  result['result_3rd'], result['payout_sanrentan']))
-                            row = cur.fetchone()
-                            if row:
-                                race_id = row['id']
-                                cur.execute("DELETE FROM boats WHERE race_id = %s", (race_id,))
-                                for b in test_boats:
-                                    cur.execute("""
-                                        INSERT INTO boats
-                                        (race_id, boat_number, player_id, player_name,
-                                         player_class, win_rate, win_rate_2, win_rate_3,
-                                         local_win_rate, local_win_rate_2,
-                                         motor_win_rate_2, motor_win_rate_3,
-                                         boat_win_rate_2, weight, avg_st, approach_course)
-                                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                                    """, (
-                                        race_id, b['boat_number'],
-                                        b.get('player_id'), b.get('player_name'),
-                                        b.get('player_class'),
-                                        b.get('win_rate'), b.get('win_rate_2'), b.get('win_rate_3'),
-                                        b.get('local_win_rate'), b.get('local_win_rate_2'),
-                                        b.get('motor_win_rate_2'), b.get('motor_win_rate_3'),
-                                        b.get('boat_win_rate_2'),
-                                        b.get('weight'), b.get('avg_st'),
-                                        b['boat_number'],
-                                    ))
+                            race_id = _insert_race_and_boats(
+                                cur, race_date, venue_id, 1,
+                                result, test_boats, beforeinfo
+                            )
+                            if race_id:
                                 success += 1
+                            else:
+                                fail += 1
                     except Exception:
                         fail += 1
                 else:
@@ -229,7 +266,7 @@ def collect_range(start_date, end_date, workers=5, delay=0.3):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ボートレース並列データ収集')
+    parser = argparse.ArgumentParser(description='ボートレース並列データ収集 v2')
     parser.add_argument('--start', help='開始日 (YYYY-MM-DD)')
     parser.add_argument('--end', help='終了日 (YYYY-MM-DD)')
     parser.add_argument('--months', type=int, default=3, help='直近N ヶ月 (--start/end未指定時)')

@@ -1,13 +1,9 @@
-"""モデル訓練スクリプト v2: Focal Loss + 1着均等重み + Dropout低減
+"""モデル訓練スクリプト v3: Feature Selection (208→43次元) + Focal Loss
 
-v2変更点:
-  - 1着ヘッド: クラス重みなし (均等) → 3号艇バイアス解消
-  - 2着/3着ヘッド: smoothing=0.7 (軽い補正のみ)
-  - 損失関数: CrossEntropyLoss → FocalLoss (gamma=2.0)
-  - Dropout: 0.3 → 0.15
-  - 学習率: 0.001 → 0.0005
-  - Early Stopping patience: 10 → 15
-  - LRスケジューラー: patience=8, factor=0.7
+v3変更点:
+  - 特徴量: 208次元→43次元 (重要度分析で有効な特徴量のみ残留)
+  - モデル入力: input_dim=43, hidden_dims=[256, 128, 64] (NN縮小)
+  - Focal Loss / Early Stopping / LRスケジューラーは v2 踏襲
 """
 import sys
 import os
@@ -210,7 +206,16 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"デバイス: {device}")
 
-    model = BoatraceMultiTaskModel(dropout=dropout).to(device)
+    input_dim = X.shape[1]  # v3: 43次元 (FeatureEngineerの出力に自動追従)
+    # v3: NN縮小 (208次元時の[512,256,128]→43次元では過大)
+    if input_dim <= 50:
+        hidden_dims = [256, 128, 64]
+    else:
+        hidden_dims = [512, 256, 128]
+    logger.info(f"モデル構成: input_dim={input_dim}, hidden={hidden_dims}")
+    model = BoatraceMultiTaskModel(
+        input_dim=input_dim, hidden_dims=hidden_dims, dropout=dropout
+    ).to(device)
     criterion = BoatraceMultiTaskLoss(
         class_weights_1st=None,  # 1着: 均等
         class_weights_2nd=cw_2nd.to(device),
@@ -295,7 +300,7 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': focal_gamma,
                 'dropout': dropout,
-                'version': 'v2_focal',
+                'version': 'v3_feature_selection',
             })
         else:
             patience_counter += 1
