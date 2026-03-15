@@ -1,7 +1,7 @@
 """リアルタイム予測エンジン
 
-v4: 特徴量マスク対応
-    - feature_mask_208.npy が存在 → FeatureEngineerLegacy(208次元) + マスク適用
+v5: 特徴量選別モデル対応
+    - feature_mask_208.npy + input_dim=23 → FeatureEngineerLegacy(208) + mask → 23次元
     - input_dim > 43 → FeatureEngineerLegacy (v2互換)
     - input_dim <= 43 → FeatureEngineer (v3)
 """
@@ -27,39 +27,29 @@ ENSEMBLE_MODEL_PATHS = [
 
 # 特徴量マスク (208→N次元選別)
 FEATURE_MASK_PATH = 'models/feature_mask_208.npy'
-_feature_mask_cache = None
 
 
 def _load_feature_mask():
-    """特徴量マスクをロード (キャッシュ)"""
-    global _feature_mask_cache
-    if _feature_mask_cache is not None:
-        return _feature_mask_cache
+    """特徴量マスクをロード。ファイルなければ None"""
     if os.path.exists(FEATURE_MASK_PATH):
-        _feature_mask_cache = np.load(FEATURE_MASK_PATH)
-        logger.info(f"特徴量マスクロード: {_feature_mask_cache.sum()}/208 採用")
-        return _feature_mask_cache
+        mask = np.load(FEATURE_MASK_PATH)
+        return mask
     return None
 
 
-def _get_feature_engineer_for_model(model):
-    """モデルの入力次元に応じたFeatureEngineerを返す"""
+def _get_model_input_dim(model):
+    """モデルの入力次元を取得"""
     try:
-        input_dim = model.shared[0].in_features
+        return model.shared[0].in_features
     except Exception:
-        input_dim = getattr(model, 'input_dim', 208)
+        return getattr(model, 'input_dim', 208)
 
-    mask = _load_feature_mask()
 
-    # マスクが存在し、モデル入力次元 = マスク選別後の次元数 → Legacy + mask
-    if mask is not None and input_dim == int(mask.sum()):
-        logger.info(f"v5モード: FeatureEngineerLegacy(208) + mask → {input_dim}次元")
-        return FeatureEngineerLegacy()
-
-    if input_dim <= FeatureEngineer.TOTAL_DIM:
-        return FeatureEngineer()
-    else:
-        return FeatureEngineerLegacy()
+def _apply_mask(features, mask):
+    """208次元特徴量にマスクを適用してN次元に絞る"""
+    if mask is not None and len(features) == len(mask):
+        return features[mask]
+    return features
 
 
 class RealtimePredictor:
@@ -69,25 +59,41 @@ class RealtimePredictor:
         self.model_path = model_path
         self.model = None
         self.feature_engineer = None
+        self.feature_mask = None
         self.device = torch.device('cpu')
 
     def _ensure_model(self):
-        """モデルをロード（未ロード時）。ファイル未発見時は例外を伝搬"""
-        if self.model is None:
-            self.model = load_model(self.model_path, self.device)
-            self.feature_engineer = _get_feature_engineer_for_model(self.model)
-            fe_class = self.feature_engineer.__class__.__name__
-            logger.info(f"FeatureEngineer: {fe_class} ({self.feature_engineer.TOTAL_DIM}次元)")
+        """モデルをロード（未ロード時）。特徴量マスクも確定"""
+        if self.model is not None:
+            return
+
+        self.model = load_model(self.model_path, self.device)
+        input_dim = _get_model_input_dim(self.model)
+        mask = _load_feature_mask()
+
+        # V5判定: マスクが存在し、モデル入力次元 == マスク選別後の次元
+        if mask is not None and input_dim == int(mask.sum()):
+            self.feature_engineer = FeatureEngineerLegacy()
+            self.feature_mask = mask
+            logger.info(
+                f"V5 (23dim) model loaded and features masked successfully "
+                f"[FeatureEngineerLegacy(208) → mask → {input_dim}dim]"
+            )
+        elif input_dim <= FeatureEngineer.TOTAL_DIM:
+            self.feature_engineer = FeatureEngineer()
+            self.feature_mask = None
+            logger.info(f"V3 model loaded [FeatureEngineer({input_dim}dim)]")
+        else:
+            self.feature_engineer = FeatureEngineerLegacy()
+            self.feature_mask = None
+            logger.info(f"V2互換 model loaded [FeatureEngineerLegacy({input_dim}dim)]")
 
     def predict(self, race_data, boats_data):
-        """特徴量生成→PyTorchモデル推論→確率を返却"""
+        """特徴量生成→(マスク適用)→PyTorchモデル推論→確率を返却"""
         self._ensure_model()
 
         features = self.feature_engineer.transform(race_data, boats_data)
-        # 特徴量マスク適用 (208→N次元)
-        mask = _load_feature_mask()
-        if mask is not None and len(features) == len(mask):
-            features = features[mask]
+        features = _apply_mask(features, self.feature_mask)
         x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
@@ -194,25 +200,63 @@ class EnsemblePredictor:
 
     def __init__(self, model_paths=None):
         self.model_paths = model_paths or ENSEMBLE_MODEL_PATHS
-        self.models = {}  # 遅延ロード
-        self.feature_engineers = {}  # モデルごとのFE
+        self.models = {}          # path → model
+        self.feature_mask = None  # 全モデル共通マスク
+        self._fe = None           # 全モデル共通FeatureEngineer
+        self._initialized = False
         self.device = torch.device('cpu')
 
     def _ensure_models(self):
-        """全モデルを遅延ロード"""
+        """全モデルを遅延ロード + マスク確定"""
+        if self._initialized:
+            return
+
+        mask = _load_feature_mask()
+
         for path in self.model_paths:
-            if path in self.models:
-                continue
             if not os.path.exists(path):
                 logger.warning(f"アンサンブルモデル未発見: {path}")
                 continue
             try:
                 model = load_model(path, self.device)
                 self.models[path] = model
-                self.feature_engineers[path] = _get_feature_engineer_for_model(model)
                 logger.info(f"アンサンブルモデルロード: {path}")
             except Exception as e:
                 logger.warning(f"アンサンブルモデルロード失敗: {path}: {e}")
+
+        if not self.models:
+            logger.warning("アンサンブル: ロード済みモデルなし")
+            self._initialized = True
+            return
+
+        # 最初のモデルで FE + mask を確定（全モデル同じ次元前提）
+        first_model = next(iter(self.models.values()))
+        input_dim = _get_model_input_dim(first_model)
+
+        if mask is not None and input_dim == int(mask.sum()):
+            self._fe = FeatureEngineerLegacy()
+            self.feature_mask = mask
+            logger.info(
+                f"V5 (23dim) ensemble loaded and features masked successfully "
+                f"[FeatureEngineerLegacy(208) → mask → {input_dim}dim, "
+                f"{len(self.models)} models]"
+            )
+        elif input_dim <= FeatureEngineer.TOTAL_DIM:
+            self._fe = FeatureEngineer()
+            self.feature_mask = None
+            logger.info(
+                f"V3 ensemble loaded [FeatureEngineer({input_dim}dim), "
+                f"{len(self.models)} models]"
+            )
+        else:
+            self._fe = FeatureEngineerLegacy()
+            self.feature_mask = None
+            logger.info(
+                f"V2互換 ensemble loaded [FeatureEngineerLegacy({input_dim}dim), "
+                f"{len(self.models)} models]"
+            )
+
+        self._initialized = True
 
     def predict_all(self, race_data, boats_data):
         """全モデルで推論し、結果リストを返す
@@ -223,29 +267,15 @@ class EnsemblePredictor:
         self._ensure_models()
 
         if not self.models:
-            logger.warning("アンサンブル: ロード済みモデルなし")
             return []
 
-        # 特徴量キャッシュ（同じFEクラスなら再計算不要）
-        features_cache = {}
+        # 特徴量計算は1回だけ（全モデル共通）
+        features = self._fe.transform(race_data, boats_data)
+        features = _apply_mask(features, self.feature_mask)
+        x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
 
         results = []
         for path, model in self.models.items():
-            fe = self.feature_engineers[path]
-            fe_key = fe.__class__.__name__
-
-            if fe_key not in features_cache:
-                raw_features = fe.transform(race_data, boats_data)
-                # 特徴量マスク適用 (208→N次元)
-                mask = _load_feature_mask()
-                if mask is not None and len(raw_features) == len(mask):
-                    features_cache[fe_key] = raw_features[mask]
-                else:
-                    features_cache[fe_key] = raw_features
-
-            features = features_cache[fe_key]
-            x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
-
             with torch.no_grad():
                 out_1st, out_2nd, out_3rd = model(x)
 
