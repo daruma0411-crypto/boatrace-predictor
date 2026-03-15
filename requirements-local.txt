@@ -1,0 +1,4 @@
+# ローカルPC専用の追加依存（テレボート自動購入用）
+# pip install -r requirements-local.txt
+playwright>=1.40.0
+python-dotenv>=1.0.0

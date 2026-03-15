@@ -80,6 +80,50 @@ def send_line_bet_notification(venue_id, race_number, all_bets):
         logger.warning(f"❌ LINE通知エラー: {e}")
 
 
+def send_line_purchase_notification(venue_id, race_number, combination, amount,
+                                    success, message=""):
+    """テレボート購入結果をLINE通知
+
+    Args:
+        venue_id: 会場ID
+        race_number: レース番号
+        combination: 買い目 ("1-2-3")
+        amount: 金額
+        success: 購入成功か
+        message: 追加メッセージ
+    """
+    token = os.environ.get("LINE_ACCESS_TOKEN")
+    user_id = os.environ.get("LINE_USER_ID")
+
+    if not token or not user_id:
+        logger.debug("LINE設定がないため通知をスキップ")
+        return
+
+    venue_name = _get_venue_name(venue_id)
+
+    if success:
+        msg = f"✅ 購入完了: {venue_name} {race_number}R 3連単 {combination} ¥{amount:,}"
+    else:
+        msg = f"❌ 購入失敗: {venue_name} {race_number}R 3連単 {combination} ({message})"
+
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    payload = {
+        "to": user_id,
+        "messages": [{"type": "text", "text": msg}],
+    }
+
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=10)
+        resp.raise_for_status()
+        logger.info(f"✅ LINE購入通知送信: {venue_name} {race_number}R")
+    except Exception as e:
+        logger.warning(f"❌ LINE購入通知エラー: {e}")
+
+
 def send_line_daily_summary(summary_text):
     """日次サマリーをLINEに送信"""
     token = os.environ.get("LINE_ACCESS_TOKEN")
