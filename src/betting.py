@@ -1,11 +1,13 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
-アクティブ戦略 (5戦略):
-- 戦略A (conservative): 1/8ケリー、filter=none、堅実型
-- 戦略B (standard):     1/4ケリー、filter=none、標準型
-- 戦略D (high_confidence): エントロピーフィルター、H<2.3の確信レースのみ
-- 戦略G (optuna): Optuna 7次元最適化（高オッズ帯+荒れレース特化）
-- 戦略H (bt_none): 1/8ケリー、filter=none、バックテスト基準型
+v8: EVゾーン集中戦略 (2026-03-15)
+3/15 CSV 2251件の分析結果: EV 0.5-0.8 = ROI 219%, EV 1.2+ = ROI 26%.
+モデルが「市場と大きく乖離」(高EV) するほど外れる → 低EVゾーンに集中.
+
+アクティブ戦略 (3戦略):
+- high_confidence: EV 0.5-0.8 + entropy<2.3 (エース、ROI 219%ゾーン×確信フィルタ)
+- standard:        EV 0.5-0.8 (フィルタなし、拾い漏れカバー)
+- conservative:    EV 0.5-1.0 (広めゾーン、0.8-1.0のROI 126%も拾う安全策)
 
 ドローダウン防止:
 - 日次損失上限 ¥30,000
@@ -241,8 +243,8 @@ DAILY_BET_LIMIT_PER_STRATEGY = 30  # 戦略別の1日最大ベット数
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
-# アクティブ戦略: A=conservative, B=standard, D=high_confidence, G=optuna, H=bt_none
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'optuna', 'bt_none'}
+# v8: EVゾーン集中 — 3戦略のみ (high_confidence=エース, standard=カバー, conservative=安全策)
+ACTIVE_STRATEGIES = {'high_confidence', 'standard', 'conservative'}
 
 
 def _get_today_bet_count(strategy_type):
