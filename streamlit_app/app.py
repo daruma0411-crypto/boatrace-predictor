@@ -376,7 +376,7 @@ def tab1_bets_fragment():
 
         # 時間: deadline_time → HH:MM 形式
         display['時間'] = display['deadline_time'].apply(
-            lambda x: x.strftime('%H:%M') if hasattr(x, 'strftime') else str(x)[:5] if x else '-'
+            lambda x: x.strftime('%H:%M') if pd.notna(x) and hasattr(x, 'strftime') else '-'
         )
 
         # レース: venue_id + race_number → "桐生 1R" 形式
