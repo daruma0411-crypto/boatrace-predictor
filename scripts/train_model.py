@@ -18,7 +18,7 @@ from collections import defaultdict, Counter
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.models import BoatraceMultiTaskModel, BoatraceMultiTaskLoss, save_model
-from src.features import FeatureEngineerLegacy as FeatureEngineer
+from src.features import FeatureEngineer
 from src.database import get_db_connection
 
 logging.basicConfig(level=logging.INFO)
