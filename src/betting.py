@@ -191,7 +191,7 @@ def _get_dynamic_discount(raw_odds):
         return 0.95
 
 
-DAILY_LOSS_LIMIT = 30000  # 全戦略合計の1日最大損失額（Kelly有効化に伴い引き締め）
+DAILY_LOSS_LIMIT_PER_STRATEGY = 30000  # 戦略別の1日最大損失額
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
@@ -224,10 +224,10 @@ def _get_today_consecutive_losses(strategy_type):
         return 0
 
 
-def _get_today_total_loss():
-    """本日の全戦略合計損失額をDBから取得"""
+def _get_today_strategy_loss(strategy_type):
+    """本日の指定戦略の損失額をDBから取得"""
     if TEST_MODE:
-        return 0  # テストモード中は損失制限なし
+        return 0
     try:
         with get_db_connection() as conn:
             cur = conn.cursor()
@@ -235,15 +235,16 @@ def _get_today_total_loss():
                 SELECT COALESCE(SUM(amount), 0) as total_wagered,
                        COALESCE(SUM(payout), 0) as total_payout
                 FROM bets
-                WHERE created_at >= CURRENT_DATE
-            """)
+                WHERE strategy_type = %s
+                  AND created_at >= CURRENT_DATE
+            """, (strategy_type,))
             row = cur.fetchone()
             wagered = float(row['total_wagered'])
             payout = float(row['total_payout'])
             return wagered - payout  # 正=損失, 負=利益
     except Exception as e:
         logger.warning(f"日次損失チェックDB障害: {e}")
-        return 0  # DB障害時は継続（bankroll制限が別途効く）
+        return 0
 
 
 class KellyBettingStrategy:
@@ -265,14 +266,6 @@ class KellyBettingStrategy:
         C-F戦略はフィルタ判定後にKelly計算。
         ensemble_predictions: EnsemblePredictor.predict_all()の結果（戦略E用）
         """
-        # 日次損失制限チェック
-        today_loss = _get_today_total_loss()
-        if today_loss >= DAILY_LOSS_LIMIT:
-            logger.warning(
-                f"日次損失上限到達: {today_loss:,.0f}円 >= {DAILY_LOSS_LIMIT:,}円 → 全戦略スキップ"
-            )
-            return {name: [] for name in self.config['strategies']}
-
         # 5-6号艇軸: ログのみ（max_oddsフィルタに委ねる）
         skip_56 = _should_skip_by_top_boat(probs_1st)
         if skip_56:
@@ -319,6 +312,16 @@ class KellyBettingStrategy:
         for strategy_name, strategy_config in self.config['strategies'].items():
             # アクティブ戦略以外はスキップ
             if strategy_name not in ACTIVE_STRATEGIES:
+                results[strategy_name] = []
+                continue
+
+            # 戦略別日次損失制限
+            strategy_loss = _get_today_strategy_loss(strategy_name)
+            if strategy_loss >= DAILY_LOSS_LIMIT_PER_STRATEGY:
+                logger.warning(
+                    f"[{strategy_name}] 日次損失上限: "
+                    f"{strategy_loss:,.0f}円 >= {DAILY_LOSS_LIMIT_PER_STRATEGY:,}円 → スキップ"
+                )
                 results[strategy_name] = []
                 continue
 
