@@ -7,6 +7,7 @@ A/Bテスト → 6戦略並列テスト:
 - 戦略D (high_confidence): エントロピーフィルター、H<2.3の確信レースのみ
 - 戦略E (ensemble):     4モデル合議、3/4多数決一致時のみ平均確率でKelly
 - 戦略F (div_confidence): C+D合わせ技、乖離度≥1.5+エントロピーH<2.3両方パス
+- 戦略G (optuna): Optuna 7次元最適化パラメータ（1号艇確率上限+エントロピー下限+高オッズ帯）
 
 条件別最適化:
 - 場の荒れ度でオッズ上限を動的調整
@@ -327,6 +328,28 @@ class KellyBettingStrategy:
                     results[strategy_name] = []
                     continue
 
+            elif filter_type == 'optuna':
+                # Optuna最適化パラメータによるレースレベルフィルタ
+                # (1) 1号艇確率上限: P(1着=1号艇) > threshold なら本命すぎてスキップ
+                max_b1 = strategy_config.get('max_boat1_prob', 0.70)
+                boat1_p = probs_1st[0]  # 0-indexed: 1号艇
+                if boat1_p > max_b1:
+                    logger.info(
+                        f"optunaフィルタ: {strategy_name} スキップ "
+                        f"(1号艇P={boat1_p:.3f} > {max_b1})"
+                    )
+                    results[strategy_name] = []
+                    continue
+                # (2) エントロピー下限: H < threshold なら確信しすぎ（低配当ゾーン）
+                min_ent = strategy_config.get('min_entropy', 1.0)
+                if entropy_1st < min_ent:
+                    logger.info(
+                        f"optunaフィルタ: {strategy_name} スキップ "
+                        f"(H={entropy_1st:.3f} < {min_ent})"
+                    )
+                    results[strategy_name] = []
+                    continue
+
             # --- 使用する確率の決定 ---
             if filter_type == 'ensemble' and ensemble_sanrentan is not None:
                 use_sanrentan = ensemble_sanrentan
@@ -426,35 +449,25 @@ class KellyBettingStrategy:
                 odds_discount = odds_discount_static
             discounted_odds = raw_odds * odds_discount
 
-            # TODO: [TEST MODE] 戦略比較のため一律100円ベット
-            # テスト中は生オッズEVで判定、Kelly計算をスキップ
-            # 戦略間ダービー終了後、このブロックを削除して下のKellyブロックを復活
-            ev = prob * raw_odds  # 生オッズでEV算出（割引なし）
+            # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
+            ev = prob * discounted_odds
             if ev < min_ev:
                 skip_counts['low_ev'] += 1
                 continue
-            bet_amount = 100
-            kelly = 0.0  # テストモード: Kelly不使用
-            # --- [TEST MODE END] ---
-
-            # # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
-            # ev = prob * discounted_odds
-            # if ev < min_ev:
-            #     skip_counts['low_ev'] += 1
-            #     continue
-            # b = discounted_odds - 1.0
-            # if b < 0.01:
-            #     skip_counts['kelly_neg'] += 1
-            #     continue
-            # q = 1.0 - prob
-            # kelly = (b * prob - q) / b
-            # if kelly <= 0:
-            #     skip_counts['kelly_neg'] += 1
-            #     continue
-            # kelly_amount = bankroll * kelly * kelly_frac
-            # kelly_amount = max(min_bet, min(max_ticket, kelly_amount))
-            # kelly_amount = int(round(kelly_amount / 100) * 100)
-            # bet_amount = kelly_amount
+            b = discounted_odds - 1.0
+            if b < 0.01:
+                skip_counts['kelly_neg'] += 1
+                continue
+            q = 1.0 - prob
+            kelly = (b * prob - q) / b
+            if kelly <= 0:
+                skip_counts['kelly_neg'] += 1
+                continue
+            kelly_amount = bankroll * kelly * kelly_frac
+            # 安全キャップ: 1点あたり上限1,000円
+            kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
+            kelly_amount = int(round(kelly_amount / 100) * 100)
+            bet_amount = kelly_amount
 
             if bet_amount >= min_bet:
                 candidates.append({

@@ -1,6 +1,6 @@
 {
     "initial_bankroll": 200000,
-    "_comment_test_mode": "v5: 208dim特徴量選別→23dim, Optuna最適化 (2026-03-15)",
+    "_comment_test_mode": "v5: Kelly有効, 1点上限1000円, 208→23dim選別モデル (2026-03-15)",
     "strategies": {
         "conservative": {
             "kelly_fraction": 0.125,
