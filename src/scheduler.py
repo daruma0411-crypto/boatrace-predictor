@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 NUM_VENUES = 24
 
 # 締切前リードタイム（分）
-# 締切直前の確定オッズに近い値で計算するため2〜3分前に処理。
+# 締切直前の確定オッズで計算するため1.5〜3分前に処理。
 # 処理時間 ~20秒 + 購入バッファ ~60秒 → 最低1.5分必要。
-LEAD_TIME_MIN = 2  # 最小リードタイム（これ未満はスキップ）
-LEAD_TIME_MAX = 5  # 最大リードタイム（この範囲内で処理開始）
+LEAD_TIME_MIN = 1.5  # 最小リードタイム（これ未満はスキップ）
+LEAD_TIME_MAX = 3    # 最大リードタイム（この範囲内で処理開始）
 
 
 class DynamicRaceScheduler:
