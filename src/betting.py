@@ -514,7 +514,11 @@ class KellyBettingStrategy:
                          venue_id=None, race_number=None,
                          divergence_map=None, dd_multiplier=1.0,
                          calibration_bands=None):
-        """共通ケリー戦略: キャリブレーション → オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
+        """共通ケリー戦略: EVゾーンフィルタ → Kelly計算(正なら重みづけ、負なら最低額)
+
+        v8: EV < 1.0ゾーンでもEVフィルタ通過なら100円フラットベット。
+        3/15実績でEV 0.5-0.8の100円均一ベットがROI 177%を記録したため。
+        """
         candidates = []
         kelly_frac = config['kelly_fraction']
         min_ev = config['min_expected_value']
@@ -605,14 +609,16 @@ class KellyBettingStrategy:
                 continue
             q = 1.0 - cal_prob
             kelly = (b * cal_prob - q) / b
-            if kelly <= 0:
-                skip_counts['kelly_neg'] += 1
-                continue
-            kelly_amount = bankroll * kelly * kelly_frac * dd_multiplier
-            # 安全キャップ: 1点あたり上限1,000円
-            kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
-            kelly_amount = int(round(kelly_amount / 100) * 100)
-            bet_amount = kelly_amount
+            if kelly > 0:
+                # Kelly正: 通常のKellyサイジング
+                kelly_amount = bankroll * kelly * kelly_frac * dd_multiplier
+                kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
+                bet_amount = int(round(kelly_amount / 100) * 100)
+            else:
+                # Kelly負 (EV < 1.0): EVゾーンフィルタ通過済みなら最低額ベット
+                # 3/15実績: EV 0.5-0.8で100円均一ベット → ROI 177%
+                bet_amount = min_bet
+                kelly = 0.0
 
             if bet_amount >= min_bet:
                 candidates.append({
