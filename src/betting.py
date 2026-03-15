@@ -527,6 +527,7 @@ class KellyBettingStrategy:
         min_divergence = config.get('min_divergence_ratio', 2.0)
         min_prob = config.get('min_probability', 0.0)
         min_odds = config.get('min_odds', 0.0)  # 最低オッズ (ガチガチ本命除外)
+        max_ev = config.get('max_expected_value', 9999.0)  # EV上限 (過大推定フィルタ)
 
         # 発見1+2: 場・R番号でオッズ上限を動的調整
         if venue_id is not None and race_number is not None:
@@ -546,8 +547,8 @@ class KellyBettingStrategy:
         )
 
         skip_counts = {'no_odds': 0, 'low_prob': 0, 'low_odds': 0,
-                       'high_odds': 0, 'low_ev': 0, 'divergence': 0,
-                       'kelly_neg': 0}
+                       'high_odds': 0, 'low_ev': 0, 'high_ev': 0,
+                       'divergence': 0, 'kelly_neg': 0}
 
         for combo, prob in sanrentan_probs.items():
             raw_odds = odds_data.get(combo, 0.0)
@@ -593,6 +594,9 @@ class KellyBettingStrategy:
             if ev < min_ev:
                 skip_counts['low_ev'] += 1
                 continue
+            if ev > max_ev:
+                skip_counts['high_ev'] += 1
+                continue
             b = discounted_odds - 1.0
             if b < 0.01:
                 skip_counts['kelly_neg'] += 1
@@ -626,7 +630,8 @@ class KellyBettingStrategy:
         skip_summary = (
             f"no={skip_counts['no_odds']},prob={skip_counts['low_prob']},"
             f"lo={skip_counts['low_odds']},hi={skip_counts['high_odds']},"
-            f"ev={skip_counts['low_ev']},div={skip_counts['divergence']},"
+            f"ev_lo={skip_counts['low_ev']},ev_hi={skip_counts['high_ev']},"
+            f"div={skip_counts['divergence']},"
             f"kelly={skip_counts['kelly_neg']},ok={len(candidates)}"
         )
         logger.info(f"[{strategy_name}] skip: {skip_summary}")
