@@ -1,0 +1,53 @@
+{
+  "analysis_date": "2026-03-15",
+  "data_period": "2026-03-11 to 2026-03-14",
+  "total_bets": 676,
+  "total_hits": 14,
+  "overall_hit_rate": 0.02071,
+  "overall_roi": 46.27,
+  "note": "calibration_factor = actual_hit_rate / model_prob. 3-5%帯が最も信頼性高い(N=368).",
+  "prob_bands": [
+    {
+      "min": 0.00,
+      "max": 0.01,
+      "label": "0-1%",
+      "calibration_factor": 0.30,
+      "note": "データなし、保守的推定"
+    },
+    {
+      "min": 0.01,
+      "max": 0.02,
+      "label": "1-2%",
+      "calibration_factor": 0.30,
+      "note": "0/13件的中、factor=0.0だが保守的に0.3"
+    },
+    {
+      "min": 0.02,
+      "max": 0.03,
+      "label": "2-3%",
+      "calibration_factor": 0.35,
+      "note": "2/228件的中、実測0.34"
+    },
+    {
+      "min": 0.03,
+      "max": 0.05,
+      "label": "3-5%",
+      "calibration_factor": 0.78,
+      "note": "11/368件的中、実測0.78 (最も信頼性高い)"
+    },
+    {
+      "min": 0.05,
+      "max": 0.10,
+      "label": "5-10%",
+      "calibration_factor": 0.25,
+      "note": "1/67件的中、実測0.24"
+    },
+    {
+      "min": 0.10,
+      "max": 1.00,
+      "label": "10%+",
+      "calibration_factor": 0.50,
+      "note": "データなし、保守的推定"
+    }
+  ]
+}

@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'config', 'betting_config.json'
 )
+CALIBRATION_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'config', 'calibration.json'
+)
 
 # --- 発見1: 場の荒れ度分類 (1号艇勝率ベース) ---
 # 堅い場 (1kaku > 60%): オッズ上限を締める
@@ -35,6 +38,48 @@ VENUE_CHAOTIC = {2, 3, 4, 14}  # 戸田, 江戸川, 平和島, 鳴門
 # --- 発見2: レース番号の荒れ度 ---
 RACE_STABLE = {11, 12}     # R11-R12: 1kaku 67-69%
 RACE_CHAOTIC = {2, 3, 4}   # R2-R4: 1kaku 45-48%
+
+
+def _load_calibration():
+    """キャリブレーション係数を読み込み
+
+    config/calibration.json から確率帯別の補正係数を取得。
+    ファイルがなければデフォルト（補正なし=1.0）を返す。
+    """
+    try:
+        with open(CALIBRATION_PATH, 'r') as f:
+            data = json.load(f)
+        bands = data.get('prob_bands', [])
+        if bands:
+            logger.info(f"キャリブレーション読み込み: {len(bands)}帯")
+            return bands
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        logger.warning(f"キャリブレーション読み込みエラー: {e}")
+    return []
+
+
+def _apply_calibration(prob, calibration_bands):
+    """確率帯別キャリブレーション係数を適用
+
+    Args:
+        prob: モデルの生確率
+        calibration_bands: _load_calibration()の返値
+
+    Returns:
+        補正済み確率
+    """
+    if not calibration_bands:
+        return prob
+
+    for band in calibration_bands:
+        if band['min'] <= prob < band['max']:
+            factor = band.get('calibration_factor', 1.0)
+            return prob * factor
+
+    # どの帯にも該当しない場合はそのまま
+    return prob
 
 
 def _load_config():
@@ -192,11 +237,31 @@ def _get_dynamic_discount(raw_odds):
 
 
 DAILY_LOSS_LIMIT_PER_STRATEGY = 30000  # 戦略別の1日最大損失額
+DAILY_BET_LIMIT_PER_STRATEGY = 30  # 戦略別の1日最大ベット数
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # アクティブ戦略: A=conservative, B=standard, D=high_confidence, G=optuna, H=bt_none
 ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'optuna', 'bt_none'}
+
+
+def _get_today_bet_count(strategy_type):
+    """当日の指定戦略のベット件数をDBから取得"""
+    if TEST_MODE:
+        return 0
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM bets
+                WHERE strategy_type = %s
+                  AND created_at >= CURRENT_DATE
+            """, (strategy_type,))
+            row = cur.fetchone()
+            return int(row['cnt']) if row else 0
+    except Exception as e:
+        logger.warning(f"日次ベット数チェックDB障害: {e}")
+        return 0
 
 
 def _get_today_consecutive_losses(strategy_type):
@@ -252,6 +317,7 @@ class KellyBettingStrategy:
 
     def __init__(self, initial_bankroll=None):
         self.config = _load_config()
+        self.calibration_bands = _load_calibration()
         self.initial_bankroll = (
             initial_bankroll or self.config['initial_bankroll']
         )
@@ -312,6 +378,16 @@ class KellyBettingStrategy:
         for strategy_name, strategy_config in self.config['strategies'].items():
             # アクティブ戦略以外はスキップ
             if strategy_name not in ACTIVE_STRATEGIES:
+                results[strategy_name] = []
+                continue
+
+            # 戦略別日次ベット数制限
+            today_bets = _get_today_bet_count(strategy_name)
+            if today_bets >= DAILY_BET_LIMIT_PER_STRATEGY:
+                logger.warning(
+                    f"[{strategy_name}] 日次ベット上限: "
+                    f"{today_bets}件 >= {DAILY_BET_LIMIT_PER_STRATEGY}件 → スキップ"
+                )
                 results[strategy_name] = []
                 continue
 
@@ -425,6 +501,7 @@ class KellyBettingStrategy:
                 strategy_name, venue_id, race_number,
                 divergence_map=divergence_map,
                 dd_multiplier=dd_multiplier,
+                calibration_bands=self.calibration_bands,
             )
             results[strategy_name] = bets
 
@@ -433,8 +510,9 @@ class KellyBettingStrategy:
     def _strategy_kelly(self, config, sanrentan_probs, odds_data,
                          bankroll, strategy_name,
                          venue_id=None, race_number=None,
-                         divergence_map=None, dd_multiplier=1.0):
-        """共通ケリー戦略: オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
+                         divergence_map=None, dd_multiplier=1.0,
+                         calibration_bands=None):
+        """共通ケリー戦略: キャリブレーション → オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
         candidates = []
         kelly_frac = config['kelly_fraction']
         min_ev = config['min_expected_value']
@@ -507,8 +585,11 @@ class KellyBettingStrategy:
                 odds_discount = odds_discount_static
             discounted_odds = raw_odds * odds_discount
 
-            # ケリー基準（割引オッズで計算）: f = (b*p - q) / b
-            ev = prob * discounted_odds
+            # キャリブレーション: モデル確率を実績に基づき補正
+            cal_prob = _apply_calibration(prob, calibration_bands)
+
+            # ケリー基準（割引オッズ × 補正確率で計算）: f = (b*p - q) / b
+            ev = cal_prob * discounted_odds
             if ev < min_ev:
                 skip_counts['low_ev'] += 1
                 continue
@@ -516,8 +597,8 @@ class KellyBettingStrategy:
             if b < 0.01:
                 skip_counts['kelly_neg'] += 1
                 continue
-            q = 1.0 - prob
-            kelly = (b * prob - q) / b
+            q = 1.0 - cal_prob
+            kelly = (b * cal_prob - q) / b
             if kelly <= 0:
                 skip_counts['kelly_neg'] += 1
                 continue
@@ -536,7 +617,8 @@ class KellyBettingStrategy:
                     'discounted_odds': discounted_odds,
                     'expected_value': ev,
                     'kelly_fraction': kelly * kelly_frac,
-                    'probability': prob,
+                    'probability': prob,  # 生確率を保存（DB記録用）
+                    'calibrated_prob': cal_prob,  # 補正確率（参考用）
                     'strategy_type': strategy_name,
                 })
 
