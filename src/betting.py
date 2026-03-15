@@ -1,18 +1,17 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
-A/Bテスト → 6戦略並列テスト:
-- 戦略A (conservative): 1/8ケリー、EV≥1.15(割引後)、最大3点、filter=none
-- 戦略B (standard):     1/4ケリー、EV≥1.10(割引後)、最大5点、filter=none
-- 戦略C (divergence):   市場乖離度フィルター、model_prob/market_prob≥2.0
+アクティブ戦略 (5戦略):
+- 戦略A (conservative): 1/8ケリー、filter=none、堅実型
+- 戦略B (standard):     1/4ケリー、filter=none、標準型
 - 戦略D (high_confidence): エントロピーフィルター、H<2.3の確信レースのみ
-- 戦略E (ensemble):     4モデル合議、3/4多数決一致時のみ平均確率でKelly
-- 戦略F (div_confidence): C+D合わせ技、乖離度≥1.5+エントロピーH<2.3両方パス
-- 戦略G (optuna): Optuna 7次元最適化パラメータ（1号艇確率上限+エントロピー下限+高オッズ帯）
+- 戦略G (optuna): Optuna 7次元最適化（高オッズ帯+荒れレース特化）
+- 戦略H (bt_none): 1/8ケリー、filter=none、バックテスト基準型
 
-条件別最適化:
-- 場の荒れ度でオッズ上限を動的調整
-- レース番号で調整（R11-12は堅い、R2-4は荒れる）
-- 5-6号艇軸の予測はゾーン外としてスキップ
+ドローダウン防止:
+- 日次損失上限 ¥30,000
+- bankroll 75%割れ → Kelly×0.75、50%割れ → Kelly×0.5
+- 当日5連敗 → 該当戦略スキップ
+- 1点上限 ¥1,000
 """
 import json
 import logging
@@ -192,12 +191,37 @@ def _get_dynamic_discount(raw_odds):
         return 0.95
 
 
-DAILY_LOSS_LIMIT = 50000  # 全戦略合計の1日最大損失額
+DAILY_LOSS_LIMIT = 30000  # 全戦略合計の1日最大損失額（Kelly有効化に伴い引き締め）
 
-# TODO: [TEST MODE] テストモード中は日次損失制限を無効化
-# 理由: 一律100円ベットなのでリスク小、旧コードの非テストベットが
-#       未精算(payout=0)のまま損失として誤カウントされるのを防止
-TEST_MODE = True
+TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
+
+# アクティブ戦略: A=conservative, B=standard, D=high_confidence, G=optuna, H=bt_none
+ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'optuna', 'bt_none'}
+
+
+def _get_today_consecutive_losses(strategy_type):
+    """当日の直近連敗数を取得（結果確定済みベットのみ）"""
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT is_hit FROM bets
+                WHERE strategy_type = %s
+                  AND created_at >= CURRENT_DATE
+                  AND result IS NOT NULL
+                ORDER BY created_at DESC
+                LIMIT 20
+            """, (strategy_type,))
+            rows = cur.fetchall()
+            streak = 0
+            for r in rows:
+                if r['is_hit']:
+                    break
+                streak += 1
+            return streak
+    except Exception as e:
+        logger.warning(f"連敗チェックDB障害: {e}")
+        return 0
 
 
 def _get_today_total_loss():
@@ -293,6 +317,11 @@ class KellyBettingStrategy:
 
         results = {}
         for strategy_name, strategy_config in self.config['strategies'].items():
+            # アクティブ戦略以外はスキップ
+            if strategy_name not in ACTIVE_STRATEGIES:
+                results[strategy_name] = []
+                continue
+
             filter_type = strategy_config.get('filter_type', 'none')
 
             # --- フィルタ判定 ---
@@ -363,10 +392,36 @@ class KellyBettingStrategy:
                 profit = get_current_bankroll(strategy_type=strategy_name)
                 br = float(self.initial_bankroll + profit)
 
+            # ドローダウン防止1: bankroll破産ガード
+            if br <= 0:
+                logger.warning(f"[{strategy_name}] bankroll≤0 ({br:.0f}円) → スキップ")
+                results[strategy_name] = []
+                continue
+
+            # ドローダウン防止2: bankroll半減時にKelly縮小
+            drawdown_ratio = br / self.initial_bankroll
+            dd_multiplier = 1.0
+            if drawdown_ratio < 0.5:
+                dd_multiplier = 0.5  # 半減以下: Kelly半額
+                logger.info(f"[{strategy_name}] DD防止: bankroll={br:.0f}円 "
+                            f"({drawdown_ratio:.0%}) → Kelly×0.5")
+            elif drawdown_ratio < 0.75:
+                dd_multiplier = 0.75  # 25%減: Kelly75%
+                logger.info(f"[{strategy_name}] DD防止: bankroll={br:.0f}円 "
+                            f"({drawdown_ratio:.0%}) → Kelly×0.75")
+
+            # ドローダウン防止3: 当日連敗ブレーキ
+            consecutive_losses = _get_today_consecutive_losses(strategy_name)
+            if consecutive_losses >= 5:
+                logger.warning(f"[{strategy_name}] 当日{consecutive_losses}連敗 → スキップ")
+                results[strategy_name] = []
+                continue
+
             bets = self._strategy_kelly(
                 strategy_config, use_sanrentan, odds_data, br,
                 strategy_name, venue_id, race_number,
                 divergence_map=divergence_map,
+                dd_multiplier=dd_multiplier,
             )
             results[strategy_name] = bets
 
@@ -375,7 +430,7 @@ class KellyBettingStrategy:
     def _strategy_kelly(self, config, sanrentan_probs, odds_data,
                          bankroll, strategy_name,
                          venue_id=None, race_number=None,
-                         divergence_map=None):
+                         divergence_map=None, dd_multiplier=1.0):
         """共通ケリー戦略: オッズ割引 → 割引EV判定 → Kelly計算 → 上限制限"""
         candidates = []
         kelly_frac = config['kelly_fraction']
@@ -463,7 +518,7 @@ class KellyBettingStrategy:
             if kelly <= 0:
                 skip_counts['kelly_neg'] += 1
                 continue
-            kelly_amount = bankroll * kelly * kelly_frac
+            kelly_amount = bankroll * kelly * kelly_frac * dd_multiplier
             # 安全キャップ: 1点あたり上限1,000円
             kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
             kelly_amount = int(round(kelly_amount / 100) * 100)
