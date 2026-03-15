@@ -1,6 +1,6 @@
 {
     "initial_bankroll": 200000,
-    "_comment_test_mode": "戦略間ダービー: 足切りパラメータ完全統一 (2026-03-14)",
+    "_comment_test_mode": "v5: 208dim特徴量選別→23dim, Optuna最適化 (2026-03-15)",
     "strategies": {
         "conservative": {
             "kelly_fraction": 0.125,
@@ -92,20 +92,20 @@
             "min_probability": 0.02
         },
         "optuna": {
-            "kelly_fraction": 0.086,
+            "kelly_fraction": 0.262,
             "max_total_bet_ratio": 0.025,
             "max_ticket_bet_ratio": 0.01,
-            "min_expected_value": 1.019,
+            "min_expected_value": 1.235,
             "odds_discount_factor": 0.92,
             "use_dynamic_discount": true,
             "max_recommended_bets": 4,
             "min_bet_amount": 100,
-            "min_odds": 20.0,
-            "max_odds": 141,
+            "min_odds": 15.2,
+            "max_odds": 133,
             "filter_type": "optuna",
-            "max_boat1_prob": 0.699,
-            "min_entropy": 1.069,
-            "min_probability": 0.027
+            "max_boat1_prob": 0.568,
+            "min_entropy": 2.464,
+            "min_probability": 0.017
         },
         "bt_none": {
             "kelly_fraction": 0.125,

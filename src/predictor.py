@@ -1,8 +1,9 @@
 """リアルタイム予測エンジン
 
-v3: モデルの入力次元に応じてFeatureEngineerを自動選択
-    - 43次元モデル → FeatureEngineer (v3)
-    - 208次元モデル → FeatureEngineerLegacy (v2互換)
+v4: 特徴量マスク対応
+    - feature_mask_208.npy が存在 → FeatureEngineerLegacy(208次元) + マスク適用
+    - input_dim > 43 → FeatureEngineerLegacy (v2互換)
+    - input_dim <= 43 → FeatureEngineer (v3)
 """
 import json
 import logging
@@ -24,6 +25,22 @@ ENSEMBLE_MODEL_PATHS = [
     'models/boatrace_model_s085.pth',
 ]
 
+# 特徴量マスク (208→N次元選別)
+FEATURE_MASK_PATH = 'models/feature_mask_208.npy'
+_feature_mask_cache = None
+
+
+def _load_feature_mask():
+    """特徴量マスクをロード (キャッシュ)"""
+    global _feature_mask_cache
+    if _feature_mask_cache is not None:
+        return _feature_mask_cache
+    if os.path.exists(FEATURE_MASK_PATH):
+        _feature_mask_cache = np.load(FEATURE_MASK_PATH)
+        logger.info(f"特徴量マスクロード: {_feature_mask_cache.sum()}/208 採用")
+        return _feature_mask_cache
+    return None
+
 
 def _get_feature_engineer_for_model(model):
     """モデルの入力次元に応じたFeatureEngineerを返す"""
@@ -31,6 +48,13 @@ def _get_feature_engineer_for_model(model):
         input_dim = model.shared[0].in_features
     except Exception:
         input_dim = getattr(model, 'input_dim', 208)
+
+    mask = _load_feature_mask()
+
+    # マスクが存在し、モデル入力次元 = マスク選別後の次元数 → Legacy + mask
+    if mask is not None and input_dim == int(mask.sum()):
+        logger.info(f"v5モード: FeatureEngineerLegacy(208) + mask → {input_dim}次元")
+        return FeatureEngineerLegacy()
 
     if input_dim <= FeatureEngineer.TOTAL_DIM:
         return FeatureEngineer()
@@ -60,6 +84,10 @@ class RealtimePredictor:
         self._ensure_model()
 
         features = self.feature_engineer.transform(race_data, boats_data)
+        # 特徴量マスク適用 (208→N次元)
+        mask = _load_feature_mask()
+        if mask is not None and len(features) == len(mask):
+            features = features[mask]
         x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
@@ -207,7 +235,13 @@ class EnsemblePredictor:
             fe_key = fe.__class__.__name__
 
             if fe_key not in features_cache:
-                features_cache[fe_key] = fe.transform(race_data, boats_data)
+                raw_features = fe.transform(race_data, boats_data)
+                # 特徴量マスク適用 (208→N次元)
+                mask = _load_feature_mask()
+                if mask is not None and len(raw_features) == len(mask):
+                    features_cache[fe_key] = raw_features[mask]
+                else:
+                    features_cache[fe_key] = raw_features
 
             features = features_cache[fe_key]
             x = torch.FloatTensor(features).unsqueeze(0).to(self.device)

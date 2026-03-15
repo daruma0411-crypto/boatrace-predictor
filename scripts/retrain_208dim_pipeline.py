@@ -238,9 +238,9 @@ def analyze_feature_importance(X_train, y_train, X_val, y_val, feature_names,
     for i in range(len(feature_names)):
         report.append({
             'name': feature_names[i],
-            'perm_importance': importances[i],
-            'gain_importance': gain_importance[i],
-            'variance': variance[i],
+            'perm_importance': float(importances[i]),
+            'gain_importance': float(gain_importance[i]),
+            'variance': float(variance[i]),
             'selected': bool(selected_mask[i]),
         })
 

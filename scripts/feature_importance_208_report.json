@@ -1,0 +1,1458 @@
+[
+  {
+    "name": "B3_win_rate_rel",
+    "perm_importance": 0.003410994365768283,
+    "gain_importance": 9877.419369496653,
+    "variance": 0.9339994788169861,
+    "selected": true
+  },
+  {
+    "name": "B1_win_rate_2",
+    "perm_importance": 0.002740977615349527,
+    "gain_importance": 11063.531783692695,
+    "variance": 167.0572967529297,
+    "selected": true
+  },
+  {
+    "name": "B1_exhibition_time_diff",
+    "perm_importance": 0.0022841480127912873,
+    "gain_importance": 5249.656241357827,
+    "variance": 0.06183912232518196,
+    "selected": true
+  },
+  {
+    "name": "B1_win_rate_rel",
+    "perm_importance": 0.002284148012791265,
+    "gain_importance": 9001.570310034422,
+    "variance": 0.902259886264801,
+    "selected": true
+  },
+  {
+    "name": "G_venue_id",
+    "perm_importance": 0.0017359524897213817,
+    "gain_importance": 3365.4118240146163,
+    "variance": 0.08289603143930435,
+    "selected": true
+  },
+  {
+    "name": "B2_motor_win_rate_2",
+    "perm_importance": 0.001400944114512015,
+    "gain_importance": 2908.127994977846,
+    "variance": 113.30904388427734,
+    "selected": true
+  },
+  {
+    "name": "B2_win_rate_rel",
+    "perm_importance": 0.001096391046139833,
+    "gain_importance": 11139.971411411521,
+    "variance": 0.8999714851379395,
+    "selected": true
+  },
+  {
+    "name": "B6_boat_win_rate_2",
+    "perm_importance": 0.0009745698187909602,
+    "gain_importance": 2758.174700042451,
+    "variance": 103.02816009521484,
+    "selected": true
+  },
+  {
+    "name": "B3_win_rate_3",
+    "perm_importance": 0.0009441145119537531,
+    "gain_importance": 2577.3486109846845,
+    "variance": 222.29383850097656,
+    "selected": true
+  },
+  {
+    "name": "B3_exhibition_time_diff",
+    "perm_importance": 0.0009441145119537531,
+    "gain_importance": 4757.8401429421265,
+    "variance": 0.06224381923675537,
+    "selected": true
+  },
+  {
+    "name": "B2_win_rate_2",
+    "perm_importance": 0.0008832038982792944,
+    "gain_importance": 4166.137662078361,
+    "variance": 172.94642639160156,
+    "selected": true
+  },
+  {
+    "name": "B5_motor_win_rate_3",
+    "perm_importance": 0.000761382670930466,
+    "gain_importance": 2240.7840987929762,
+    "variance": 175.02073669433594,
+    "selected": true
+  },
+  {
+    "name": "B2_avg_st",
+    "perm_importance": 0.0007309273640932368,
+    "gain_importance": 885.2728208303452,
+    "variance": 0.0006195869646035135,
+    "selected": true
+  },
+  {
+    "name": "B5_exhibition_time_diff",
+    "perm_importance": 0.0007309273640932368,
+    "gain_importance": 3594.748229953955,
+    "variance": 0.08733715116977692,
+    "selected": true
+  },
+  {
+    "name": "B5_weight_diff",
+    "perm_importance": 0.0006700167504188226,
+    "gain_importance": 2587.2277772575617,
+    "variance": 3.8043859004974365,
+    "selected": true
+  },
+  {
+    "name": "B4_boat_win_rate_2",
+    "perm_importance": 0.0006091061367443862,
+    "gain_importance": 2398.1397517889563,
+    "variance": 102.57797241210938,
+    "selected": true
+  },
+  {
+    "name": "B5_tilt",
+    "perm_importance": 0.0006091061367443862,
+    "gain_importance": 567.1950233851094,
+    "variance": 0.017625214532017708,
+    "selected": true
+  },
+  {
+    "name": "B4_win_rate_rel",
+    "perm_importance": 0.0005786508299071569,
+    "gain_importance": 10152.998873716359,
+    "variance": 1.1409152746200562,
+    "selected": true
+  },
+  {
+    "name": "B4_win_rate_2",
+    "perm_importance": 0.0005786508299071347,
+    "gain_importance": 2763.216521766517,
+    "variance": 199.217529296875,
+    "selected": true
+  },
+  {
+    "name": "G_wind_SW",
+    "perm_importance": 0.0005481955230699498,
+    "gain_importance": 115.69919037818909,
+    "variance": 0.1085146814584732,
+    "selected": true
+  },
+  {
+    "name": "B1_motor_win_rate_3",
+    "perm_importance": 0.0005481955230699498,
+    "gain_importance": 2892.558577441803,
+    "variance": 175.72406005859375,
+    "selected": true
+  },
+  {
+    "name": "B5_inner_st_diff",
+    "perm_importance": 0.0005177402162327427,
+    "gain_importance": 2197.184371198906,
+    "variance": 0.0015472711529582739,
+    "selected": true
+  },
+  {
+    "name": "B5_avg_st",
+    "perm_importance": 0.0005177402162327205,
+    "gain_importance": 635.3803993463516,
+    "variance": 0.0014218816068023443,
+    "selected": true
+  },
+  {
+    "name": "B3_local_win_rate_2",
+    "perm_importance": 0.0004872849093954912,
+    "gain_importance": 1910.713126961571,
+    "variance": 331.9554443359375,
+    "selected": false
+  },
+  {
+    "name": "B5_approach_5",
+    "perm_importance": 0.0004568296025582841,
+    "gain_importance": 363.2721885438755,
+    "variance": 0.11585652083158493,
+    "selected": false
+  },
+  {
+    "name": "B6_avg_st",
+    "perm_importance": 0.0004263742957210548,
+    "gain_importance": 577.4578821811738,
+    "variance": 0.0023799692280590534,
+    "selected": false
+  },
+  {
+    "name": "B2_win_rate_3",
+    "perm_importance": 0.0003959189888838699,
+    "gain_importance": 2374.5220891853023,
+    "variance": 222.0146026611328,
+    "selected": false
+  },
+  {
+    "name": "B2_local_win_rate",
+    "perm_importance": 0.0003654636820466184,
+    "gain_importance": 2107.843968546509,
+    "variance": 3.7852730751037598,
+    "selected": false
+  },
+  {
+    "name": "B4_exhibition_time_diff",
+    "perm_importance": 0.0003350083752094335,
+    "gain_importance": 5459.130807873107,
+    "variance": 0.07194522768259048,
+    "selected": false
+  },
+  {
+    "name": "B1_class_A2",
+    "perm_importance": 0.0003350083752094113,
+    "gain_importance": 171.26690006256104,
+    "variance": 0.19697588682174683,
+    "selected": false
+  },
+  {
+    "name": "B4_win_rate_3",
+    "perm_importance": 0.0003045530683722042,
+    "gain_importance": 1705.3259129493663,
+    "variance": 278.6666564941406,
+    "selected": false
+  },
+  {
+    "name": "B5_win_rate_2",
+    "perm_importance": 0.0003045530683722042,
+    "gain_importance": 2849.946762844048,
+    "variance": 226.65504455566406,
+    "selected": false
+  },
+  {
+    "name": "G_wind_S",
+    "perm_importance": 0.0002740977615350193,
+    "gain_importance": 182.4415461421013,
+    "variance": 0.10768994688987732,
+    "selected": false
+  },
+  {
+    "name": "B1_parts_changed",
+    "perm_importance": 0.0002740977615349749,
+    "gain_importance": 363.1005299091339,
+    "variance": 0.04882369190454483,
+    "selected": false
+  },
+  {
+    "name": "B2_approach_1",
+    "perm_importance": 0.0002740977615349749,
+    "gain_importance": 185.77447128295898,
+    "variance": 0.00462403753772378,
+    "selected": false
+  },
+  {
+    "name": "B1_class_A1",
+    "perm_importance": 0.0002436424546977678,
+    "gain_importance": 2480.781252861023,
+    "variance": 0.21962690353393555,
+    "selected": false
+  },
+  {
+    "name": "B4_motor_win_rate_2",
+    "perm_importance": 0.0002436424546977678,
+    "gain_importance": 1978.105793128023,
+    "variance": 112.91239929199219,
+    "selected": false
+  },
+  {
+    "name": "B4_weight_diff",
+    "perm_importance": 0.0002436424546977678,
+    "gain_importance": 2485.271717324431,
+    "variance": 3.645432710647583,
+    "selected": false
+  },
+  {
+    "name": "B4_inner_st_diff",
+    "perm_importance": 0.0002131871478605385,
+    "gain_importance": 2670.951578316378,
+    "variance": 0.0009103429038077593,
+    "selected": false
+  },
+  {
+    "name": "B2_class_A1",
+    "perm_importance": 0.0001827318410233536,
+    "gain_importance": 294.77478790283203,
+    "variance": 0.1846698671579361,
+    "selected": false
+  },
+  {
+    "name": "G_wind_E",
+    "perm_importance": 0.0001827318410233314,
+    "gain_importance": 143.8538600206375,
+    "variance": 0.11562319844961166,
+    "selected": false
+  },
+  {
+    "name": "B6_win_rate_rel",
+    "perm_importance": 0.0001827318410233314,
+    "gain_importance": 7593.894315065998,
+    "variance": 1.8462510108947754,
+    "selected": false
+  },
+  {
+    "name": "B2_parts_changed",
+    "perm_importance": 0.0001522765341861465,
+    "gain_importance": 61.55030059814453,
+    "variance": 0.05405547097325325,
+    "selected": false
+  },
+  {
+    "name": "B3_avg_st",
+    "perm_importance": 0.00012182122734891721,
+    "gain_importance": 655.9086554907044,
+    "variance": 0.0006269236910156906,
+    "selected": false
+  },
+  {
+    "name": "B5_win_rate_rel",
+    "perm_importance": 0.000121821227348895,
+    "gain_importance": 9135.006237850832,
+    "variance": 1.420414686203003,
+    "selected": false
+  },
+  {
+    "name": "B4_parts_changed",
+    "perm_importance": 9.136592051171011e-05,
+    "gain_importance": 140.16649985313416,
+    "variance": 0.052350010722875595,
+    "selected": false
+  },
+  {
+    "name": "B6_local_win_rate_2",
+    "perm_importance": 9.136592051171011e-05,
+    "gain_importance": 1709.5349843646177,
+    "variance": 402.4705810546875,
+    "selected": false
+  },
+  {
+    "name": "B4_class_B1",
+    "perm_importance": 9.13659205116879e-05,
+    "gain_importance": 185.11055183410645,
+    "variance": 0.24968059360980988,
+    "selected": false
+  },
+  {
+    "name": "B4_approach_4",
+    "perm_importance": 9.13659205116879e-05,
+    "gain_importance": 190.1217420322355,
+    "variance": 0.08723676204681396,
+    "selected": false
+  },
+  {
+    "name": "B5_class_B1",
+    "perm_importance": 9.13659205116879e-05,
+    "gain_importance": 110.1908507347107,
+    "variance": 0.24949482083320618,
+    "selected": false
+  },
+  {
+    "name": "B6_approach_4",
+    "perm_importance": 9.13659205116879e-05,
+    "gain_importance": 86.96188068389893,
+    "variance": 0.01610722951591015,
+    "selected": false
+  },
+  {
+    "name": "G_wind_W",
+    "perm_importance": 9.13659205116657e-05,
+    "gain_importance": 95.56510043144226,
+    "variance": 0.12564659118652344,
+    "selected": false
+  },
+  {
+    "name": "B1_tilt",
+    "perm_importance": 9.13659205116657e-05,
+    "gain_importance": 192.29404973983765,
+    "variance": 0.010259444825351238,
+    "selected": false
+  },
+  {
+    "name": "B5_class_B2",
+    "perm_importance": 9.13659205116657e-05,
+    "gain_importance": 98.24613362691889,
+    "variance": 0.08389189094305038,
+    "selected": false
+  },
+  {
+    "name": "B2_tilt",
+    "perm_importance": 6.0910613674480804e-05,
+    "gain_importance": 417.53468918800354,
+    "variance": 0.011891920119524002,
+    "selected": false
+  },
+  {
+    "name": "B2_class_B1",
+    "perm_importance": 6.0910613674458605e-05,
+    "gain_importance": 105.49907554445599,
+    "variance": 0.24979867041110992,
+    "selected": false
+  },
+  {
+    "name": "B3_approach_3",
+    "perm_importance": 6.0910613674458605e-05,
+    "gain_importance": 426.5474695604207,
+    "variance": 0.06356161832809448,
+    "selected": false
+  },
+  {
+    "name": "B3_parts_changed",
+    "perm_importance": 6.0910613674458605e-05,
+    "gain_importance": 104.23430144786835,
+    "variance": 0.053896524012088776,
+    "selected": false
+  },
+  {
+    "name": "B6_class_A2",
+    "perm_importance": 6.0910613674458605e-05,
+    "gain_importance": 182.82249879837036,
+    "variance": 0.17344966530799866,
+    "selected": false
+  },
+  {
+    "name": "B3_approach_6",
+    "perm_importance": 3.0455306837229303e-05,
+    "gain_importance": 13.352800369262695,
+    "variance": 0.00436046440154314,
+    "selected": false
+  },
+  {
+    "name": "B6_approach_5",
+    "perm_importance": 3.0455306837229303e-05,
+    "gain_importance": 52.27862380888564,
+    "variance": 0.07296022027730942,
+    "selected": false
+  },
+  {
+    "name": "B3_local_win_rate",
+    "perm_importance": 8.881784197001253e-17,
+    "gain_importance": 1617.9635681960065,
+    "variance": 3.800797700881958,
+    "selected": false
+  },
+  {
+    "name": "B1_win_rate_3",
+    "perm_importance": 4.4408920985006264e-17,
+    "gain_importance": 8152.399669195582,
+    "variance": 205.2299346923828,
+    "selected": false
+  },
+  {
+    "name": "B4_local_win_rate_2",
+    "perm_importance": 4.4408920985006264e-17,
+    "gain_importance": 2097.343187193347,
+    "variance": 348.9259033203125,
+    "selected": false
+  },
+  {
+    "name": "B5_class_A2",
+    "perm_importance": 4.4408920985006264e-17,
+    "gain_importance": 122.73643946647644,
+    "variance": 0.16761261224746704,
+    "selected": false
+  },
+  {
+    "name": "B6_class_B1",
+    "perm_importance": 4.4408920985006264e-17,
+    "gain_importance": 159.33149099349976,
+    "variance": 0.24067026376724243,
+    "selected": false
+  },
+  {
+    "name": "G_wind_N",
+    "perm_importance": 2.2204460492503132e-17,
+    "gain_importance": 70.2376000881195,
+    "variance": 0.09483371675014496,
+    "selected": false
+  },
+  {
+    "name": "G_wind_SE",
+    "perm_importance": 2.2204460492503132e-17,
+    "gain_importance": 61.81985938549042,
+    "variance": 0.08478216081857681,
+    "selected": false
+  },
+  {
+    "name": "B2_approach_3",
+    "perm_importance": 2.2204460492503132e-17,
+    "gain_importance": 162.94801902770996,
+    "variance": 0.03362782299518585,
+    "selected": false
+  },
+  {
+    "name": "G_month",
+    "perm_importance": 0.0,
+    "gain_importance": 595.1421492099762,
+    "variance": 0.08094306290149689,
+    "selected": false
+  },
+  {
+    "name": "G_distance",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "G_wind_NW",
+    "perm_importance": 0.0,
+    "gain_importance": 34.01752996444702,
+    "variance": 0.07183150947093964,
+    "selected": false
+  },
+  {
+    "name": "G_wind_calm",
+    "perm_importance": 0.0,
+    "gain_importance": 31.37011957168579,
+    "variance": 0.06440640985965729,
+    "selected": false
+  },
+  {
+    "name": "B1_inner_st_diff",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_is_new_motor",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_approach_1",
+    "perm_importance": 0.0,
+    "gain_importance": 7.903679847717285,
+    "variance": 0.007407762575894594,
+    "selected": false
+  },
+  {
+    "name": "B1_approach_2",
+    "perm_importance": 0.0,
+    "gain_importance": 8.487540245056152,
+    "variance": 0.006053874734789133,
+    "selected": false
+  },
+  {
+    "name": "B1_approach_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0004565308627206832,
+    "selected": false
+  },
+  {
+    "name": "B1_approach_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.00022833718685433269,
+    "selected": false
+  },
+  {
+    "name": "B1_approach_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0002664027560967952,
+    "selected": false
+  },
+  {
+    "name": "B1_approach_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0004185493744444102,
+    "selected": false
+  },
+  {
+    "name": "B1_fallback_flag",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_num_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_num_2",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_num_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_num_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_num_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_num_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_class_B2",
+    "perm_importance": 0.0,
+    "gain_importance": 58.928080320358276,
+    "variance": 0.03171093761920929,
+    "selected": false
+  },
+  {
+    "name": "B2_is_new_motor",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_approach_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.005452767014503479,
+    "selected": false
+  },
+  {
+    "name": "B2_approach_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0022408461663872004,
+    "selected": false
+  },
+  {
+    "name": "B2_approach_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.001937946188263595,
+    "selected": false
+  },
+  {
+    "name": "B2_fallback_flag",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_num_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_num_2",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_num_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_num_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_num_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_num_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_class_B2",
+    "perm_importance": 0.0,
+    "gain_importance": 5.131130218505859,
+    "variance": 0.03423245996236801,
+    "selected": false
+  },
+  {
+    "name": "B3_is_new_motor",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_approach_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0015205730451270938,
+    "selected": false
+  },
+  {
+    "name": "B3_approach_2",
+    "perm_importance": 0.0,
+    "gain_importance": 160.07603120803833,
+    "variance": 0.015402168035507202,
+    "selected": false
+  },
+  {
+    "name": "B3_approach_5",
+    "perm_importance": 0.0,
+    "gain_importance": 45.03517961502075,
+    "variance": 0.00781808141618967,
+    "selected": false
+  },
+  {
+    "name": "B3_fallback_flag",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_num_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_num_2",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_num_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_num_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_num_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_num_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_class_A1",
+    "perm_importance": 0.0,
+    "gain_importance": 23.542479991912842,
+    "variance": 0.1759268343448639,
+    "selected": false
+  },
+  {
+    "name": "B4_is_new_motor",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_approach_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0011409926228225231,
+    "selected": false
+  },
+  {
+    "name": "B4_approach_2",
+    "perm_importance": 0.0,
+    "gain_importance": 8.754960060119629,
+    "variance": 0.008190762251615524,
+    "selected": false
+  },
+  {
+    "name": "B4_approach_3",
+    "perm_importance": 0.0,
+    "gain_importance": 87.3241400718689,
+    "variance": 0.017459839582443237,
+    "selected": false
+  },
+  {
+    "name": "B4_approach_6",
+    "perm_importance": 0.0,
+    "gain_importance": 12.009949684143066,
+    "variance": 0.02272382751107216,
+    "selected": false
+  },
+  {
+    "name": "B4_fallback_flag",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_boat_num_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_boat_num_2",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_boat_num_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_boat_num_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_boat_num_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_boat_num_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_class_A1",
+    "perm_importance": 0.0,
+    "gain_importance": 32.143239974975586,
+    "variance": 0.1698974221944809,
+    "selected": false
+  },
+  {
+    "name": "B5_is_new_motor",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_approach_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0007608270971104503,
+    "selected": false
+  },
+  {
+    "name": "B5_approach_2",
+    "perm_importance": 0.0,
+    "gain_importance": 30.177770614624023,
+    "variance": 0.009723970666527748,
+    "selected": false
+  },
+  {
+    "name": "B5_approach_3",
+    "perm_importance": 0.0,
+    "gain_importance": 12.211999893188477,
+    "variance": 0.007444949820637703,
+    "selected": false
+  },
+  {
+    "name": "B5_approach_4",
+    "perm_importance": 0.0,
+    "gain_importance": 19.226860523223877,
+    "variance": 0.03599417582154274,
+    "selected": false
+  },
+  {
+    "name": "B5_fallback_flag",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_num_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_num_2",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_num_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_num_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_num_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_num_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B5_parts_changed",
+    "perm_importance": 0.0,
+    "gain_importance": 46.24623668193817,
+    "variance": 0.05006256699562073,
+    "selected": false
+  },
+  {
+    "name": "B6_class_B2",
+    "perm_importance": 0.0,
+    "gain_importance": 7.439340114593506,
+    "variance": 0.12399124354124069,
+    "selected": false
+  },
+  {
+    "name": "B6_is_new_motor",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_approach_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0007986959535628557,
+    "selected": false
+  },
+  {
+    "name": "B6_approach_2",
+    "perm_importance": 0.0,
+    "gain_importance": 7.018700122833252,
+    "variance": 0.011249683797359467,
+    "selected": false
+  },
+  {
+    "name": "B6_approach_3",
+    "perm_importance": 0.0,
+    "gain_importance": 8.514229774475098,
+    "variance": 0.009013622999191284,
+    "selected": false
+  },
+  {
+    "name": "B6_fallback_flag",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_boat_num_1",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_boat_num_2",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_boat_num_3",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_boat_num_4",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_boat_num_5",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B6_boat_num_6",
+    "perm_importance": 0.0,
+    "gain_importance": 0.0,
+    "variance": 0.0,
+    "selected": false
+  },
+  {
+    "name": "B4_tilt",
+    "perm_importance": -3.045530683718489e-05,
+    "gain_importance": 372.11890072233746,
+    "variance": 0.01565406285226345,
+    "selected": false
+  },
+  {
+    "name": "B6_win_rate_3",
+    "perm_importance": -3.045530683718489e-05,
+    "gain_importance": 1565.6361761666303,
+    "variance": 447.8372802734375,
+    "selected": false
+  },
+  {
+    "name": "B3_tilt",
+    "perm_importance": -6.091061367439199e-05,
+    "gain_importance": 406.21816873550415,
+    "variance": 0.01332094706594944,
+    "selected": false
+  },
+  {
+    "name": "B4_approach_5",
+    "perm_importance": -6.091061367439199e-05,
+    "gain_importance": 90.88494980335236,
+    "variance": 0.0440123975276947,
+    "selected": false
+  },
+  {
+    "name": "B6_weight_diff",
+    "perm_importance": -6.091061367439199e-05,
+    "gain_importance": 2474.2399438438906,
+    "variance": 4.045049667358398,
+    "selected": false
+  },
+  {
+    "name": "B2_inner_st_diff",
+    "perm_importance": -6.0910613674414193e-05,
+    "gain_importance": 1483.3880326681865,
+    "variance": 0.001096293912269175,
+    "selected": false
+  },
+  {
+    "name": "B5_approach_6",
+    "perm_importance": -6.0910613674414193e-05,
+    "gain_importance": 277.0581261272,
+    "variance": 0.07213443517684937,
+    "selected": false
+  },
+  {
+    "name": "B6_class_A1",
+    "perm_importance": -9.136592051162129e-05,
+    "gain_importance": 266.25429472226824,
+    "variance": 0.17608924210071564,
+    "selected": false
+  },
+  {
+    "name": "G_wind_NE",
+    "perm_importance": -0.00012182122734882839,
+    "gain_importance": 67.40533018112183,
+    "variance": 0.11010834574699402,
+    "selected": false
+  },
+  {
+    "name": "B6_motor_win_rate_2",
+    "perm_importance": -0.00012182122734882839,
+    "gain_importance": 2379.8170155166936,
+    "variance": 111.34127807617188,
+    "selected": false
+  },
+  {
+    "name": "B6_win_rate_2",
+    "perm_importance": -0.00015227653418601328,
+    "gain_importance": 2379.8149571982212,
+    "variance": 274.20880126953125,
+    "selected": false
+  },
+  {
+    "name": "B2_approach_2",
+    "perm_importance": -0.00015227653418603548,
+    "gain_importance": 936.684484580066,
+    "variance": 0.04674829915165901,
+    "selected": false
+  },
+  {
+    "name": "B3_approach_4",
+    "perm_importance": -0.00015227653418603548,
+    "gain_importance": 95.08759140968323,
+    "variance": 0.0372985303401947,
+    "selected": false
+  },
+  {
+    "name": "B4_class_A2",
+    "perm_importance": -0.00015227653418603548,
+    "gain_importance": 77.9864307641983,
+    "variance": 0.17699246108531952,
+    "selected": false
+  },
+  {
+    "name": "B4_motor_win_rate_3",
+    "perm_importance": -0.00015227653418603548,
+    "gain_importance": 2463.1703543091644,
+    "variance": 176.05772399902344,
+    "selected": false
+  },
+  {
+    "name": "B4_class_B2",
+    "perm_importance": -0.00018273184102324258,
+    "gain_importance": 42.98691987991333,
+    "variance": 0.05767747014760971,
+    "selected": false
+  },
+  {
+    "name": "B4_local_win_rate",
+    "perm_importance": -0.00021318714786047188,
+    "gain_importance": 1879.6516793447063,
+    "variance": 4.187396049499512,
+    "selected": false
+  },
+  {
+    "name": "B5_win_rate_3",
+    "perm_importance": -0.00021318714786047188,
+    "gain_importance": 1929.943759190526,
+    "variance": 342.1844177246094,
+    "selected": false
+  },
+  {
+    "name": "B6_approach_6",
+    "perm_importance": -0.00024364245469765677,
+    "gain_importance": 1376.4411552807724,
+    "variance": 0.1032477468252182,
+    "selected": false
+  },
+  {
+    "name": "B1_motor_win_rate_2",
+    "perm_importance": -0.00024364245469767897,
+    "gain_importance": 2785.925126687311,
+    "variance": 113.50119018554688,
+    "selected": false
+  },
+  {
+    "name": "B5_local_win_rate_2",
+    "perm_importance": -0.0002740977615348861,
+    "gain_importance": 1731.6052470850454,
+    "variance": 366.732177734375,
+    "selected": false
+  },
+  {
+    "name": "B6_parts_changed",
+    "perm_importance": -0.0003045530683720932,
+    "gain_importance": 67.63009023666382,
+    "variance": 0.05359764024615288,
+    "selected": false
+  },
+  {
+    "name": "B1_local_win_rate_2",
+    "perm_importance": -0.00030455306837211537,
+    "gain_importance": 2136.1596059915,
+    "variance": 334.3648376464844,
+    "selected": false
+  },
+  {
+    "name": "B3_class_A2",
+    "perm_importance": -0.00030455306837211537,
+    "gain_importance": 83.22269082069397,
+    "variance": 0.1848457157611847,
+    "selected": false
+  },
+  {
+    "name": "B3_class_B1",
+    "perm_importance": -0.00030455306837211537,
+    "gain_importance": 436.14780950546265,
+    "variance": 0.2497812956571579,
+    "selected": false
+  },
+  {
+    "name": "B1_boat_win_rate_2",
+    "perm_importance": -0.0003045530683721376,
+    "gain_importance": 2431.8503198623657,
+    "variance": 103.19727325439453,
+    "selected": false
+  },
+  {
+    "name": "B5_motor_win_rate_2",
+    "perm_importance": -0.00033500837520932246,
+    "gain_importance": 2229.988200276878,
+    "variance": 112.77484130859375,
+    "selected": false
+  },
+  {
+    "name": "G_wind_speed",
+    "perm_importance": -0.000426374295720966,
+    "gain_importance": 1000.5657410621643,
+    "variance": 0.030993953347206116,
+    "selected": false
+  },
+  {
+    "name": "B3_class_A1",
+    "perm_importance": -0.00042637429572098815,
+    "gain_importance": 56.76598024368286,
+    "variance": 0.17972400784492493,
+    "selected": false
+  },
+  {
+    "name": "B6_tilt",
+    "perm_importance": -0.00042637429572098815,
+    "gain_importance": 708.9467966797874,
+    "variance": 0.024433445185422897,
+    "selected": false
+  },
+  {
+    "name": "B2_class_A2",
+    "perm_importance": -0.00045682960255819525,
+    "gain_importance": 96.3034998178482,
+    "variance": 0.18118618428707123,
+    "selected": false
+  },
+  {
+    "name": "B2_boat_win_rate_2",
+    "perm_importance": -0.00048728490939542457,
+    "gain_importance": 2551.13890898538,
+    "variance": 101.99462890625,
+    "selected": false
+  },
+  {
+    "name": "B6_inner_st_diff",
+    "perm_importance": -0.00048728490939542457,
+    "gain_importance": 2344.1581094693424,
+    "variance": 0.002558887703344226,
+    "selected": false
+  },
+  {
+    "name": "B3_inner_st_diff",
+    "perm_importance": -0.0004872849093954468,
+    "gain_importance": 1538.3988181945679,
+    "variance": 0.000851066957693547,
+    "selected": false
+  },
+  {
+    "name": "B6_exhibition_time_diff",
+    "perm_importance": -0.0004872849093954468,
+    "gain_importance": 4484.492946699576,
+    "variance": 0.06385214626789093,
+    "selected": false
+  },
+  {
+    "name": "G_temperature",
+    "perm_importance": -0.000548195523069861,
+    "gain_importance": 1524.2259204522707,
+    "variance": 0.05321387201547623,
+    "selected": false
+  },
+  {
+    "name": "B2_exhibition_time_diff",
+    "perm_importance": -0.0005786508299070459,
+    "gain_importance": 4007.2614907226834,
+    "variance": 0.08069141954183578,
+    "selected": false
+  },
+  {
+    "name": "B5_boat_win_rate_2",
+    "perm_importance": -0.0005786508299070903,
+    "gain_importance": 2003.9963635053064,
+    "variance": 101.61933898925781,
+    "selected": false
+  },
+  {
+    "name": "B3_win_rate_2",
+    "perm_importance": -0.00063956144358146,
+    "gain_importance": 3379.4842311720845,
+    "variance": 172.46368408203125,
+    "selected": false
+  },
+  {
+    "name": "G_water_temperature",
+    "perm_importance": -0.0006395614435815266,
+    "gain_importance": 1287.5412211418152,
+    "variance": 0.041475482285022736,
+    "selected": false
+  },
+  {
+    "name": "B1_class_B2",
+    "perm_importance": -0.0007004720572559187,
+    "gain_importance": 148.8572280406952,
+    "variance": 0.023443905636668205,
+    "selected": false
+  },
+  {
+    "name": "B3_weight_diff",
+    "perm_importance": -0.0007004720572559187,
+    "gain_importance": 2292.1251623678445,
+    "variance": 3.62507963180542,
+    "selected": false
+  },
+  {
+    "name": "G_wave_height",
+    "perm_importance": -0.000700472057255963,
+    "gain_importance": 1188.6071330160103,
+    "variance": 0.012895777821540833,
+    "selected": false
+  },
+  {
+    "name": "B1_weight_diff",
+    "perm_importance": -0.0007613826709303772,
+    "gain_importance": 3568.3121648109,
+    "variance": 3.158299684524536,
+    "selected": false
+  },
+  {
+    "name": "B4_avg_st",
+    "perm_importance": -0.0007613826709303772,
+    "gain_importance": 699.3197430372238,
+    "variance": 0.0007851227419450879,
+    "selected": false
+  },
+  {
+    "name": "B3_motor_win_rate_3",
+    "perm_importance": -0.0008222932846047914,
+    "gain_importance": 2201.808349650062,
+    "variance": 175.41009521484375,
+    "selected": false
+  },
+  {
+    "name": "B5_local_win_rate",
+    "perm_importance": -0.0008527485914419985,
+    "gain_importance": 1946.8532244910245,
+    "variance": 4.6414079666137695,
+    "selected": false
+  },
+  {
+    "name": "B3_boat_win_rate_2",
+    "perm_importance": -0.0008832038982792279,
+    "gain_importance": 2256.493978023529,
+    "variance": 103.05436706542969,
+    "selected": false
+  },
+  {
+    "name": "B1_avg_st",
+    "perm_importance": -0.0008832038982792501,
+    "gain_importance": 899.3477840391424,
+    "variance": 0.000575440761167556,
+    "selected": false
+  },
+  {
+    "name": "B1_class_B1",
+    "perm_importance": -0.000913659205116435,
+    "gain_importance": 491.1570334434509,
+    "variance": 0.235658198595047,
+    "selected": false
+  },
+  {
+    "name": "B2_local_win_rate_2",
+    "perm_importance": -0.0010050251256281228,
+    "gain_importance": 2452.3330112907743,
+    "variance": 331.1585693359375,
+    "selected": false
+  },
+  {
+    "name": "B6_local_win_rate",
+    "perm_importance": -0.00103548043246533,
+    "gain_importance": 1656.2605933339944,
+    "variance": 5.3816351890563965,
+    "selected": false
+  },
+  {
+    "name": "B6_motor_win_rate_3",
+    "perm_importance": -0.0011268463529769512,
+    "gain_importance": 2232.832039145783,
+    "variance": 172.2792205810547,
+    "selected": false
+  },
+  {
+    "name": "B1_local_win_rate",
+    "perm_importance": -0.0012791228871630532,
+    "gain_importance": 2290.9766504656,
+    "variance": 3.6822917461395264,
+    "selected": false
+  },
+  {
+    "name": "B3_motor_win_rate_2",
+    "perm_importance": -0.0013095781940002827,
+    "gain_importance": 2420.293898826986,
+    "variance": 113.15080261230469,
+    "selected": false
+  },
+  {
+    "name": "B2_weight_diff",
+    "perm_importance": -0.0016750418760468344,
+    "gain_importance": 3388.1887418895494,
+    "variance": 3.5568056106567383,
+    "selected": false
+  },
+  {
+    "name": "B2_motor_win_rate_3",
+    "perm_importance": -0.0017054971828840636,
+    "gain_importance": 2677.922368735075,
+    "variance": 175.35589599609375,
+    "selected": false
+  }
+]
