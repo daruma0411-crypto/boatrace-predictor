@@ -299,7 +299,7 @@ def period_and_cards_fragment():
             s = summary_dict.get(strategy_key)
             bankroll = bankrolls.get(strategy_key, 200000)
 
-            st.markdown(f"<h3 style='margin:0 0 0.5rem 0'>{label}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<p style='font-size:1.75rem;font-weight:700;margin:0 0 0.5rem 0'>{label}</p>", unsafe_allow_html=True)
             if s and s['total_bets'] > 0:
                 total_amount = s['total_amount'] or 0
                 roi = s['roi'] or 0
