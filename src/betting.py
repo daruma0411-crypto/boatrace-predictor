@@ -239,7 +239,7 @@ def _get_dynamic_discount(raw_odds):
 
 
 DAILY_LOSS_LIMIT_PER_STRATEGY = 30000  # 戦略別の1日最大損失額
-DAILY_BET_LIMIT_PER_STRATEGY = 30  # 戦略別の1日最大ベット数
+DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中)
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
