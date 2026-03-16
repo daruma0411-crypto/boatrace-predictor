@@ -288,10 +288,10 @@ def period_and_cards_fragment():
     summary_dict = {s['strategy_type']: s for s in summary_data} if summary_data else {}
     bankrolls = dashboard['bankrolls']
 
-    row1 = st.columns(3)
-    row2 = st.columns(3)
-    row3 = st.columns(3)
-    all_cols = row1 + row2 + row3
+    n = len(STRATEGY_ORDER)
+    row1 = st.columns(min(n, 3))
+    row2 = st.columns(min(max(n - 3, 1), 3)) if n > 3 else []
+    all_cols = row1 + row2
 
     for idx, strategy_key in enumerate(STRATEGY_ORDER):
         with all_cols[idx]:
@@ -337,36 +337,9 @@ def tab1_bets_fragment():
             st.info("本日の買い目はまだありません。レース締切10分前に自動生成されます。")
             return
 
-        venue_options = ['全会場'] + [_venue_name(v) for v in venues]
-        selected_venue = st.selectbox(
-            '会場を選択', venue_options, key='venue_filter'
-        )
-
         df = pd.DataFrame(all_bets)
-        df['会場'] = df['venue_id'].map(_venue_name)
-        df['戦略'] = df['strategy_type'].map(_strategy_name)
 
-        if selected_venue != '全会場':
-            df = df[df['会場'] == selected_venue]
-
-        if df.empty:
-            st.info(f"{selected_venue}の買い目はまだありません。")
-            return
-
-        # サマリーを先に表示
-        summary = pd.DataFrame(all_bets)
-        summary['会場'] = summary['venue_id'].map(_venue_name)
-        venue_summary = summary.groupby('会場').agg(
-            点数=('combination', 'count'),
-            投資額=('amount', 'sum'),
-        ).reset_index()
-        venue_summary['投資額'] = venue_summary['投資額'].map(lambda x: f'\u00a5{x:,}')
-        st.markdown("**会場別サマリー**")
-        st.dataframe(venue_summary, use_container_width=True, hide_index=True)
-
-        st.divider()
-
-        # ベット一覧テーブル（フラット表示）
+        # ベット一覧テーブル
         display = df.copy()
 
         # 時間: deadline_time → HH:MM 形式
@@ -402,10 +375,10 @@ def tab1_bets_fragment():
             lambda x: f'{x:.2f}' if x else '-'
         )
 
-        # カラム絞り込み・リネーム
-        display = display[['時間', 'レース', 'strategy_type', 'combination',
+        # カラム絞り込み
+        display = display[['時間', 'レース', 'combination',
                            '金額', 'オッズ', '期待値', '結果']].copy()
-        display.columns = ['時間', 'レース', '戦略', '買い目',
+        display.columns = ['時間', 'レース', '買い目',
                            '金額', 'オッズ', '期待値', '結果']
 
         st.dataframe(
