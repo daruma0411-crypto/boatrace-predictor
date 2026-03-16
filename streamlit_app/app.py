@@ -201,13 +201,12 @@ STRATEGY_NAMES = {
     'standard': 'B: 標準 (EV 0.5-0.8)',
     'high_confidence': 'C: 確信 (EV 0.5-0.8 H<2.3)',
     'conservative_wide': 'D: 保守広域 (EV 0-1.2)',
-    'bt_none': 'E: 広域 (EV 0-1.2)',
-    'bt_entropy': 'F: 広域確信 (EV 0-1.2 H<2.3)',
+    'bt_entropy': 'E: 広域確信 (EV 0-1.2 H<2.3)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'high_confidence',
-    'conservative_wide', 'bt_none', 'bt_entropy',
+    'conservative_wide', 'bt_entropy',
 ]
 
 

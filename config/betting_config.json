@@ -63,21 +63,6 @@
             "filter_type": "none",
             "min_probability": 0.02
         },
-        "bt_none": {
-            "kelly_fraction": 0.125,
-            "max_total_bet_ratio": 0.02,
-            "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 0.0,
-            "max_expected_value": 1.2,
-            "odds_discount_factor": 0.92,
-            "use_dynamic_discount": true,
-            "max_recommended_bets": 3,
-            "min_bet_amount": 100,
-            "min_odds": 1.5,
-            "max_odds": 50,
-            "filter_type": "none",
-            "min_probability": 0.02
-        },
         "bt_entropy": {
             "kelly_fraction": 0.125,
             "max_total_bet_ratio": 0.02,
