@@ -197,21 +197,17 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'conservative': 'A: 保守的 (1/8ケリー)',
-    'standard': 'B: 普通 (1/4ケリー)',
-    'divergence': 'C: 市場乖離',
-    'high_confidence': 'D: 高確信',
-    'ensemble': 'E: 合議制',
-    'div_confidence': 'F: 乖離+確信',
-    'bt_none': 'G: BT基本 (odds≤30)',
-    'bt_entropy': 'H: BT確信 (odds≤30+H<2.3)',
-    'bt_ensemble': 'I: BT合議 (odds≤30+3/4)',
+    'conservative': 'A: 保守的 (EV 0.5-1.0)',
+    'standard': 'B: 標準 (EV 0.5-0.8)',
+    'high_confidence': 'C: 確信 (EV 0.5-0.8 H<2.3)',
+    'conservative_wide': 'D: 保守広域 (EV 0-1.2)',
+    'bt_none': 'E: 広域 (EV 0-1.2)',
+    'bt_entropy': 'F: 広域確信 (EV 0-1.2 H<2.3)',
 }
 
 STRATEGY_ORDER = [
-    'conservative', 'standard', 'divergence',
-    'high_confidence', 'ensemble', 'div_confidence',
-    'bt_none', 'bt_entropy', 'bt_ensemble',
+    'conservative', 'standard', 'high_confidence',
+    'conservative_wide', 'bt_none', 'bt_entropy',
 ]
 
 
