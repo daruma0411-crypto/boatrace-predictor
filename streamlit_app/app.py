@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "dashboard-result-v9"
+_DEPLOY_VERSION = "dashboard-v10-balance"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
