@@ -420,67 +420,81 @@ with tab1:
     tab1_bets_fragment()
 
 
-# ========== タブ2: 期間別推移 ==========
+# ========== タブ2: 残高推移 ==========
 @st.fragment
 def tab2_trend_fragment():
-    st.subheader("日別収支推移")
+    st.subheader("戦略別残高推移")
+
+    # 期間切替
+    period = st.radio(
+        "期間", ["日", "月", "年"], horizontal=True, key="trend_period"
+    )
+    today = date.today()
+    if period == "日":
+        t_start = today - timedelta(days=7)
+    elif period == "月":
+        t_start = today - timedelta(days=30)
+    else:
+        t_start = today - timedelta(days=365)
+
     try:
-        s_date = st.session_state.get('start_date', str(date.today()))
-        e_date = st.session_state.get('end_date', str(date.today()))
-        daily = _cached_daily_stats_by_period(s_date, e_date)
-        if daily:
-            import plotly.express as px
-
-            df_daily = pd.DataFrame(daily)
-            df_daily['profit'] = (
-                df_daily['total_payout'].fillna(0) -
-                df_daily['total_amount'].fillna(0)
-            )
-            df_daily['戦略'] = df_daily['strategy_type'].map(_strategy_name)
-
-            fig = px.line(
-                df_daily, x='race_date', y='profit',
-                color='戦略',
-                title=f'日別損益推移 ({s_date} ~ {e_date})',
-                labels={'race_date': '日付', 'profit': '損益 (円)'},
-            )
-            fig.update_layout(
-                height=400,
-                margin=dict(l=30, r=20, t=50, b=30),
-                font=dict(size=12),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                            xanchor="right", x=1),
-            )
-            fig.add_hline(y=0, line_dash="dash", line_color="gray")
-            st.plotly_chart(fig, use_container_width=True,
-                           config={'displayModeBar': False})
-
-            for strategy in df_daily['strategy_type'].unique():
-                mask = df_daily['strategy_type'] == strategy
-                df_daily.loc[mask, 'cumulative_profit'] = (
-                    df_daily.loc[mask, 'profit'].cumsum()
-                )
-
-            fig_cum = px.line(
-                df_daily, x='race_date', y='cumulative_profit',
-                color='戦略',
-                title='累積損益推移',
-                labels={'race_date': '日付', 'cumulative_profit': '累積損益 (円)'},
-            )
-            fig_cum.update_layout(
-                height=400,
-                margin=dict(l=30, r=20, t=50, b=30),
-                font=dict(size=12),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                            xanchor="right", x=1),
-            )
-            fig_cum.add_hline(y=0, line_dash="dash", line_color="gray")
-            st.plotly_chart(fig_cum, use_container_width=True,
-                           config={'displayModeBar': False})
-        else:
+        daily = _cached_daily_stats_by_period(str(t_start), str(today))
+        if not daily:
             st.info("この期間のデータがまだありません。")
+            return
+
+        import plotly.graph_objects as go
+
+        df_daily = pd.DataFrame(daily)
+        df_daily['profit'] = (
+            df_daily['total_payout'].fillna(0) -
+            df_daily['total_amount'].fillna(0)
+        )
+
+        # 戦略別チェックボックス
+        strategies = sorted(df_daily['strategy_type'].unique())
+        selected = []
+        cols_cb = st.columns(len(strategies))
+        for i, s in enumerate(strategies):
+            with cols_cb[i]:
+                if st.checkbox(_strategy_name(s), value=True, key=f'cb_{s}'):
+                    selected.append(s)
+
+        if not selected:
+            st.info("戦略を1つ以上選択してください。")
+            return
+
+        # 残高計算: 20万スタート → 日ごとの累積損益を加算
+        INITIAL = 200000
+        fig = go.Figure()
+        for s in selected:
+            mask = df_daily['strategy_type'] == s
+            df_s = df_daily[mask].sort_values('race_date').copy()
+            df_s['balance'] = INITIAL + df_s['profit'].cumsum()
+            fig.add_trace(go.Scatter(
+                x=df_s['race_date'], y=df_s['balance'],
+                mode='lines+markers', name=_strategy_name(s),
+                hovertemplate='%{x}<br>残高: ¥%{y:,.0f}<extra></extra>',
+            ))
+
+        fig.add_hline(y=INITIAL, line_dash="dash", line_color="gray",
+                      annotation_text="初期資金 ¥200,000")
+        fig.update_layout(
+            height=500,
+            margin=dict(l=30, r=20, t=30, b=30),
+            font=dict(size=14),
+            yaxis_title="残高 (円)",
+            xaxis_title="日付",
+            yaxis_tickformat=",",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1),
+            dragmode=False,
+        )
+        st.plotly_chart(fig, use_container_width=True,
+                       config={'displayModeBar': False, 'staticPlot': True})
+
     except Exception as e:
-        st.error(f"日別データ取得エラー: {e}")
+        st.error(f"残高推移取得エラー: {e}")
 
 with tab2:
     tab2_trend_fragment()
