@@ -1,16 +1,18 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
-v8: EVゾーン集中戦略 (2026-03-15)
-3/15 CSV 2251件の分析結果: EV 0.5-0.8 = ROI 219%, EV 1.2+ = ROI 26%.
-モデルが「市場と大きく乖離」(高EV) するほど外れる → 低EVゾーンに集中.
+v9: ハッパKelly複利戦略 (2026-03-17)
+2戦略のみ。同一EVゾーン(0.5-0.8)で「固定 vs 複利」を比較。
 
-アクティブ戦略 (3戦略):
-- high_confidence: EV 0.5-0.8 + entropy<2.3 (エース、ROI 219%ゾーン×確信フィルタ)
-- standard:        EV 0.5-0.8 (フィルタなし、拾い漏れカバー)
-- conservative:    EV 0.5-1.0 (広めゾーン、0.8-1.0のROI 126%も拾う安全策)
+Standard (ベースライン):
+  EV 0.5-0.8, kelly_prob_gain=1.0 → Kelly負 → ¥100固定
+  3/15-3/16実績のROIを維持する安全策。
+
+High_confidence (覚醒モード):
+  EV 0.5-0.8, kelly_prob_gain=1.5 → Kelly計算時にP×1.5でハッパ
+  → Kelly正になり複利運用。1点上限¥1,000。
+  AIの過小評価を利益に変換できるか検証。
 
 ドローダウン防止:
-- 日次損失上限 ¥30,000
 - bankroll 75%割れ → Kelly×0.75、50%割れ → Kelly×0.5
 - 当日5連敗 → 該当戦略スキップ
 - 1点上限 ¥1,000
@@ -244,7 +246,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # v8.2: 6戦略A/B比較 — v8集中 vs v7広域 + 保守広域
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy'}
+ACTIVE_STRATEGIES = {'standard', 'high_confidence'}
 
 
 def _get_today_bet_count(strategy_type):
@@ -514,10 +516,11 @@ class KellyBettingStrategy:
                          venue_id=None, race_number=None,
                          divergence_map=None, dd_multiplier=1.0,
                          calibration_bands=None):
-        """共通ケリー戦略: EVゾーンフィルタ → Kelly計算(正なら重みづけ、負なら最低額)
+        """共通ケリー戦略: EVゾーンフィルタ → Kelly計算
 
-        v8: EV < 1.0ゾーンでもEVフィルタ通過なら100円フラットベット。
-        3/15実績でEV 0.5-0.8の100円均一ベットがROI 177%を記録したため。
+        v9: kelly_prob_gain パラメータでKelly計算時の確率をブースト。
+        gain=1.0 → Kelly負 → ¥100固定 (Standard)
+        gain=1.5 → Kelly正 → 複利運用 (High_confidence覚醒モード)
         """
         candidates = []
         kelly_frac = config['kelly_fraction']
@@ -534,6 +537,7 @@ class KellyBettingStrategy:
         min_prob = config.get('min_probability', 0.0)
         min_odds = config.get('min_odds', 0.0)  # 最低オッズ (ガチガチ本命除外)
         max_ev = config.get('max_expected_value', 9999.0)  # EV上限 (過大推定フィルタ)
+        kelly_prob_gain = config.get('kelly_prob_gain', 1.0)  # ハッパ係数 (1.0=補正なし, 1.5=覚醒)
 
         # 発見1+2: 場・R番号でオッズ上限を動的調整
         if venue_id is not None and race_number is not None:
@@ -595,7 +599,7 @@ class KellyBettingStrategy:
             # キャリブレーション: モデル確率を実績に基づき補正
             cal_prob = _apply_calibration(prob, calibration_bands)
 
-            # ケリー基準（割引オッズ × 補正確率で計算）: f = (b*p - q) / b
+            # EV計算（生確率ベース、フィルタ判定用）: EV = cal_prob × discounted_odds
             ev = cal_prob * discounted_odds
             if ev < min_ev:
                 skip_counts['low_ev'] += 1
@@ -607,16 +611,20 @@ class KellyBettingStrategy:
             if b < 0.01:
                 skip_counts['kelly_neg'] += 1
                 continue
-            q = 1.0 - cal_prob
-            kelly = (b * cal_prob - q) / b
+
+            # ケリー基準: ハッパ係数(kelly_prob_gain)で確率をブースト
+            # gain=1.0 → 従来通りKelly負 → ¥100固定
+            # gain=1.5 → P×1.5でKelly正 → 複利運用
+            boosted_prob = min(cal_prob * kelly_prob_gain, 0.99)  # 上限99%
+            q_boosted = 1.0 - boosted_prob
+            kelly = (b * boosted_prob - q_boosted) / b
             if kelly > 0:
-                # Kelly正: 通常のKellyサイジング
+                # Kelly正: 複利サイジング（1点上限¥1,000）
                 kelly_amount = bankroll * kelly * kelly_frac * dd_multiplier
                 kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
                 bet_amount = int(round(kelly_amount / 100) * 100)
             else:
-                # Kelly負 (EV < 1.0): EVゾーンフィルタ通過済みなら最低額ベット
-                # 3/15実績: EV 0.5-0.8で100円均一ベット → ROI 177%
+                # Kelly負: EVゾーンフィルタ通過済みなら最低額ベット
                 bet_amount = min_bet
                 kelly = 0.0
 

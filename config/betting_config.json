@@ -1,22 +1,7 @@
 {
     "initial_bankroll": 200000,
-    "_comment": "v8.2: 6戦略A/B比較 (2026-03-16). v8集中 vs v7広域 + 保守広域追加",
+    "_comment": "v9: 2戦略比較 (2026-03-17). Standard=100円固定 vs High_confidence=ハッパKelly複利",
     "strategies": {
-        "conservative": {
-            "kelly_fraction": 0.125,
-            "max_total_bet_ratio": 0.02,
-            "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 0.5,
-            "max_expected_value": 1.0,
-            "odds_discount_factor": 0.92,
-            "use_dynamic_discount": true,
-            "max_recommended_bets": 3,
-            "min_bet_amount": 100,
-            "min_odds": 1.5,
-            "max_odds": 50,
-            "filter_type": "none",
-            "min_probability": 0.02
-        },
         "standard": {
             "kelly_fraction": 0.25,
             "max_total_bet_ratio": 0.03,
@@ -30,12 +15,13 @@
             "min_odds": 1.5,
             "max_odds": 50,
             "filter_type": "none",
-            "min_probability": 0.02
+            "min_probability": 0.02,
+            "kelly_prob_gain": 1.0
         },
         "high_confidence": {
-            "kelly_fraction": 0.20,
-            "max_total_bet_ratio": 0.025,
-            "max_ticket_bet_ratio": 0.01,
+            "kelly_fraction": 0.25,
+            "max_total_bet_ratio": 0.03,
+            "max_ticket_bet_ratio": 0.012,
             "min_expected_value": 0.5,
             "max_expected_value": 0.8,
             "odds_discount_factor": 0.92,
@@ -44,40 +30,9 @@
             "min_bet_amount": 100,
             "min_odds": 1.5,
             "max_odds": 50,
-            "filter_type": "entropy",
-            "max_entropy": 2.3,
-            "min_probability": 0.02
-        },
-        "conservative_wide": {
-            "kelly_fraction": 0.125,
-            "max_total_bet_ratio": 0.02,
-            "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 0.0,
-            "max_expected_value": 1.2,
-            "odds_discount_factor": 0.92,
-            "use_dynamic_discount": true,
-            "max_recommended_bets": 3,
-            "min_bet_amount": 100,
-            "min_odds": 1.5,
-            "max_odds": 50,
             "filter_type": "none",
-            "min_probability": 0.02
-        },
-        "bt_entropy": {
-            "kelly_fraction": 0.125,
-            "max_total_bet_ratio": 0.02,
-            "max_ticket_bet_ratio": 0.008,
-            "min_expected_value": 0.0,
-            "max_expected_value": 1.2,
-            "odds_discount_factor": 0.92,
-            "use_dynamic_discount": true,
-            "max_recommended_bets": 3,
-            "min_bet_amount": 100,
-            "min_odds": 1.5,
-            "max_odds": 50,
-            "filter_type": "entropy",
-            "max_entropy": 2.3,
-            "min_probability": 0.02
+            "min_probability": 0.02,
+            "kelly_prob_gain": 1.5
         }
     }
 }

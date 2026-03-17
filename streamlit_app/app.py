@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "dashboard-v10-balance"
+_DEPLOY_VERSION = "v9-happa-kelly"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -197,16 +197,12 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'conservative': 'A: 保守的 (EV 0.5-1.0)',
-    'standard': 'B: 標準 (EV 0.5-0.8)',
-    'high_confidence': 'C: 確信 (EV 0.5-0.8 H<2.3)',
-    'conservative_wide': 'D: 保守広域 (EV 0-1.2)',
-    'bt_entropy': 'E: 広域確信 (EV 0-1.2 H<2.3)',
+    'standard': 'A: 固定100円 (EV 0.5-0.8)',
+    'high_confidence': 'B: 覚醒Kelly (EV 0.5-0.8 ×1.5)',
 }
 
 STRATEGY_ORDER = [
-    'conservative', 'standard', 'high_confidence',
-    'conservative_wide', 'bt_entropy',
+    'standard', 'high_confidence',
 ]
 
 
