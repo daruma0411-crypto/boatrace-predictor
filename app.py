@@ -16,7 +16,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-_WORKER_VERSION = "split-br-fix-v8"
+_WORKER_VERSION = "v9.1-8strategies"
 
 
 def _write_health(status, detail):
