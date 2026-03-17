@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from src.scraper import (
     _get_session, scrape_racelist, scrape_race_deadlines, scrape_race_result,
+    scrape_odds_2t,
 )
 from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
@@ -429,7 +430,7 @@ class DynamicRaceScheduler:
                                   race_id))
 
                             # betsテーブル: 的中判定 + 回収額計算
-                            # payout は100円あたりの払戻金
+                            # 3連単ベット: combination と trifecta で判定
                             cur.execute("""
                                 UPDATE bets
                                 SET is_hit = (combination = %s),
@@ -439,10 +440,38 @@ class DynamicRaceScheduler:
                                         ELSE 0
                                     END
                                 WHERE race_id = %s
+                                  AND (bet_type = 'sanrentan' OR bet_type IS NULL)
                             """, (
                                 actual_trifecta, actual_trifecta,
                                 payout, race_id,
                             ))
+
+                            # 2連単ベット: 1着-2着の組み合わせで判定
+                            if r1st and r2nd:
+                                actual_exacta = f"{r1st}-{r2nd}"
+                                # 2連単払戻金をスクレイピング
+                                from src.scraper import scrape_result as _scrape_result
+                                result_full = _scrape_result(
+                                    session, race_date, venue_id, race_number
+                                )
+                                payout_2t = 0
+                                if result_full:
+                                    payout_2t = result_full.get('payout_nirentan', 0) or 0
+
+                                cur.execute("""
+                                    UPDATE bets
+                                    SET is_hit = (combination = %s),
+                                        return_amount = CASE
+                                            WHEN combination = %s
+                                            THEN %s * (amount / 100)
+                                            ELSE 0
+                                        END
+                                    WHERE race_id = %s
+                                      AND bet_type = 'nirentan'
+                                """, (
+                                    actual_exacta, actual_exacta,
+                                    payout_2t, race_id,
+                                ))
 
                             updated += 1
                             logger.info(
@@ -526,7 +555,7 @@ class DynamicRaceScheduler:
                 now_jst() + timedelta(minutes=5),
             )
 
-            with ThreadPoolExecutor(max_workers=2) as executor:
+            with ThreadPoolExecutor(max_workers=3) as executor:
                 future_ex = executor.submit(
                     self.collector.get_exhibition_data,
                     today,
@@ -541,9 +570,18 @@ class DynamicRaceScheduler:
                     race['race_number'],
                     deadline,
                 )
+                # 2連単オッズ取得（G戦略用）
+                future_odds_2t = executor.submit(
+                    scrape_odds_2t,
+                    _get_session(),
+                    today,
+                    race['venue_id'],
+                    race['race_number'],
+                )
 
                 exhibition_data = future_ex.result(timeout=300)
                 odds_data = future_odds.result(timeout=300)
+                odds_2t = future_odds_2t.result(timeout=60)
 
             if not exhibition_data or not exhibition_data.get('boats'):
                 logger.warning(
@@ -686,6 +724,7 @@ class DynamicRaceScheduler:
                 venue_id=race['venue_id'],
                 race_number=race['race_number'],
                 ensemble_predictions=ensemble_preds,
+                odds_2t=odds_2t,
             )
 
             for strategy_type, bets in all_bets.items():

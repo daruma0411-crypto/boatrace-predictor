@@ -281,11 +281,24 @@ def scrape_result(session, race_date, venue_id, race_number):
                     payout = int(m.group(1).replace(',', ''))
             break
 
+    # 2連単払戻金
+    payout_nirentan = 0
+    for i in range(7, min(len(tbodies), 15)):
+        tds_pay = tbodies[i].find_all('td')
+        if tds_pay and '2連単' in tds_pay[0].get_text(strip=True):
+            if len(tds_pay) >= 3:
+                pay_text = tds_pay[2].get_text(strip=True)
+                m = re.search(r'[¥￥]([0-9,]+)', pay_text)
+                if m:
+                    payout_nirentan = int(m.group(1).replace(',', ''))
+            break
+
     return {
         'result_1st': ranking[0],
         'result_2nd': ranking[1],
         'result_3rd': ranking[2],
         'payout_sanrentan': payout,
+        'payout_nirentan': payout_nirentan,
     }
 
 
@@ -383,6 +396,94 @@ def scrape_odds_3t(session, race_date, venue_id, race_number, max_retries=3):
         time.sleep(2)
 
     logger.warning(f"3連単オッズ取得失敗: 場{venue_id} R{race_number}")
+    return None
+
+
+def _decode_odds_position_2t(position):
+    """30個のオッズ位置 → (1着, 2着) 艇番号に変換
+
+    boatrace.jp odds2t ページの td.oddsPoint 要素の並び順:
+    - column = position % 6 → 1着の艇番号インデックス (0-5)
+    - row = position // 6 → 2着候補インデックス (0-4, 1着を除く5艇)
+
+    Returns:
+        tuple(int, int): (1着, 2着) 艇番号 (1-6) or None
+    """
+    column = position % 6
+    row = position // 6
+
+    first = column + 1
+
+    # 2着: 1着を除いた艇のうち、row番目（昇順）
+    second_candidates = [b for b in range(1, 7) if b != first]
+    if row >= len(second_candidates):
+        return None
+    second = second_candidates[row]
+
+    return (first, second)
+
+
+def scrape_odds_2t(session, race_date, venue_id, race_number, max_retries=3):
+    """2連単オッズページから全30通りのオッズを取得
+
+    Args:
+        session: requests.Session
+        race_date: datetime.date
+        venue_id: int (1-24)
+        race_number: int (1-12)
+        max_retries: int リトライ回数
+
+    Returns:
+        dict: {"1-2": 4.5, ...} 倍率形式。取得失敗時はNone
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/odds2t?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+
+    for attempt in range(max_retries):
+        try:
+            r = session.get(url, timeout=15)
+            if r.status_code != 200:
+                logger.debug(f"2連単オッズ取得HTTP {r.status_code}: attempt {attempt+1}")
+                time.sleep(2)
+                continue
+        except Exception as e:
+            logger.debug(f"2連単オッズ取得エラー: {e}, attempt {attempt+1}")
+            time.sleep(2)
+            continue
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+        odds_cells = soup.find_all('td', class_='oddsPoint')
+
+        if len(odds_cells) < 30:
+            logger.debug(f"2連単オッズ要素不足: {len(odds_cells)}個 (30必要)")
+            time.sleep(2)
+            continue
+
+        odds_dict = {}
+        for pos, cell in enumerate(odds_cells[:30]):
+            combo = _decode_odds_position_2t(pos)
+            if combo is None:
+                continue
+
+            text = cell.get_text(strip=True)
+            if not text or text == '欠' or text == '特払':
+                continue
+
+            odds_val = _parse_float(text)
+            if odds_val and odds_val > 0:
+                key = f"{combo[0]}-{combo[1]}"
+                odds_dict[key] = odds_val
+
+        if odds_dict:
+            logger.info(
+                f"2連単オッズ取得: {len(odds_dict)}通り "
+                f"(場{venue_id} R{race_number})"
+            )
+            return odds_dict
+
+        time.sleep(2)
+
+    logger.warning(f"2連単オッズ取得失敗: 場{venue_id} R{race_number}")
     return None
 
 

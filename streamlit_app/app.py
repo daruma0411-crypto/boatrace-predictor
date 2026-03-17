@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "v9-6strategies"
+_DEPLOY_VERSION = "v9.1-8strategies"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -203,11 +203,14 @@ STRATEGY_NAMES = {
     'conservative_wide': 'D: 保守広域 (EV 0-1.2)',
     'bt_entropy': 'E: 広域確信 (EV 0-1.2 H<2.3)',
     'kelly_boost': 'F: 覚醒Kelly (EV 0.5-0.8 ×1.5)',
+    'niren_standard': 'G: 2連単 (EV 0.5-0.8)',
+    'filtered_standard': 'H: 厳選3連単 (場R制限)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'high_confidence',
     'conservative_wide', 'bt_entropy', 'kelly_boost',
+    'niren_standard', 'filtered_standard',
 ]
 
 
@@ -290,9 +293,13 @@ def period_and_cards_fragment():
     bankrolls = dashboard['bankrolls']
 
     n = len(STRATEGY_ORDER)
-    row1 = st.columns(min(n, 3))
-    row2 = st.columns(min(max(n - 3, 1), 3)) if n > 3 else []
-    all_cols = row1 + row2
+    cols_per_row = 3
+    rows_needed = (n + cols_per_row - 1) // cols_per_row
+    all_cols = []
+    for r in range(rows_needed):
+        remaining = n - r * cols_per_row
+        num_cols = min(remaining, cols_per_row)
+        all_cols.extend(st.columns(num_cols))
 
     for idx, strategy_key in enumerate(STRATEGY_ORDER):
         with all_cols[idx]:

@@ -1,6 +1,6 @@
 {
     "initial_bankroll": 200000,
-    "_comment": "v9: 元5戦略 + 覚醒Kelly (2026-03-17). 6戦略並行",
+    "_comment": "v9.1: 8戦略並行 A-F + G:2連単 + H:厳選3連単 (2026-03-17)",
     "strategies": {
         "conservative": {
             "kelly_fraction": 0.125,
@@ -99,6 +99,42 @@
             "filter_type": "none",
             "min_probability": 0.02,
             "kelly_prob_gain": 1.5
+        },
+        "niren_standard": {
+            "bet_mode": "nirentan",
+            "kelly_fraction": 0.25,
+            "max_total_bet_ratio": 0.03,
+            "max_ticket_bet_ratio": 0.012,
+            "min_expected_value": 0.5,
+            "max_expected_value": 0.8,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 3,
+            "min_bet_amount": 100,
+            "min_odds": 1.5,
+            "max_odds": 30,
+            "filter_type": "none",
+            "min_probability": 0.02,
+            "kelly_prob_gain": 1.0
+        },
+        "filtered_standard": {
+            "bet_mode": "sanrentan",
+            "kelly_fraction": 0.25,
+            "max_total_bet_ratio": 0.03,
+            "max_ticket_bet_ratio": 0.012,
+            "min_expected_value": 0.5,
+            "max_expected_value": 0.8,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 3,
+            "min_bet_amount": 100,
+            "min_odds": 1.5,
+            "max_odds": 30,
+            "filter_type": "none",
+            "min_probability": 0.02,
+            "kelly_prob_gain": 1.0,
+            "exclude_venues": [1, 7, 11, 12, 14, 16],
+            "exclude_race_numbers": [7, 8, 9, 10, 11, 12]
         }
     }
 }

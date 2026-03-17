@@ -246,7 +246,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # v8.2: 6戦略A/B比較 — v8集中 vs v7広域 + 保守広域
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost'}
+ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'niren_standard', 'filtered_standard'}
 
 
 def _get_today_bet_count(strategy_type):
@@ -329,7 +329,8 @@ class KellyBettingStrategy:
     def calculate_all_strategies(self, probs_1st, probs_2nd, probs_3rd,
                                   odds_data, bankroll=None,
                                   venue_id=None, race_number=None,
-                                  ensemble_predictions=None):
+                                  ensemble_predictions=None,
+                                  odds_2t=None):
         """全戦略を計算して返す
 
         既存A/B（filter_type=none）は従来パスを完全に通る。
@@ -349,6 +350,9 @@ class KellyBettingStrategy:
         sanrentan_probs = self._calculate_sanrentan_bets_conditional(
             probs_1st, probs_2nd, probs_3rd
         )
+
+        # 2連単確率（G戦略用）
+        nirentan_probs = self._calculate_nirentan_probs(probs_1st, probs_2nd)
 
         # 市場乖離度テーブル: model_prob / market_prob
         divergence_map = {}
@@ -382,6 +386,25 @@ class KellyBettingStrategy:
         for strategy_name, strategy_config in self.config['strategies'].items():
             # アクティブ戦略以外はスキップ
             if strategy_name not in ACTIVE_STRATEGIES:
+                results[strategy_name] = []
+                continue
+
+            # 場・レース番号の除外フィルタ
+            exclude_venues = strategy_config.get('exclude_venues', [])
+            if venue_id is not None and venue_id in exclude_venues:
+                logger.info(
+                    f"場除外フィルタ: {strategy_name} スキップ "
+                    f"(場{venue_id} in {exclude_venues})"
+                )
+                results[strategy_name] = []
+                continue
+
+            exclude_races = strategy_config.get('exclude_race_numbers', [])
+            if race_number is not None and race_number in exclude_races:
+                logger.info(
+                    f"R除外フィルタ: {strategy_name} スキップ "
+                    f"(R{race_number} in {exclude_races})"
+                )
                 results[strategy_name] = []
                 continue
 
@@ -462,11 +485,18 @@ class KellyBettingStrategy:
                     results[strategy_name] = []
                     continue
 
-            # --- 使用する確率の決定 ---
-            if filter_type == 'ensemble' and ensemble_sanrentan is not None:
-                use_sanrentan = ensemble_sanrentan
+            # --- bet_mode + 使用する確率の決定 ---
+            bet_mode = strategy_config.get('bet_mode', 'sanrentan')
+
+            if bet_mode == 'nirentan':
+                use_probs = nirentan_probs
+                use_odds = odds_2t if odds_2t else {}
+            elif filter_type == 'ensemble' and ensemble_sanrentan is not None:
+                use_probs = ensemble_sanrentan
+                use_odds = odds_data
             else:
-                use_sanrentan = sanrentan_probs
+                use_probs = sanrentan_probs
+                use_odds = odds_data
 
             # 各戦略で独立bankroll
             if bankroll is not None:
@@ -501,11 +531,12 @@ class KellyBettingStrategy:
                 continue
 
             bets = self._strategy_kelly(
-                strategy_config, use_sanrentan, odds_data, br,
+                strategy_config, use_probs, use_odds, br,
                 strategy_name, venue_id, race_number,
                 divergence_map=divergence_map,
                 dd_multiplier=dd_multiplier,
                 calibration_bands=self.calibration_bands,
+                bet_mode=bet_mode,
             )
             results[strategy_name] = bets
 
@@ -515,7 +546,8 @@ class KellyBettingStrategy:
                          bankroll, strategy_name,
                          venue_id=None, race_number=None,
                          divergence_map=None, dd_multiplier=1.0,
-                         calibration_bands=None):
+                         calibration_bands=None,
+                         bet_mode='sanrentan'):
         """共通ケリー戦略: EVゾーンフィルタ → Kelly計算
 
         v9: kelly_prob_gain パラメータでKelly計算時の確率をブースト。
@@ -630,7 +662,7 @@ class KellyBettingStrategy:
 
             if bet_amount >= min_bet:
                 candidates.append({
-                    'bet_type': 'sanrentan',
+                    'bet_type': bet_mode,
                     'combination': combo,
                     'amount': bet_amount,
                     'odds': raw_odds,
@@ -723,6 +755,37 @@ class KellyBettingStrategy:
                 sanrentan[key] = prob
 
         return sanrentan
+
+    def _calculate_nirentan_probs(self, probs_1st, probs_2nd):
+        """条件付き確率による2連単確率計算
+
+        P(i,j) = P(1st=i) × P(2nd=j|1st=i)
+        30通り (6×5) の確率辞書を返す。
+        """
+        nirentan = {}
+
+        for i in range(6):
+            for j in range(6):
+                if i == j:
+                    continue
+
+                p1 = probs_1st[i]
+                if p1 <= 0:
+                    continue
+
+                # P(2nd=j | 1st=i): i以外の中でのjの確率
+                remaining_2nd = [probs_2nd[x] for x in range(6) if x != i]
+                sum_remaining_2nd = sum(remaining_2nd)
+                if sum_remaining_2nd <= 0:
+                    continue
+                p2_given_1 = probs_2nd[j] / sum_remaining_2nd
+
+                prob = p1 * p2_given_1
+                if prob > 0:
+                    key = f"{i+1}-{j+1}"
+                    nirentan[key] = prob
+
+        return nirentan
 
     def save_bets(self, bets, prediction_id, race_id):
         """ベットをDBに保存（重複時はスキップ）"""

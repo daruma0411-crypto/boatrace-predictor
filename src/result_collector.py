@@ -47,21 +47,27 @@ class ResultCollector:
                 )
                 continue
 
-            # scrape_result は {result_1st, result_2nd, result_3rd, payout_sanrentan}
-            winning_combo = (
+            # scrape_result は {result_1st, result_2nd, result_3rd, payout_sanrentan, payout_nirentan}
+            winning_combo_3t = (
                 f"{result['result_1st']}-{result['result_2nd']}-{result['result_3rd']}"
             )
-            payoff_per_100 = result['payout_sanrentan'] or 0
+            winning_combo_2t = (
+                f"{result['result_1st']}-{result['result_2nd']}"
+            )
+            payoff_3t = result['payout_sanrentan'] or 0
+            payoff_2t = result.get('payout_nirentan', 0) or 0
 
             # 着順を races テーブルにも書き込む
             self._save_race_result(
-                today, venue_id, race_number, result, payoff_per_100
+                today, venue_id, race_number, result, payoff_3t
             )
 
-            # 該当レースのベットを精算
+            # 該当レースのベットを精算（3連単 + 2連単）
             count = self._settle_race_bets(
                 today, venue_id, race_number,
-                winning_combo, payoff_per_100,
+                winning_combo_3t, payoff_3t,
+                winning_combo_2t=winning_combo_2t,
+                payoff_2t=payoff_2t,
             )
             settled_count += count
             logger.info(
@@ -87,13 +93,14 @@ class ResultCollector:
             return cur.fetchall()
 
     def _settle_race_bets(self, race_date, venue_id, race_number,
-                          winning_combo, payoff_per_100):
-        """1レース分のベットを精算"""
+                          winning_combo, payoff_per_100,
+                          winning_combo_2t='', payoff_2t=0):
+        """1レース分のベットを精算（3連単・2連単対応）"""
         with get_db_connection() as conn:
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT b.id, b.combination, b.amount
+                SELECT b.id, b.combination, b.amount, b.bet_type
                 FROM bets b
                 JOIN races r ON b.race_id = r.id
                 WHERE r.race_date = %s
@@ -106,17 +113,34 @@ class ResultCollector:
             count = 0
             for bet in bets:
                 bet_combo = self._normalize_combo(bet['combination'])
-                if bet_combo == winning_combo:
-                    payout = int(bet['amount'] / 100 * payoff_per_100)
-                    cur.execute("""
-                        UPDATE bets SET result = 'win', payout = %s
-                        WHERE id = %s
-                    """, (payout, bet['id']))
+                bet_type = bet.get('bet_type', 'sanrentan') or 'sanrentan'
+
+                if bet_type == 'nirentan':
+                    # 2連単精算: 1着-2着の組み合わせで判定
+                    if bet_combo == winning_combo_2t:
+                        payout = int(bet['amount'] / 100 * payoff_2t)
+                        cur.execute("""
+                            UPDATE bets SET result = 'win', payout = %s
+                            WHERE id = %s
+                        """, (payout, bet['id']))
+                    else:
+                        cur.execute("""
+                            UPDATE bets SET result = 'lose', payout = 0
+                            WHERE id = %s
+                        """, (bet['id'],))
                 else:
-                    cur.execute("""
-                        UPDATE bets SET result = 'lose', payout = 0
-                        WHERE id = %s
-                    """, (bet['id'],))
+                    # 3連単精算（従来通り）
+                    if bet_combo == winning_combo:
+                        payout = int(bet['amount'] / 100 * payoff_per_100)
+                        cur.execute("""
+                            UPDATE bets SET result = 'win', payout = %s
+                            WHERE id = %s
+                        """, (payout, bet['id']))
+                    else:
+                        cur.execute("""
+                            UPDATE bets SET result = 'lose', payout = 0
+                            WHERE id = %s
+                        """, (bet['id'],))
                 count += 1
 
             cur.execute("""
