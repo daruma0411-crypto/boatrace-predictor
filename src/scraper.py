@@ -437,7 +437,8 @@ def scrape_odds_2t(session, race_date, venue_id, race_number, max_retries=3):
         dict: {"1-2": 4.5, ...} 倍率形式。取得失敗時はNone
     """
     hd = race_date.strftime('%Y%m%d')
-    url = f"{BASE_URL}/odds2t?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+    # odds2t はJS動的ロード。odds2tf (2連単+2連複一体型) はサーバーサイド描画
+    url = f"{BASE_URL}/odds2tf?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
 
     for attempt in range(max_retries):
         try:
@@ -452,7 +453,15 @@ def scrape_odds_2t(session, race_date, venue_id, race_number, max_retries=3):
             continue
 
         soup = BeautifulSoup(r.text, 'html.parser')
-        odds_cells = soup.find_all('td', class_='oddsPoint')
+
+        # odds2tf: table[1]=2連単(30個), table[2]=2連複(15個)
+        tables = soup.find_all('table')
+        if len(tables) < 2:
+            logger.debug(f"2連単テーブル不足: {len(tables)}個")
+            time.sleep(2)
+            continue
+        tan_table = tables[1]
+        odds_cells = tan_table.find_all('td', class_='oddsPoint')
 
         if len(odds_cells) < 30:
             logger.debug(f"2連単オッズ要素不足: {len(odds_cells)}個 (30必要)")
