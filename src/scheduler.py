@@ -725,6 +725,8 @@ class DynamicRaceScheduler:
                 race_number=race['race_number'],
                 ensemble_predictions=ensemble_preds,
                 odds_2t=odds_2t,
+                boats_data=boats_data,
+                race_data=race_data,
             )
 
             for strategy_type, bets in all_bets.items():

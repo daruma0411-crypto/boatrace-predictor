@@ -16,7 +16,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-_WORKER_VERSION = "v9.1-8strategies"
+_WORKER_VERSION = "v9.2-joseki-kelly"
 
 
 def _write_health(status, detail):

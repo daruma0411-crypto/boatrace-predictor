@@ -1,21 +1,16 @@
 """ケリー基準ベッティング戦略（最重要モジュール）
 
-v9: ハッパKelly複利戦略 (2026-03-17)
-2戦略のみ。同一EVゾーン(0.5-0.8)で「固定 vs 複利」を比較。
+v9.2: 定石Kelly戦略(I) 追加 (2026-03-18)
 
-Standard (ベースライン):
-  EV 0.5-0.8, kelly_prob_gain=1.0 → Kelly負 → ¥100固定
-  3/15-3/16実績のROIを維持する安全策。
+joseki_kelly (I戦略):
+  43,965レース分析に基づく定石フィルタリング:
+  - 本命場(b1≥58%)スキップ → オッズ圧縮で勝てない
+  - 荒れ場(b1≤52%)でベット → オッズに歪みあり
+  - グレー場(53-57%)はR1-R6のみ → 後半Rは本命化
+  キャリブレーション ×2.3（モデル過小推定補正）
+  リアルKelly: キャップ撤廃、Kelly≤0はスキップ
 
-High_confidence (覚醒モード):
-  EV 0.5-0.8, kelly_prob_gain=1.5 → Kelly計算時にP×1.5でハッパ
-  → Kelly正になり複利運用。1点上限¥1,000。
-  AIの過小評価を利益に変換できるか検証。
-
-ドローダウン防止:
-- bankroll 75%割れ → Kelly×0.75、50%割れ → Kelly×0.5
-- 当日5連敗 → 該当戦略スキップ
-- 1点上限 ¥1,000
+既存A-F+H戦略は並走継続。
 """
 import json
 import logging
@@ -33,15 +28,21 @@ CALIBRATION_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), 'config', 'calibration.json'
 )
 
-# --- 発見1: 場の荒れ度分類 (1号艇勝率ベース) ---
-# 堅い場 (1kaku > 60%): オッズ上限を締める
+# --- 場の荒れ度分類 (1号艇勝率ベース, 43,965レース分析) ---
+# 既存A-F用（動的オッズ上限調整）
 VENUE_STABLE = {18, 19, 24}  # 徳山, 下関, 大村
-# 荒れる場 (1kaku < 48%): オッズ上限を広げる
 VENUE_CHAOTIC = {2, 3, 4, 14}  # 戸田, 江戸川, 平和島, 鳴門
-
-# --- 発見2: レース番号の荒れ度 ---
 RACE_STABLE = {11, 12}     # R11-R12: 1kaku 67-69%
 RACE_CHAOTIC = {2, 3, 4}   # R2-R4: 1kaku 45-48%
+
+# --- 定石Kelly(I戦略)用: 3層分類 ---
+# 本命場 (b1≥58%): オッズ圧縮でROI 25.8% → ベットしない
+VENUE_HONMEI = {8, 11, 18, 19, 21, 24}  # 常滑, びわこ, 徳山, 下関, 芦屋, 大村
+# 荒れ場 (b1≤52%): オッズに歪みありROI 95.2% → ベットする
+VENUE_ARE = {2, 3, 4, 5, 6, 14, 15, 20}  # 戸田, 江戸川, 平和島, 多摩川, 浜名湖, 鳴門, 丸亀, 若松
+# グレー場 (53-57%): 条件付きベット（R1-R6のみ）
+# 上記2つに含まれない場 = {1, 7, 9, 10, 12, 13, 16, 17, 22, 23}
+# 桐生, 蒲郡, 津, 三国, 住之江, 尼崎, 児島, 宮島, 福岡, 唐津
 
 
 def _load_calibration():
@@ -246,7 +247,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # v8.2: 6戦略A/B比較 — v8集中 vs v7広域 + 保守広域
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'niren_standard', 'filtered_standard'}
+ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'joseki_kelly'}
 
 
 def _get_today_bet_count(strategy_type):
@@ -330,12 +331,14 @@ class KellyBettingStrategy:
                                   odds_data, bankroll=None,
                                   venue_id=None, race_number=None,
                                   ensemble_predictions=None,
-                                  odds_2t=None):
+                                  odds_2t=None,
+                                  boats_data=None, race_data=None):
         """全戦略を計算して返す
 
-        既存A/B（filter_type=none）は従来パスを完全に通る。
-        C-F戦略はフィルタ判定後にKelly計算。
-        ensemble_predictions: EnsemblePredictor.predict_all()の結果（戦略E用）
+        既存A-F+H戦略は従来パスを完全に通る。
+        joseki_kelly(I)は定石フィルタ + キャリブレーション + リアルKelly。
+        boats_data: 6艇の選手・モーター情報（定石スコアリング用）
+        race_data: 場・天候情報（定石スコアリング用）
         """
         # 5-6号艇軸: ログのみ（max_oddsフィルタに委ねる）
         skip_56 = _should_skip_by_top_boat(probs_1st)
@@ -407,6 +410,25 @@ class KellyBettingStrategy:
                 )
                 results[strategy_name] = []
                 continue
+
+            # --- 定石フィルタ (joseki_mode=true の戦略のみ) ---
+            if strategy_config.get('joseki_mode', False) and venue_id is not None:
+                if venue_id in VENUE_HONMEI:
+                    logger.info(
+                        f"定石フィルタ: {strategy_name} 本命場スキップ "
+                        f"(場{venue_id})"
+                    )
+                    results[strategy_name] = []
+                    continue
+                # グレー場: R1-R6のみ（R7-R12は本命化するためスキップ）
+                is_gray = venue_id not in VENUE_ARE
+                if is_gray and race_number is not None and race_number >= 7:
+                    logger.info(
+                        f"定石フィルタ: {strategy_name} グレー場後半Rスキップ "
+                        f"(場{venue_id} R{race_number})"
+                    )
+                    results[strategy_name] = []
+                    continue
 
             # 戦略別日次ベット数制限
             today_bets = _get_today_bet_count(strategy_name)
@@ -628,10 +650,16 @@ class KellyBettingStrategy:
                 odds_discount = odds_discount_static
             discounted_odds = raw_odds * odds_discount
 
-            # キャリブレーション: モデル確率を実績に基づき補正
-            cal_prob = _apply_calibration(prob, calibration_bands)
+            # キャリブレーション
+            flat_cal = config.get('calibration_factor', 0)
+            if flat_cal > 0:
+                # 定石戦略: フラット倍率キャリブレーション (×2.3等)
+                cal_prob = min(prob * flat_cal, 0.95)
+            else:
+                # 既存戦略: 確率帯別キャリブレーション
+                cal_prob = _apply_calibration(prob, calibration_bands)
 
-            # EV計算（生確率ベース、フィルタ判定用）: EV = cal_prob × discounted_odds
+            # EV計算（補正確率ベース）: EV = cal_prob × discounted_odds
             ev = cal_prob * discounted_odds
             if ev < min_ev:
                 skip_counts['low_ev'] += 1
@@ -644,21 +672,29 @@ class KellyBettingStrategy:
                 skip_counts['kelly_neg'] += 1
                 continue
 
-            # ケリー基準: ハッパ係数(kelly_prob_gain)で確率をブースト
-            # gain=1.0 → 従来通りKelly負 → ¥100固定
-            # gain=1.5 → P×1.5でKelly正 → 複利運用
-            boosted_prob = min(cal_prob * kelly_prob_gain, 0.99)  # 上限99%
+            # ケリー基準
+            real_kelly = config.get('real_kelly', False)
+            boosted_prob = min(cal_prob * kelly_prob_gain, 0.99)
             q_boosted = 1.0 - boosted_prob
             kelly = (b * boosted_prob - q_boosted) / b
             if kelly > 0:
-                # Kelly正: 複利サイジング（1点上限¥1,000）
                 kelly_amount = bankroll * kelly * kelly_frac * dd_multiplier
-                kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
+                if real_kelly:
+                    # リアルKelly: キャップなし（max_ticket制限のみ）
+                    kelly_amount = max(min_bet, min(max_ticket, kelly_amount))
+                else:
+                    # 既存: ¥1,000キャップ
+                    kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
                 bet_amount = int(round(kelly_amount / 100) * 100)
             else:
-                # Kelly負: EVゾーンフィルタ通過済みなら最低額ベット
-                bet_amount = min_bet
-                kelly = 0.0
+                if real_kelly:
+                    # リアルKelly: Kelly負 → スキップ（¥100の無駄打ちしない）
+                    skip_counts['kelly_neg'] += 1
+                    continue
+                else:
+                    # 既存: EVフィルタ通過済みなら最低額ベット
+                    bet_amount = min_bet
+                    kelly = 0.0
 
             if bet_amount >= min_bet:
                 candidates.append({
