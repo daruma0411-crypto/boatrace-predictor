@@ -140,7 +140,7 @@
             "_comment": "I戦略: 定石フィルタ + ×2.3キャリブ + リアルKelly",
             "joseki_mode": true,
             "real_kelly": true,
-            "calibration_factor": 2.3,
+            "calibration_factor": 1.15,
             "bet_mode": "sanrentan",
             "kelly_fraction": 0.25,
             "max_total_bet_ratio": 0.05,
