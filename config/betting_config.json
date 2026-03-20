@@ -137,7 +137,7 @@
             "exclude_race_numbers": [7, 8, 9, 10, 11, 12]
         },
         "joseki_kelly": {
-            "_comment": "I戦略: 定石フィルタ + ×2.3キャリブ + リアルKelly",
+            "_comment": "I戦略: 停止 (0勝80敗)",
             "joseki_mode": true,
             "real_kelly": true,
             "calibration_factor": 1.15,
@@ -156,6 +156,26 @@
             "filter_type": "none",
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0
+        },
+        "confident_boost": {
+            "_comment": "J戦略: C(entropy<2.3) + F(×1.5 Kelly) + 本命場skip",
+            "joseki_mode": true,
+            "bet_mode": "sanrentan",
+            "kelly_fraction": 0.25,
+            "max_total_bet_ratio": 0.03,
+            "max_ticket_bet_ratio": 0.012,
+            "min_expected_value": 0.5,
+            "max_expected_value": 0.8,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 3,
+            "min_bet_amount": 100,
+            "min_odds": 1.5,
+            "max_odds": 50,
+            "filter_type": "entropy",
+            "max_entropy": 2.3,
+            "min_probability": 0.02,
+            "kelly_prob_gain": 1.5
         }
     }
 }

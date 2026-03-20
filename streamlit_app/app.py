@@ -203,15 +203,16 @@ STRATEGY_NAMES = {
     'conservative_wide': 'D: 保守広域 (EV 0-1.2)',
     'bt_entropy': 'E: 広域確信 (EV 0-1.2 H<2.3)',
     'kelly_boost': 'F: 覚醒Kelly (EV 0.5-0.8 ×1.5)',
-    'niren_standard': 'G: 2連単 (停止中)',
+    'niren_standard': 'G: 2連単 (停止)',
     'filtered_standard': 'H: 厳選3連単 (場R制限)',
-    'joseki_kelly': 'I: 定石Kelly (×2.3 リアルK)',
+    'joseki_kelly': 'I: 定石Kelly (停止)',
+    'confident_boost': 'J: C+F合体 (entropy+覚醒+荒場)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'high_confidence',
     'conservative_wide', 'bt_entropy', 'kelly_boost',
-    'filtered_standard', 'joseki_kelly',
+    'filtered_standard', 'confident_boost',
 ]
 
 

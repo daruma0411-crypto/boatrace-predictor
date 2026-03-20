@@ -247,7 +247,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # v8.2: 6戦略A/B比較 — v8集中 vs v7広域 + 保守広域
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'joseki_kelly'}
+ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'confident_boost'}
 
 
 def _get_today_bet_count(strategy_type):
