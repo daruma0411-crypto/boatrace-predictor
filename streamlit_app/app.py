@@ -207,12 +207,13 @@ STRATEGY_NAMES = {
     'filtered_standard': 'H: 厳選3連単 (場R制限)',
     'joseki_kelly': 'I: 定石Kelly (停止)',
     'confident_boost': 'J: C+F合体 (entropy+覚醒+荒場)',
+    'elite_hybrid': 'K: J+H合体 (entropy+場制限+56skip+gain2.0)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'high_confidence',
     'conservative_wide', 'bt_entropy', 'kelly_boost',
-    'filtered_standard', 'confident_boost',
+    'filtered_standard', 'confident_boost', 'elite_hybrid',
 ]
 
 

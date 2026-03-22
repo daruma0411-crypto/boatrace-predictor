@@ -247,7 +247,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # v8.2: 6戦略A/B比較 — v8集中 vs v7広域 + 保守広域
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'confident_boost'}
+ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'confident_boost', 'elite_hybrid'}
 
 
 def _get_today_bet_count(strategy_type):
@@ -340,7 +340,7 @@ class KellyBettingStrategy:
         boats_data: 6艇の選手・モーター情報（定石スコアリング用）
         race_data: 場・天候情報（定石スコアリング用）
         """
-        # 5-6号艇軸: ログのみ（max_oddsフィルタに委ねる）
+        # 5-6号艇軸: 戦略設定の skip_56=true で有効化
         skip_56 = _should_skip_by_top_boat(probs_1st)
         if skip_56:
             top_boat = max(range(6), key=lambda i: probs_1st[i]) + 1
@@ -411,6 +411,16 @@ class KellyBettingStrategy:
                 results[strategy_name] = []
                 continue
 
+            # --- 5-6号艇スキップ (skip_56=true の戦略のみ) ---
+            if strategy_config.get('skip_56', False) and skip_56:
+                top_boat = max(range(6), key=lambda i: probs_1st[i]) + 1
+                logger.info(
+                    f"5-6号艇スキップ: {strategy_name} "
+                    f"(モデル1着予測={top_boat}号艇, 場{venue_id} R{race_number})"
+                )
+                results[strategy_name] = []
+                continue
+
             # --- 定石フィルタ (joseki_mode=true の戦略のみ) ---
             if strategy_config.get('joseki_mode', False) and venue_id is not None:
                 if venue_id in VENUE_HONMEI:
@@ -420,15 +430,16 @@ class KellyBettingStrategy:
                     )
                     results[strategy_name] = []
                     continue
-                # グレー場: R1-R6のみ（R7-R12は本命化するためスキップ）
-                is_gray = venue_id not in VENUE_ARE
-                if is_gray and race_number is not None and race_number >= 7:
-                    logger.info(
-                        f"定石フィルタ: {strategy_name} グレー場後半Rスキップ "
-                        f"(場{venue_id} R{race_number})"
-                    )
-                    results[strategy_name] = []
-                    continue
+                # グレー場: R1-R6のみ（joseki_skip_gray_late=falseで無効化可）
+                if strategy_config.get('joseki_skip_gray_late', True):
+                    is_gray = venue_id not in VENUE_ARE
+                    if is_gray and race_number is not None and race_number >= 7:
+                        logger.info(
+                            f"定石フィルタ: {strategy_name} グレー場後半Rスキップ "
+                            f"(場{venue_id} R{race_number})"
+                        )
+                        results[strategy_name] = []
+                        continue
 
             # 戦略別日次ベット数制限
             today_bets = _get_today_bet_count(strategy_name)
@@ -679,12 +690,13 @@ class KellyBettingStrategy:
             kelly = (b * boosted_prob - q_boosted) / b
             if kelly > 0:
                 kelly_amount = bankroll * kelly * kelly_frac * dd_multiplier
+                kelly_cap = config.get('kelly_cap', 1000)
                 if real_kelly:
                     # リアルKelly: キャップなし（max_ticket制限のみ）
                     kelly_amount = max(min_bet, min(max_ticket, kelly_amount))
                 else:
-                    # 既存: ¥1,000キャップ
-                    kelly_amount = max(min_bet, min(1000, max_ticket, kelly_amount))
+                    # 設定可能キャップ (デフォルト¥1,000)
+                    kelly_amount = max(min_bet, min(kelly_cap, max_ticket, kelly_amount))
                 bet_amount = int(round(kelly_amount / 100) * 100)
             else:
                 if real_kelly:

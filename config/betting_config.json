@@ -1,6 +1,6 @@
 {
     "initial_bankroll": 200000,
-    "_comment": "v9.2: 8戦略並行 A-F + H:厳選 + I:定石Kelly (2026-03-18)",
+    "_comment": "v9.3: K戦略(J+H合体) 追加 (2026-03-22)",
     "strategies": {
         "conservative": {
             "kelly_fraction": 0.125,
@@ -176,6 +176,30 @@
             "max_entropy": 2.3,
             "min_probability": 0.02,
             "kelly_prob_gain": 1.5
+        },
+        "elite_hybrid": {
+            "_comment": "K戦略: J(entropy+覚醒) + H(場制限) + 5.6skip + gain2.0 + cap1500",
+            "joseki_mode": true,
+            "joseki_skip_gray_late": false,
+            "skip_56": true,
+            "bet_mode": "sanrentan",
+            "kelly_fraction": 0.25,
+            "max_total_bet_ratio": 0.03,
+            "max_ticket_bet_ratio": 0.012,
+            "min_expected_value": 0.5,
+            "max_expected_value": 0.8,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 3,
+            "min_bet_amount": 100,
+            "min_odds": 1.5,
+            "max_odds": 30,
+            "filter_type": "entropy",
+            "max_entropy": 2.3,
+            "min_probability": 0.02,
+            "kelly_prob_gain": 2.0,
+            "kelly_cap": 1500,
+            "exclude_venues": [14, 20, 22]
         }
     }
 }
