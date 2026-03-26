@@ -82,7 +82,7 @@ class RealtimePredictor:
         elif input_dim <= FeatureEngineer.TOTAL_DIM:
             self.feature_engineer = FeatureEngineer()
             self.feature_mask = None
-            logger.info(f"V3 model loaded [FeatureEngineer({input_dim}dim)]")
+            logger.info(f"V4 model loaded [FeatureEngineer({input_dim}dim)]")
         else:
             self.feature_engineer = FeatureEngineerLegacy()
             self.feature_mask = None
@@ -245,7 +245,7 @@ class EnsemblePredictor:
             self._fe = FeatureEngineer()
             self.feature_mask = None
             logger.info(
-                f"V3 ensemble loaded [FeatureEngineer({input_dim}dim), "
+                f"V4 ensemble loaded [FeatureEngineer({input_dim}dim), "
                 f"{len(self.models)} models]"
             )
         else:
