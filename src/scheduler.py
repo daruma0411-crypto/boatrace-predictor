@@ -533,6 +533,15 @@ class DynamicRaceScheduler:
         vid, rn = race['venue_id'], race['race_number']
         logger.info(f"predict_and_bet_safe開始: 場{vid} R{rn}")
         try:
+            # 重複ベット防止: スクレイピング前にDBレベルでアトミックにレース処理権を取得
+            if not self._try_claim_race(race['race_id']):
+                logger.info(
+                    f"スキップ(処理済): 場{vid} R{rn}"
+                )
+                return
+        except Exception:
+            return
+        try:
             with get_db_connection() as conn:
                 cur = conn.cursor()
                 cur.execute(
@@ -542,13 +551,6 @@ class DynamicRaceScheduler:
         except Exception:
             pass
         try:
-            # 重複ベット防止: DB レベルでアトミックにレース処理権を取得
-            if not self._try_claim_race(race['race_id']):
-                logger.info(
-                    f"スキップ(処理済): 場{race['venue_id']} R{race['race_number']}"
-                )
-                return
-
             today = now_jst().date()
             deadline = race.get(
                 'deadline_time',
