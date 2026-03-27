@@ -10,6 +10,9 @@ import logging
 import os
 import numpy as np
 import torch
+# メモリ節約: PyTorchの内部スレッド数を制限（デフォルトはCPUコア数）
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
 from src.models import load_model
 from src.features import FeatureEngineer, FeatureEngineerLegacy
 from src.database import get_db_connection
@@ -198,13 +201,14 @@ class RealtimePredictor:
 class EnsemblePredictor:
     """4モデルアンサンブル予測: 特徴量計算1回、推論だけ各モデルで実行"""
 
-    def __init__(self, model_paths=None):
+    def __init__(self, model_paths=None, shared_predictor=None):
         self.model_paths = model_paths or ENSEMBLE_MODEL_PATHS
         self.models = {}          # path → model
         self.feature_mask = None  # 全モデル共通マスク
         self._fe = None           # 全モデル共通FeatureEngineer
         self._initialized = False
         self.device = torch.device('cpu')
+        self._shared_predictor = shared_predictor  # RealtimePredictorのモデルを共有
 
     def _ensure_models(self):
         """全モデルを遅延ロード + マスク確定"""
@@ -216,6 +220,13 @@ class EnsemblePredictor:
         for path in self.model_paths:
             if not os.path.exists(path):
                 logger.warning(f"アンサンブルモデル未発見: {path}")
+                continue
+            # RealtimePredictorと同じモデルパスなら共有（2重ロード防止）
+            if (self._shared_predictor is not None
+                    and self._shared_predictor.model is not None
+                    and path == self._shared_predictor.model_path):
+                self.models[path] = self._shared_predictor.model
+                logger.info(f"アンサンブルモデル共有: {path} (RealtimePredictorと共有)")
                 continue
             try:
                 model = load_model(path, self.device)

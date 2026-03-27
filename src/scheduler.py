@@ -2,6 +2,7 @@
 
 pyjpboatrace を廃止し、公式サイト直接パースで当日スケジュール取得。
 """
+import gc
 import time
 import logging
 from datetime import datetime, timedelta
@@ -35,7 +36,9 @@ class DynamicRaceScheduler:
     def __init__(self, model_path='models/boatrace_model.pth'):
         self.collector = RealtimeDataCollector()
         self.predictor = RealtimePredictor(model_path)
-        self.ensemble_predictor = EnsemblePredictor()
+        self.ensemble_predictor = EnsemblePredictor(
+            shared_predictor=self.predictor
+        )
         self.betting = KellyBettingStrategy()
         self.result_collector = ResultCollector()
         self.processed_races = set()
@@ -309,6 +312,9 @@ class DynamicRaceScheduler:
                                 logger.info(f"race_processing クリア: {deleted}件")
                     except Exception as e:
                         logger.warning(f"race_processing クリア失敗: {e}")
+                    # scheduler_healthの古いレコードも削除
+                    self._cleanup_health_table()
+                    gc.collect()
                     schedule = self.fetch_daily_schedule()
                     if schedule:
                         self._schedule_date = today
@@ -787,6 +793,24 @@ class DynamicRaceScheduler:
                     )
             except Exception:
                 pass
+        finally:
+            # メモリ解放: 推論で生成された一時テンソル等を回収
+            gc.collect()
+
+    def _cleanup_health_table(self):
+        """scheduler_healthテーブルの古いレコードを削除（メモリ・性能対策）"""
+        try:
+            with get_db_connection() as conn:
+                cur = conn.cursor()
+                cur.execute("""
+                    DELETE FROM scheduler_health
+                    WHERE created_at < NOW() - INTERVAL '48 hours'
+                """)
+                deleted = cur.rowcount
+                if deleted > 0:
+                    logger.info(f"scheduler_health クリーンアップ: {deleted}件削除")
+        except Exception as e:
+            logger.warning(f"scheduler_health クリーンアップ失敗: {e}")
 
     def _fetch_and_store_boats(self, race_date, venue_id, race_number, race_id):
         """出走表をスクレイピングしてDB格納、boats_dataとして返す"""
