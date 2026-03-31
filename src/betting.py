@@ -351,13 +351,21 @@ class KellyBettingStrategy:
             )
             return {s: [] for s in self.config['strategies']}
 
+        # 1号艇軸スキップ: モデルが1号艇1着と予測 → エッジなし（市場織り込み済み）
+        top_boat = max(range(6), key=lambda i: probs_1st[i])
+        if top_boat == 0:  # 0-indexed: 0=1号艇
+            logger.info(
+                f"1号艇軸スキップ: 全戦略スキップ "
+                f"(場{venue_id} R{race_number}, P={probs_1st[0]:.3f})"
+            )
+            return {s: [] for s in self.config['strategies']}
+
         # 5-6号艇軸: 戦略設定の skip_56=true で有効化
         skip_56 = _should_skip_by_top_boat(probs_1st)
         if skip_56:
-            top_boat = max(range(6), key=lambda i: probs_1st[i]) + 1
             logger.info(
                 f"5-6号艇軸: 注意 "
-                f"(モデル1着予測={top_boat}号艇, 場{venue_id} R{race_number})"
+                f"(モデル1着予測={top_boat+1}号艇, 場{venue_id} R{race_number})"
             )
 
         # 通常の3連単確率（A/B/C/D/F用）
