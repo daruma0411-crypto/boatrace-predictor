@@ -1,25 +1,34 @@
-"""モデル訓練スクリプト v3: Feature Selection (208→43次元) + Focal Loss
+"""モデル訓練スクリプト v5: StandardScaler正規化 + 時系列分割
 
-v3変更点:
-  - 特徴量: 208次元→43次元 (重要度分析で有効な特徴量のみ残留)
-  - モデル入力: input_dim=43, hidden_dims=[256, 128, 64] (NN縮小)
-  - Focal Loss / Early Stopping / LRスケジューラーは v2 踏襲
+v5変更点:
+  - 全特徴量をStandardScaler (mean=0, std=1) に正規化
+  - Train/Val分割をランダム→時系列順 (80/20) に変更
+  - スケーラーをmodels/feature_scaler.pklに保存（推論時に同じ変換を適用）
+
+v4: 76次元 (直前情報復活)
+v3: 43次元 (Feature Selection)
 """
 import sys
 import os
 import logging
+import pickle
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
+from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.models import BoatraceMultiTaskModel, BoatraceMultiTaskLoss, save_model
 from src.features import FeatureEngineer
 from src.database import get_db_connection
+
+SCALER_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'models', 'feature_scaler.pkl'
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -181,12 +190,26 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
     logger.info(f"2着クラス重み: {['%.2f' % w for w in cw_2nd.tolist()]}")
     logger.info(f"3着クラス重み: {['%.2f' % w for w in cw_3rd.tolist()]}")
 
-    # 訓練/検証 分割 (8:2)
+    # 訓練/検証 時系列分割 (8:2) — データはrace_date昇順で取得済み
     n = len(X)
     split = int(n * 0.8)
-    indices = np.random.permutation(n)
-    train_idx = indices[:split]
-    val_idx = indices[split:]
+    train_idx = list(range(0, split))
+    val_idx = list(range(split, n))
+    logger.info(f"時系列分割: 訓練={len(train_idx):,}件 (古い80%), "
+                f"検証={len(val_idx):,}件 (新しい20%)")
+
+    # StandardScaler: 訓練データでfit、検証データにはtransformのみ
+    scaler = StandardScaler()
+    X[train_idx] = scaler.fit_transform(X[train_idx])
+    X[val_idx] = scaler.transform(X[val_idx])
+
+    # スケーラーを保存（推論時に同じ変換を適用）
+    os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+    with open(SCALER_PATH, 'wb') as f:
+        pickle.dump(scaler, f)
+    logger.info(f"StandardScaler保存: {SCALER_PATH}")
+    logger.info(f"  mean range: [{scaler.mean_.min():.3f}, {scaler.mean_.max():.3f}]")
+    logger.info(f"  std range:  [{scaler.scale_.min():.3f}, {scaler.scale_.max():.3f}]")
 
     train_dataset = TensorDataset(
         torch.FloatTensor(X[train_idx]),
@@ -301,7 +324,7 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': focal_gamma,
                 'dropout': dropout,
-                'version': 'v4_208dim_weather',
+                'version': 'v5_scaled_timesplit',
             })
         else:
             patience_counter += 1

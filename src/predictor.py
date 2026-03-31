@@ -1,5 +1,9 @@
 """リアルタイム予測エンジン
 
+v6: StandardScaler対応
+    - models/feature_scaler.pkl が存在すれば自動で正規化を適用
+    - 学習時と推論時で同一のスケーラーを使用（スケール不統一問題を解消）
+
 v5: 特徴量選別モデル対応
     - feature_mask_208.npy + input_dim=23 → FeatureEngineerLegacy(208) + mask → 23次元
     - input_dim > 43 → FeatureEngineerLegacy (v2互換)
@@ -8,6 +12,7 @@ v5: 特徴量選別モデル対応
 import json
 import logging
 import os
+import pickle
 import numpy as np
 import torch
 # メモリ節約: PyTorchの内部スレッド数を制限（デフォルトはCPUコア数）
@@ -30,6 +35,22 @@ ENSEMBLE_MODEL_PATHS = [
 
 # 特徴量マスク (208→N次元選別)
 FEATURE_MASK_PATH = 'models/feature_mask_208.npy'
+
+# StandardScaler (v5学習で保存)
+FEATURE_SCALER_PATH = 'models/feature_scaler.pkl'
+
+
+def _load_feature_scaler():
+    """StandardScalerをロード。ファイルなければ None"""
+    if os.path.exists(FEATURE_SCALER_PATH):
+        try:
+            with open(FEATURE_SCALER_PATH, 'rb') as f:
+                scaler = pickle.load(f)
+            logger.info(f"StandardScalerロード: {FEATURE_SCALER_PATH}")
+            return scaler
+        except Exception as e:
+            logger.warning(f"StandardScalerロード失敗: {e}")
+    return None
 
 
 def _load_feature_mask():
@@ -56,17 +77,18 @@ def _apply_mask(features, mask):
 
 
 class RealtimePredictor:
-    """リアルタイム予測: 特徴量生成→モデル推論→結果保存"""
+    """リアルタイム予測: 特徴量生成→正規化→モデル推論→結果保存"""
 
     def __init__(self, model_path='models/boatrace_model.pth'):
         self.model_path = model_path
         self.model = None
         self.feature_engineer = None
         self.feature_mask = None
+        self.feature_scaler = None
         self.device = torch.device('cpu')
 
     def _ensure_model(self):
-        """モデルをロード（未ロード時）。特徴量マスクも確定"""
+        """モデルをロード（未ロード時）。特徴量マスク・スケーラーも確定"""
         if self.model is not None:
             return
 
@@ -91,12 +113,20 @@ class RealtimePredictor:
             self.feature_mask = None
             logger.info(f"V2互換 model loaded [FeatureEngineerLegacy({input_dim}dim)]")
 
+        # StandardScaler（v5学習で保存されていれば適用）
+        self.feature_scaler = _load_feature_scaler()
+
     def predict(self, race_data, boats_data):
-        """特徴量生成→(マスク適用)→PyTorchモデル推論→確率を返却"""
+        """特徴量生成→(マスク適用)→(StandardScaler正規化)→PyTorchモデル推論→確率を返却"""
         self._ensure_model()
 
         features = self.feature_engineer.transform(race_data, boats_data)
         features = _apply_mask(features, self.feature_mask)
+
+        # StandardScaler正規化（スケーラーが存在すれば適用）
+        if self.feature_scaler is not None:
+            features = self.feature_scaler.transform(features.reshape(1, -1)).flatten()
+
         x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
@@ -205,6 +235,7 @@ class EnsemblePredictor:
         self.model_paths = model_paths or ENSEMBLE_MODEL_PATHS
         self.models = {}          # path → model
         self.feature_mask = None  # 全モデル共通マスク
+        self.feature_scaler = None  # StandardScaler
         self._fe = None           # 全モデル共通FeatureEngineer
         self._initialized = False
         self.device = torch.device('cpu')
@@ -267,6 +298,9 @@ class EnsemblePredictor:
                 f"{len(self.models)} models]"
             )
 
+        # StandardScaler（v5学習で保存されていれば適用）
+        self.feature_scaler = _load_feature_scaler()
+
         self._initialized = True
 
     def predict_all(self, race_data, boats_data):
@@ -283,6 +317,11 @@ class EnsemblePredictor:
         # 特徴量計算は1回だけ（全モデル共通）
         features = self._fe.transform(race_data, boats_data)
         features = _apply_mask(features, self.feature_mask)
+
+        # StandardScaler正規化（スケーラーが存在すれば適用）
+        if self.feature_scaler is not None:
+            features = self.feature_scaler.transform(features.reshape(1, -1)).flatten()
+
         x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
 
         results = []

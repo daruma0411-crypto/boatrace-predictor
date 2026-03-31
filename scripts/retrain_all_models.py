@@ -1,4 +1,4 @@
-"""全モデル一括再学習スクリプト v2: Focal Loss + 1着均等重み
+"""全モデル一括再学習スクリプト v3: StandardScaler正規化 + 時系列分割
 
 4つのアンサンブルモデルを異なる Focal Loss gamma で訓練:
   - boatrace_model.pth:      gamma=2.0 (標準)
@@ -6,12 +6,9 @@
   - boatrace_model_s07.pth:  gamma=2.5 (やや強め)
   - boatrace_model_s085.pth: gamma=3.0 (アグレッシブ)
 
-v2変更点:
-  - 1着: クラス重みなし (均等) → 3号艇バイアス解消
-  - 2着/3着: smoothing=0.7 (軽い補正)
-  - FocalLoss (gamma可変) → メリハリのある確率分布
-  - Dropout: 0.15
-  - lr=0.0005, patience=15, scheduler patience=8/factor=0.7
+v3変更点:
+  - StandardScaler正規化 (train_model.pyと共通スケーラー)
+  - 時系列分割 (ランダム→時系列順80/20)
 
 使い方:
     DATABASE_URL=xxx python scripts/retrain_all_models.py
@@ -20,14 +17,16 @@ v2変更点:
 import sys
 import os
 import logging
+import pickle
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from src.models import BoatraceMultiTaskModel, BoatraceMultiTaskLoss, save_model
-from scripts.train_model import load_training_data_fast, compute_class_weights
+from scripts.train_model import load_training_data_fast, compute_class_weights, SCALER_PATH
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -149,7 +148,7 @@ def train_one_model(X_train, y1_train, y2_train, y3_train,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': gamma,
                 'dropout': dropout,
-                'version': 'v4_208dim_weather',
+                'version': 'v5_scaled_timesplit',
             })
         else:
             patience_counter += 1
@@ -189,12 +188,26 @@ def main():
 
     logger.info(f"データ: {len(X):,}件, 次元: {X.shape[1]}")
 
-    # 共通の訓練/検証分割
+    # 時系列分割 (80/20) — データはrace_date昇順で取得済み
     n = len(X)
     split = int(n * 0.8)
-    indices = np.random.permutation(n)
-    train_idx = indices[:split]
-    val_idx = indices[split:]
+    train_idx = list(range(0, split))
+    val_idx = list(range(split, n))
+    logger.info(f"時系列分割: 訓練={len(train_idx):,}件 (古い80%), "
+                f"検証={len(val_idx):,}件 (新しい20%)")
+
+    # StandardScaler: 訓練データでfit、検証データにはtransformのみ
+    scaler = StandardScaler()
+    X[train_idx] = scaler.fit_transform(X[train_idx])
+    X[val_idx] = scaler.transform(X[val_idx])
+
+    # スケーラー保存（推論時に同じ変換を適用）
+    os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+    with open(SCALER_PATH, 'wb') as f:
+        pickle.dump(scaler, f)
+    logger.info(f"StandardScaler保存: {SCALER_PATH}")
+    logger.info(f"  mean range: [{scaler.mean_.min():.3f}, {scaler.mean_.max():.3f}]")
+    logger.info(f"  std range:  [{scaler.scale_.min():.3f}, {scaler.scale_.max():.3f}]")
 
     X_train, X_val = X[train_idx], X[val_idx]
     y1_train, y1_val = y1[train_idx], y1[val_idx]

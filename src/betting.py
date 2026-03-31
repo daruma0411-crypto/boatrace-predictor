@@ -699,14 +699,9 @@ class KellyBettingStrategy:
                     kelly_amount = max(min_bet, min(kelly_cap, max_ticket, kelly_amount))
                 bet_amount = int(round(kelly_amount / 100) * 100)
             else:
-                if real_kelly:
-                    # リアルKelly: Kelly負 → スキップ（¥100の無駄打ちしない）
-                    skip_counts['kelly_neg'] += 1
-                    continue
-                else:
-                    # 既存: EVフィルタ通過済みなら最低額ベット
-                    bet_amount = min_bet
-                    kelly = 0.0
+                # Kelly≤0 → 全戦略でスキップ（EV<1.0の出血を止める）
+                skip_counts['kelly_neg'] += 1
+                continue
 
             if bet_amount >= min_bet:
                 candidates.append({
