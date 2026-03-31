@@ -400,3 +400,68 @@ class EnsemblePredictor:
             })
 
         return results
+
+
+class ArePredictor:
+    """荒れ専門モデル (Model B): 2-6号艇の1着予測に特化
+
+    1着ヘッド: 5クラス (2号艇→idx0, ..., 6号艇→idx4)
+    2着/3着ヘッド: 6クラス (通常通り)
+    """
+
+    ARE_MODEL_PATH = 'models/boatrace_model_are.pth'
+    ARE_SCALER_PATH = 'models/feature_scaler_are.pkl'
+
+    def __init__(self):
+        self.model = None
+        self.feature_engineer = None
+        self.feature_scaler = None
+        self.calibrators = None
+        self.device = torch.device('cpu')
+        self._initialized = False
+
+    def _ensure_model(self):
+        if self._initialized:
+            return
+        if not os.path.exists(self.ARE_MODEL_PATH):
+            logger.warning(f"荒れ専門モデル未発見: {self.ARE_MODEL_PATH}")
+            self._initialized = True
+            return
+
+        self.model = load_model(self.ARE_MODEL_PATH, self.device)
+        self.feature_engineer = FeatureEngineer()
+
+        # 専用スケーラー
+        if os.path.exists(self.ARE_SCALER_PATH):
+            with open(self.ARE_SCALER_PATH, 'rb') as f:
+                self.feature_scaler = pickle.load(f)
+            logger.info(f"荒れ専門スケーラーロード: {self.ARE_SCALER_PATH}")
+
+        self._initialized = True
+        logger.info(f"荒れ専門モデルロード: {self.ARE_MODEL_PATH}")
+
+    def predict(self, race_data, boats_data):
+        """荒れ専門予測: 5クラス1着 + 6クラス2着3着"""
+        self._ensure_model()
+        if self.model is None:
+            return None
+
+        features = self.feature_engineer.transform(race_data, boats_data)
+        if self.feature_scaler is not None:
+            features = self.feature_scaler.transform(
+                features.reshape(1, -1)
+            ).flatten()
+
+        x = torch.FloatTensor(features).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            out_1st, out_2nd, out_3rd = self.model(x)
+
+        probs_1st = torch.softmax(out_1st, dim=1).squeeze().numpy()
+        probs_2nd = torch.softmax(out_2nd, dim=1).squeeze().numpy()
+        probs_3rd = torch.softmax(out_3rd, dim=1).squeeze().numpy()
+
+        return {
+            'probs_1st': probs_1st.tolist(),  # 5クラス
+            'probs_2nd': probs_2nd.tolist(),  # 6クラス
+            'probs_3rd': probs_3rd.tolist(),  # 6クラス
+        }

@@ -251,7 +251,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
 # v8.2: 6戦略A/B比較 — v8集中 vs v7広域 + 保守広域
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'confident_boost', 'elite_hybrid', 'mc_quarter_kelly'}
+ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'confident_boost', 'elite_hybrid', 'mc_quarter_kelly', 'are_standard', 'mc_are'}
 
 
 def _get_today_bet_count(strategy_type):
@@ -336,13 +336,13 @@ class KellyBettingStrategy:
                                   venue_id=None, race_number=None,
                                   ensemble_predictions=None,
                                   odds_2t=None,
-                                  boats_data=None, race_data=None):
+                                  boats_data=None, race_data=None,
+                                  are_prediction=None):
         """全戦略を計算して返す
 
-        既存A-F+H戦略は従来パスを完全に通る。
-        joseki_kelly(I)は定石フィルタ + キャリブレーション + リアルKelly。
-        boats_data: 6艇の選手・モーター情報（定石スコアリング用）
-        race_data: 場・天候情報（定石スコアリング用）
+        are_prediction: Model B (荒れ専門) の予測結果
+            {probs_1st: [5], probs_2nd: [6], probs_3rd: [6]}
+            probs_1st は 2-6号艇の5クラス確率
         """
         # 壊滅会場ブラックリスト: 全戦略共通で無条件スキップ
         if venue_id is not None and venue_id in VENUE_BLACKLIST:
@@ -543,10 +543,34 @@ class KellyBettingStrategy:
             # --- bet_mode + 使用する確率の決定 ---
             bet_mode = strategy_config.get('bet_mode', 'sanrentan')
             use_monte_carlo = strategy_config.get('use_monte_carlo', False)
+            model_type = strategy_config.get('model_type', 'standard')
 
             if bet_mode == 'nirentan':
                 use_probs = nirentan_probs
                 use_odds = odds_2t if odds_2t else {}
+            elif model_type == 'are' and are_prediction is not None:
+                # Model B (荒れ専門): 5クラス確率から三連単計算
+                are_sanrentan = self._calculate_are_sanrentan(
+                    are_prediction['probs_1st'],
+                    are_prediction['probs_2nd'],
+                    are_prediction['probs_3rd'],
+                )
+                if use_monte_carlo:
+                    # MC-B: Model Bの確率でモンテカルロ
+                    # 5クラス確率を6クラスに展開（1号艇=0）してMCに渡す
+                    probs_6 = [0.0] + list(are_prediction['probs_1st'])
+                    from src.monte_carlo import monte_carlo_sanrentan
+                    mc_are = monte_carlo_sanrentan(
+                        probs_6, boats_data=boats_data, n_simulations=20000,
+                    )
+                    # 1号艇軸を除外
+                    use_probs = {k: v for k, v in mc_are.items()
+                                 if not k.startswith('1-')}
+                    logger.info(f"MC-B確率生成: {len(use_probs)}通り")
+                else:
+                    use_probs = are_sanrentan
+                    logger.info(f"NN-B確率生成: {len(use_probs)}通り")
+                use_odds = odds_data
             elif use_monte_carlo:
                 # モンテカルロ確率（遅延生成: 必要な戦略がある時だけ）
                 if mc_sanrentan is None:
@@ -833,6 +857,49 @@ class KellyBettingStrategy:
                 # 艇番号は1始まり
                 key = f"{i+1}-{j+1}-{k+1}"
                 sanrentan[key] = prob
+
+        return sanrentan
+
+    def _calculate_are_sanrentan(self, probs_1st_5, probs_2nd, probs_3rd):
+        """Model B (荒れ専門) の三連単確率計算
+
+        probs_1st_5: [5] — 2号艇〜6号艇の1着確率 (idx 0=2号艇, ..., 4=6号艇)
+        probs_2nd:   [6] — 2着確率（通常の6クラス）
+        probs_3rd:   [6] — 3着確率（通常の6クラス）
+
+        1号艇が1着の組み合わせは生成しない（荒れ専門のため）
+        """
+        sanrentan = {}
+
+        for i_5 in range(5):  # 1着: 2-6号艇 (5クラス)
+            i_6 = i_5 + 1     # 6クラスインデックス (1=2号艇, ..., 5=6号艇)
+            p1 = probs_1st_5[i_5]
+            if p1 <= 0:
+                continue
+
+            for j in range(6):  # 2着: 全6艇
+                if j == i_6:
+                    continue
+                remaining_2nd = [probs_2nd[x] for x in range(6) if x != i_6]
+                sum_r2 = sum(remaining_2nd)
+                if sum_r2 <= 0:
+                    continue
+                p2 = probs_2nd[j] / sum_r2
+
+                for k in range(6):  # 3着: 全6艇
+                    if k == i_6 or k == j:
+                        continue
+                    remaining_3rd = [probs_3rd[x] for x in range(6)
+                                     if x != i_6 and x != j]
+                    sum_r3 = sum(remaining_3rd)
+                    if sum_r3 <= 0:
+                        continue
+                    p3 = probs_3rd[k] / sum_r3
+
+                    prob = p1 * p2 * p3
+                    if prob > 0:
+                        key = f"{i_6+1}-{j+1}-{k+1}"
+                        sanrentan[key] = prob
 
         return sanrentan
 

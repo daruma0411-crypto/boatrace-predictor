@@ -41,6 +41,10 @@ class DynamicRaceScheduler:
         )
         self.betting = KellyBettingStrategy()
         self.result_collector = ResultCollector()
+
+        # Model B (荒れ専門)
+        from src.predictor import ArePredictor
+        self.are_predictor = ArePredictor()
         self.processed_races = set()
         self.settled_today = False
         self._schedule_date = None  # 現在のスケジュールの対象日
@@ -724,6 +728,13 @@ class DynamicRaceScheduler:
             except Exception:
                 pass
 
+            # Model B (荒れ専門) の予測
+            are_pred = None
+            try:
+                are_pred = self.are_predictor.predict(race_data, boats_data)
+            except Exception as e:
+                logger.debug(f"Model B予測スキップ: {e}")
+
             all_bets = self.betting.calculate_all_strategies(
                 prediction['probs_1st'],
                 prediction['probs_2nd'],
@@ -735,6 +746,7 @@ class DynamicRaceScheduler:
                 odds_2t=odds_2t,
                 boats_data=boats_data,
                 race_data=race_data,
+                are_prediction=are_pred,
             )
 
             for strategy_type, bets in all_bets.items():
