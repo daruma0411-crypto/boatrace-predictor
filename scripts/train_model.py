@@ -160,19 +160,24 @@ def load_training_data_fast(years=3):
 
 
 def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
-          weight_smoothing_2nd3rd=0.7, focal_gamma=2.0, dropout=0.15):
-    """モデル訓練 v2 (Focal Loss + 1着均等重み + Early Stopping)
+          weight_smoothing_1st=0.3, weight_smoothing_2nd3rd=0.7,
+          focal_gamma=2.0, dropout=0.15, label_smoothing=0.1):
+    """モデル訓練 v5 (Focal Loss + 逆頻度クラス重み + Label Smoothing + 時系列分割)
 
     Args:
-        lr: 学習率 (v2: 0.0005, 旧: 0.001)
-        patience: Early Stopping許容エポック数 (v2: 15, 旧: 10)
-        weight_smoothing_2nd3rd: 2着/3着クラス重みの平滑化 (v2: 0.7, 旧: 0.3)
+        lr: 学習率
+        patience: Early Stopping許容エポック数
+        weight_smoothing_1st: 1着クラス重みスムージング (0.3=強め補正, 1号艇バイアス対策)
+        weight_smoothing_2nd3rd: 2着/3着クラス重みの平滑化
         focal_gamma: Focal Loss の gamma (0=CE, 2.0=推奨)
-        dropout: Dropout率 (v2: 0.15, 旧: 0.3)
+        dropout: Dropout率
+        label_smoothing: Label Smoothing (1着ヘッド, 0.1=推奨, 退化解防止)
     """
-    logger.info("=== モデル訓練開始 (v2: Focal Loss) ===")
+    logger.info("=== モデル訓練開始 (v5: 逆頻度重み + Label Smoothing) ===")
     logger.info(f"  lr={lr}, patience={patience}, focal_gamma={focal_gamma}, "
-                f"dropout={dropout}, 2nd/3rd smoothing={weight_smoothing_2nd3rd}")
+                f"dropout={dropout}, label_smoothing={label_smoothing}")
+    logger.info(f"  1st smoothing={weight_smoothing_1st}, "
+                f"2nd/3rd smoothing={weight_smoothing_2nd3rd}")
 
     X, y1, y2, y3 = load_training_data_fast()
     if X is None:
@@ -180,13 +185,13 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
         return
 
     # === クラス重み計算 ===
-    # 1着: 均等重み (None) → 1号艇50%は競技特性であり不均衡ではない
-    cw_1st = None
+    # 1着: 逆頻度クラス重み (smoothing=0.3 → 1号艇の重み↓、5-6号艇の重み↑)
+    cw_1st = compute_class_weights(y1, smoothing=weight_smoothing_1st)
     # 2着/3着: 軽い補正 (smoothing=0.7)
     cw_2nd = compute_class_weights(y2, smoothing=weight_smoothing_2nd3rd)
     cw_3rd = compute_class_weights(y3, smoothing=weight_smoothing_2nd3rd)
 
-    logger.info(f"1着クラス重み: None (均等)")
+    logger.info(f"1着クラス重み: {['%.2f' % w for w in cw_1st.tolist()]}")
     logger.info(f"2着クラス重み: {['%.2f' % w for w in cw_2nd.tolist()]}")
     logger.info(f"3着クラス重み: {['%.2f' % w for w in cw_3rd.tolist()]}")
 
@@ -241,10 +246,11 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
         input_dim=input_dim, hidden_dims=hidden_dims, dropout=dropout
     ).to(device)
     criterion = BoatraceMultiTaskLoss(
-        class_weights_1st=None,  # 1着: 均等
+        class_weights_1st=cw_1st.to(device),  # 1着: 逆頻度重み
         class_weights_2nd=cw_2nd.to(device),
         class_weights_3rd=cw_3rd.to(device),
         gamma=focal_gamma,
+        label_smoothing_1st=label_smoothing,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # v2: patience=8, factor=0.7 (学習率の早期低下を防止)
@@ -320,7 +326,8 @@ def train(epochs=100, batch_size=256, lr=0.0005, patience=15,
                 'val_acc_1st': val_acc_1st,
                 'train_size': len(train_idx),
                 'val_size': len(val_idx),
-                'class_weights_1st': 'uniform',
+                'class_weights_1st': f'inverse_freq_s{weight_smoothing_1st}',
+                'label_smoothing': label_smoothing,
                 'weight_smoothing_2nd3rd': weight_smoothing_2nd3rd,
                 'focal_gamma': focal_gamma,
                 'dropout': dropout,
@@ -346,8 +353,12 @@ if __name__ == '__main__':
     parser.add_argument('--patience', type=int, default=15)
     parser.add_argument('--focal-gamma', type=float, default=2.0)
     parser.add_argument('--dropout', type=float, default=0.15)
+    parser.add_argument('--smoothing-1st', type=float, default=0.3,
+                        help='1着クラス重みスムージング (0.3=強め)')
     parser.add_argument('--smoothing-2nd3rd', type=float, default=0.7,
                         help='2着/3着クラス重みスムージング')
+    parser.add_argument('--label-smoothing', type=float, default=0.1,
+                        help='Label Smoothing (1着ヘッド)')
     args = parser.parse_args()
 
     train(
@@ -356,5 +367,7 @@ if __name__ == '__main__':
         patience=args.patience,
         focal_gamma=args.focal_gamma,
         dropout=args.dropout,
+        weight_smoothing_1st=args.smoothing_1st,
         weight_smoothing_2nd3rd=args.smoothing_2nd3rd,
+        label_smoothing=args.label_smoothing,
     )

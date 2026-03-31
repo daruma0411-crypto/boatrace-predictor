@@ -39,6 +39,45 @@ FEATURE_MASK_PATH = 'models/feature_mask_208.npy'
 # StandardScaler (v5学習で保存)
 FEATURE_SCALER_PATH = 'models/feature_scaler.pkl'
 
+# Isotonic Regression キャリブレータ
+CALIBRATOR_PATH = 'models/calibrators.pkl'
+
+
+def _load_calibrators():
+    """Isotonic Regressionキャリブレータをロード。ファイルなければ None"""
+    if os.path.exists(CALIBRATOR_PATH):
+        try:
+            with open(CALIBRATOR_PATH, 'rb') as f:
+                calibrators = pickle.load(f)
+            logger.info(f"キャリブレータロード: {CALIBRATOR_PATH}")
+            return calibrators
+        except Exception as e:
+            logger.warning(f"キャリブレータロード失敗: {e}")
+    return None
+
+
+def _apply_calibrators(probs, calibrators_list):
+    """6クラスの確率をIsotonic Regressionで補正→再正規化
+
+    Args:
+        probs: numpy array shape (6,) — softmax出力
+        calibrators_list: list of 6 IsotonicRegression objects
+
+    Returns:
+        numpy array shape (6,) — キャリブレーション済み確率
+    """
+    calibrated = np.array([
+        calibrators_list[i].predict([probs[i]])[0]
+        for i in range(6)
+    ])
+    # 再正規化（合計1.0に）
+    total = calibrated.sum()
+    if total > 0:
+        calibrated = calibrated / total
+    else:
+        calibrated = probs  # フォールバック
+    return calibrated
+
 
 def _load_feature_scaler():
     """StandardScalerをロード。ファイルなければ None"""
@@ -85,6 +124,7 @@ class RealtimePredictor:
         self.feature_engineer = None
         self.feature_mask = None
         self.feature_scaler = None
+        self.calibrators = None
         self.device = torch.device('cpu')
 
     def _ensure_model(self):
@@ -116,8 +156,11 @@ class RealtimePredictor:
         # StandardScaler（v5学習で保存されていれば適用）
         self.feature_scaler = _load_feature_scaler()
 
+        # Isotonic Regression キャリブレータ
+        self.calibrators = _load_calibrators()
+
     def predict(self, race_data, boats_data):
-        """特徴量生成→(マスク適用)→(StandardScaler正規化)→PyTorchモデル推論→確率を返却"""
+        """特徴量生成→正規化→モデル推論→キャリブレーション→確率を返却"""
         self._ensure_model()
 
         features = self.feature_engineer.transform(race_data, boats_data)
@@ -135,6 +178,12 @@ class RealtimePredictor:
         probs_1st = torch.softmax(out_1st, dim=1).squeeze().numpy()
         probs_2nd = torch.softmax(out_2nd, dim=1).squeeze().numpy()
         probs_3rd = torch.softmax(out_3rd, dim=1).squeeze().numpy()
+
+        # Isotonic Regression キャリブレーション
+        if self.calibrators is not None:
+            probs_1st = _apply_calibrators(probs_1st, self.calibrators['1st'])
+            probs_2nd = _apply_calibrators(probs_2nd, self.calibrators['2nd'])
+            probs_3rd = _apply_calibrators(probs_3rd, self.calibrators['3rd'])
 
         return {
             'probs_1st': probs_1st.tolist(),
@@ -236,6 +285,7 @@ class EnsemblePredictor:
         self.models = {}          # path → model
         self.feature_mask = None  # 全モデル共通マスク
         self.feature_scaler = None  # StandardScaler
+        self.calibrators = None   # Isotonic Regression
         self._fe = None           # 全モデル共通FeatureEngineer
         self._initialized = False
         self.device = torch.device('cpu')
@@ -301,6 +351,9 @@ class EnsemblePredictor:
         # StandardScaler（v5学習で保存されていれば適用）
         self.feature_scaler = _load_feature_scaler()
 
+        # Isotonic Regression キャリブレータ
+        self.calibrators = _load_calibrators()
+
         self._initialized = True
 
     def predict_all(self, race_data, boats_data):
@@ -332,6 +385,12 @@ class EnsemblePredictor:
             probs_1st = torch.softmax(out_1st, dim=1).squeeze().numpy()
             probs_2nd = torch.softmax(out_2nd, dim=1).squeeze().numpy()
             probs_3rd = torch.softmax(out_3rd, dim=1).squeeze().numpy()
+
+            # Isotonic Regression キャリブレーション
+            if self.calibrators is not None:
+                probs_1st = _apply_calibrators(probs_1st, self.calibrators['1st'])
+                probs_2nd = _apply_calibrators(probs_2nd, self.calibrators['2nd'])
+                probs_3rd = _apply_calibrators(probs_3rd, self.calibrators['3rd'])
 
             results.append({
                 'probs_1st': probs_1st.tolist(),

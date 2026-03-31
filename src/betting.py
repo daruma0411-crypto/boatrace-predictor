@@ -35,6 +35,10 @@ VENUE_CHAOTIC = {2, 3, 4, 14}  # 戸田, 江戸川, 平和島, 鳴門
 RACE_STABLE = {11, 12}     # R11-R12: 1kaku 67-69%
 RACE_CHAOTIC = {2, 3, 4}   # R2-R4: 1kaku 45-48%
 
+# --- 全戦略共通: 壊滅会場除外 (Phase2分析結果) ---
+# ROI壊滅の4会場は全戦略で無条件スキップ
+VENUE_BLACKLIST = {7, 15, 18, 19}  # 蒲郡(2.2%), 丸亀(0%), 徳山(0%), 下関(12%)
+
 # --- 定石Kelly(I戦略)用: 3層分類 ---
 # 本命場 (b1≥58%): オッズ圧縮でROI 25.8% → ベットしない
 VENUE_HONMEI = {8, 11, 18, 19, 21, 24}  # 常滑, びわこ, 徳山, 下関, 芦屋, 大村
@@ -340,6 +344,13 @@ class KellyBettingStrategy:
         boats_data: 6艇の選手・モーター情報（定石スコアリング用）
         race_data: 場・天候情報（定石スコアリング用）
         """
+        # 壊滅会場ブラックリスト: 全戦略共通で無条件スキップ
+        if venue_id is not None and venue_id in VENUE_BLACKLIST:
+            logger.info(
+                f"壊滅会場ブラックリスト: 全戦略スキップ (場{venue_id})"
+            )
+            return {s: [] for s in self.config['strategies']}
+
         # 5-6号艇軸: 戦略設定の skip_56=true で有効化
         skip_56 = _should_skip_by_top_boat(probs_1st)
         if skip_56:
