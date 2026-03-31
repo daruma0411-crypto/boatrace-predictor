@@ -1,11 +1,15 @@
-"""レース結果収集 & ベット答え合わせ（scraper.py ベース）
+"""レース結果収集 & ベット答え合わせ + CLV計測（scraper.py ベース）
 
 レース終了後に実際の着順・払戻金をスクレイピングし、
-bets テーブルの result / payout を UPDATE する。
+bets テーブルの result / payout / closing_odds / clv を UPDATE する。
 スケジューラの23時以降ループから呼ばれる。
+
+CLV (Closing Line Value):
+  CLV = bet_odds / closing_odds - 1
+  CLV > 0 = 締切時より有利なオッズでベット → 長期利益の客観的証拠
 """
 import logging
-from src.scraper import _get_session, scrape_result
+from src.scraper import _get_session, scrape_result, scrape_odds_3t, scrape_odds_2t
 from src.database import get_db_connection
 from utils.timezone import now_jst
 
@@ -57,17 +61,28 @@ class ResultCollector:
             payoff_3t = result['payout_sanrentan'] or 0
             payoff_2t = result.get('payout_nirentan', 0) or 0
 
+            # 確定オッズを取得（CLV計測用）
+            closing_odds_3t = {}
+            closing_odds_2t = {}
+            try:
+                closing_odds_3t = scrape_odds_3t(self.session, today, venue_id, race_number) or {}
+                closing_odds_2t = scrape_odds_2t(self.session, today, venue_id, race_number) or {}
+            except Exception as e:
+                logger.warning(f"確定オッズ取得失敗: 場{venue_id} R{race_number}: {e}")
+
             # 着順を races テーブルにも書き込む
             self._save_race_result(
                 today, venue_id, race_number, result, payoff_3t
             )
 
-            # 該当レースのベットを精算（3連単 + 2連単）
+            # 該当レースのベットを精算（3連単 + 2連単 + CLV計算）
             count = self._settle_race_bets(
                 today, venue_id, race_number,
                 winning_combo_3t, payoff_3t,
                 winning_combo_2t=winning_combo_2t,
                 payoff_2t=payoff_2t,
+                closing_odds_3t=closing_odds_3t,
+                closing_odds_2t=closing_odds_2t,
             )
             settled_count += count
             logger.info(
@@ -94,13 +109,17 @@ class ResultCollector:
 
     def _settle_race_bets(self, race_date, venue_id, race_number,
                           winning_combo, payoff_per_100,
-                          winning_combo_2t='', payoff_2t=0):
-        """1レース分のベットを精算（3連単・2連単対応）"""
+                          winning_combo_2t='', payoff_2t=0,
+                          closing_odds_3t=None, closing_odds_2t=None):
+        """1レース分のベットを精算（3連単・2連単 + CLV計測）"""
+        closing_odds_3t = closing_odds_3t or {}
+        closing_odds_2t = closing_odds_2t or {}
+
         with get_db_connection() as conn:
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT b.id, b.combination, b.amount, b.bet_type
+                SELECT b.id, b.combination, b.amount, b.bet_type, b.odds
                 FROM bets b
                 JOIN races r ON b.race_id = r.id
                 WHERE r.race_date = %s
@@ -111,37 +130,61 @@ class ResultCollector:
             bets = cur.fetchall()
 
             count = 0
+            clv_values = []
             for bet in bets:
                 bet_combo = self._normalize_combo(bet['combination'])
                 bet_type = bet.get('bet_type', 'sanrentan') or 'sanrentan'
+                bet_odds = bet.get('odds') or 0
+
+                # CLV計算: 確定オッズとベット時オッズの比較
+                if bet_type == 'nirentan':
+                    c_odds = closing_odds_2t.get(bet_combo, 0)
+                else:
+                    c_odds = closing_odds_3t.get(bet_combo, 0)
+
+                clv = None
+                if c_odds > 0 and bet_odds > 0:
+                    clv = bet_odds / c_odds - 1.0
+                    clv_values.append(clv)
 
                 if bet_type == 'nirentan':
-                    # 2連単精算: 1着-2着の組み合わせで判定
                     if bet_combo == winning_combo_2t:
                         payout = int(bet['amount'] / 100 * payoff_2t)
                         cur.execute("""
-                            UPDATE bets SET result = 'win', payout = %s
+                            UPDATE bets SET result = 'win', payout = %s,
+                            closing_odds = %s, clv = %s
                             WHERE id = %s
-                        """, (payout, bet['id']))
+                        """, (payout, c_odds or None, clv, bet['id']))
                     else:
                         cur.execute("""
-                            UPDATE bets SET result = 'lose', payout = 0
+                            UPDATE bets SET result = 'lose', payout = 0,
+                            closing_odds = %s, clv = %s
                             WHERE id = %s
-                        """, (bet['id'],))
+                        """, (c_odds or None, clv, bet['id']))
                 else:
-                    # 3連単精算（従来通り）
                     if bet_combo == winning_combo:
                         payout = int(bet['amount'] / 100 * payoff_per_100)
                         cur.execute("""
-                            UPDATE bets SET result = 'win', payout = %s
+                            UPDATE bets SET result = 'win', payout = %s,
+                            closing_odds = %s, clv = %s
                             WHERE id = %s
-                        """, (payout, bet['id']))
+                        """, (payout, c_odds or None, clv, bet['id']))
                     else:
                         cur.execute("""
-                            UPDATE bets SET result = 'lose', payout = 0
+                            UPDATE bets SET result = 'lose', payout = 0,
+                            closing_odds = %s, clv = %s
                             WHERE id = %s
-                        """, (bet['id'],))
+                        """, (c_odds or None, clv, bet['id']))
                 count += 1
+
+            # CLVサマリログ
+            if clv_values:
+                avg_clv = sum(clv_values) / len(clv_values)
+                pos_clv = sum(1 for v in clv_values if v > 0)
+                logger.info(
+                    f"CLV: 場{venue_id} R{race_number} "
+                    f"平均={avg_clv:+.3f}, 正CLV={pos_clv}/{len(clv_values)}"
+                )
 
             cur.execute("""
                 UPDATE races SET status = 'settled'

@@ -365,6 +365,9 @@ class KellyBettingStrategy:
             probs_1st, probs_2nd, probs_3rd
         )
 
+        # モンテカルロ・シミュレーション確率（MC対応戦略用）
+        mc_sanrentan = None
+
         # 2連単確率（G戦略用）
         nirentan_probs = self._calculate_nirentan_probs(probs_1st, probs_2nd)
 
@@ -531,10 +534,25 @@ class KellyBettingStrategy:
 
             # --- bet_mode + 使用する確率の決定 ---
             bet_mode = strategy_config.get('bet_mode', 'sanrentan')
+            use_monte_carlo = strategy_config.get('use_monte_carlo', False)
 
             if bet_mode == 'nirentan':
                 use_probs = nirentan_probs
                 use_odds = odds_2t if odds_2t else {}
+            elif use_monte_carlo:
+                # モンテカルロ確率（遅延生成: 必要な戦略がある時だけ）
+                if mc_sanrentan is None:
+                    from src.monte_carlo import monte_carlo_sanrentan
+                    mc_sanrentan = monte_carlo_sanrentan(
+                        probs_1st, boats_data=boats_data,
+                        n_simulations=20000,
+                    )
+                    logger.info(
+                        f"MC確率生成: {len(mc_sanrentan)}通り "
+                        f"(top={max(mc_sanrentan.values()):.4f})"
+                    )
+                use_probs = mc_sanrentan
+                use_odds = odds_data
             elif filter_type == 'ensemble' and ensemble_sanrentan is not None:
                 use_probs = ensemble_sanrentan
                 use_odds = odds_data

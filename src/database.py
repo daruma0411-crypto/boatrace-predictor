@@ -139,6 +139,8 @@ def _migrate_tables(conn):
         ('prediction_id', 'INTEGER'),
         ('bet_type', "VARCHAR(20) DEFAULT 'trifecta'"),
         ('kelly_fraction', 'REAL'),
+        ('closing_odds', 'REAL'),
+        ('clv', 'REAL'),
     ]:
         cur.execute("""
             SELECT 1 FROM information_schema.columns
