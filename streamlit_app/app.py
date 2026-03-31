@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "v9.1-8strategies"
+_DEPLOY_VERSION = "v10.0-12strategies"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -208,12 +208,16 @@ STRATEGY_NAMES = {
     'joseki_kelly': 'I: 定石Kelly (停止)',
     'confident_boost': 'J: C+F合体 (entropy+覚醒+荒場)',
     'elite_hybrid': 'K: J+H合体 (entropy+場制限+56skip+gain2.0)',
+    'mc_quarter_kelly': 'L: MC-A (ModelA+MC+QuarterKelly)',
+    'are_standard': 'M: NN-B (荒れ専門+StandardKelly)',
+    'mc_are': 'N: MC-B (荒れ専門+MC+QuarterKelly)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'high_confidence',
     'conservative_wide', 'bt_entropy', 'kelly_boost',
     'filtered_standard', 'confident_boost', 'elite_hybrid',
+    'mc_quarter_kelly', 'are_standard', 'mc_are',
 ]
 
 
