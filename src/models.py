@@ -167,13 +167,35 @@ def load_model(path='models/boatrace_model.pth', device=None):
     if device is None:
         device = torch.device('cpu')
     state = torch.load(path, map_location=device, weights_only=False)
-    model = BoatraceMultiTaskModel(
-        input_dim=state.get('input_dim', 208),
-        hidden_dims=state.get('hidden_dims', [512, 256, 128]),
-        num_boats=state.get('num_boats', 6),
-        dropout=state.get('dropout', 0.15),
-    )
-    model.load_state_dict(state['model_state_dict'])
+    num_boats = state.get('num_boats', 6)
+
+    # Model B (荒れ専門) 対応: 1着=5クラス, 2着3着=6クラスの混合構造
+    # checkpointの実際の形状から2着3着ヘッドのサイズを検出
+    sd = state['model_state_dict']
+    num_boats_2nd = sd['head_2nd.weight'].shape[0] if 'head_2nd.weight' in sd else num_boats
+
+    if num_boats_2nd != num_boats:
+        # 混合構造: num_boats(1着用)でモデル作成後、2着3着ヘッドを差し替え
+        model = BoatraceMultiTaskModel(
+            input_dim=state.get('input_dim', 208),
+            hidden_dims=state.get('hidden_dims', [512, 256, 128]),
+            num_boats=num_boats,
+            dropout=state.get('dropout', 0.15),
+        )
+        hidden_dim = state.get('hidden_dims', [512, 256, 128])[-1]
+        model.head_2nd = nn.Linear(hidden_dim, num_boats_2nd)
+        model.head_3rd = nn.Linear(hidden_dim, num_boats_2nd)
+        model.load_state_dict(sd)
+        logger.info(f"混合構造モデル読み込み: 1着={num_boats}cls, 2着3着={num_boats_2nd}cls")
+    else:
+        model = BoatraceMultiTaskModel(
+            input_dim=state.get('input_dim', 208),
+            hidden_dims=state.get('hidden_dims', [512, 256, 128]),
+            num_boats=num_boats,
+            dropout=state.get('dropout', 0.15),
+        )
+        model.load_state_dict(sd)
+
     model.to(device)
     model.eval()
     logger.info(f"モデル読み込み: {path}")
