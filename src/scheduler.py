@@ -732,8 +732,10 @@ class DynamicRaceScheduler:
             are_pred = None
             try:
                 are_pred = self.are_predictor.predict(race_data, boats_data)
+                if are_pred is None:
+                    logger.warning(f"Model B未ロード: モデルファイル未検出")
             except Exception as e:
-                logger.debug(f"Model B予測スキップ: {e}")
+                logger.warning(f"Model B予測失敗: {e}")
 
             all_bets = self.betting.calculate_all_strategies(
                 prediction['probs_1st'],

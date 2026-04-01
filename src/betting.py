@@ -548,8 +548,15 @@ class KellyBettingStrategy:
             if bet_mode == 'nirentan':
                 use_probs = nirentan_probs
                 use_odds = odds_2t if odds_2t else {}
-            elif model_type == 'are' and are_prediction is not None:
-                # Model B (荒れ専門): 5クラス確率から三連単計算
+            elif model_type == 'are':
+                # Model B (荒れ専門): are_predictionが必須
+                if are_prediction is None:
+                    logger.warning(
+                        f"[{strategy_name}] Model B未ロード → スキップ"
+                    )
+                    results[strategy_name] = []
+                    continue
+                # 5クラス確率から三連単計算
                 are_sanrentan = self._calculate_are_sanrentan(
                     are_prediction['probs_1st'],
                     are_prediction['probs_2nd'],
