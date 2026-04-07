@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "v10.1-10strategies"
+_DEPLOY_VERSION = "v10.2-8strategies"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -197,25 +197,20 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'conservative': 'A: 保守的 (EV 0.5-1.0)',
-    'standard': 'B: 標準 (EV 0.5-0.8)',
-    'high_confidence': 'C: 確信 (EV 0.5-0.8 H<2.3)',
-    'conservative_wide': 'D: 保守広域 (EV 0-1.2)',
-    'bt_entropy': 'E: 広域確信 (EV 0-1.2 H<2.3)',
-    'kelly_boost': 'F: 覚醒Kelly (EV 0.5-0.8 ×1.5)',
-    'niren_standard': 'G: 2連単 (停止)',
     'filtered_standard': 'H: 厳選3連単 (場R制限)',
-    'joseki_kelly': 'I: 定石Kelly (停止)',
-    'confident_boost': 'J: C+F合体 (entropy+覚醒+荒場)',
-    'elite_hybrid': 'K: J+H合体 (entropy+場制限+56skip+gain2.0)',
-    'mc_quarter_kelly': 'L: MC-A (ModelA+MC+QuarterKelly)',
+    'confident_boost': 'J: C+F合体 (entropy+覚醒)',
+    'elite_hybrid': 'K: J+H合体 (entropy+場制限+56skip)',
+    'mc_quarter_kelly': 'L: MC-A (MC+QuarterKelly)',
+    'mc_early_race': 'O: MC序盤 (L+R1-R4限定)',
+    'mc_venue_focus': 'P: MC得意場 (L+6会場限定)',
+    'mc_high_ev': 'Q: MC高EV (L+EV≥1.0)',
+    'mc_are_v2': 'R: MC-B v2 (ModelB+L設定)',
 }
 
 STRATEGY_ORDER = [
-    'conservative', 'standard', 'high_confidence',
-    'conservative_wide', 'bt_entropy', 'kelly_boost',
     'filtered_standard', 'confident_boost', 'elite_hybrid',
-    'mc_quarter_kelly',
+    'mc_quarter_kelly', 'mc_early_race', 'mc_venue_focus',
+    'mc_high_ev', 'mc_are_v2',
 ]
 
 

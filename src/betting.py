@@ -37,7 +37,7 @@ RACE_CHAOTIC = {2, 3, 4}   # R2-R4: 1kaku 45-48%
 
 # --- 全戦略共通: 壊滅会場除外 (Phase2分析結果) ---
 # ROI壊滅の4会場は全戦略で無条件スキップ
-VENUE_BLACKLIST = {7, 15, 18, 19}  # 蒲郡(2.2%), 丸亀(0%), 徳山(0%), 下関(12%)
+VENUE_BLACKLIST = {7, 15, 16, 18, 19, 21}  # 蒲郡(2.2%), 丸亀(0%), 児島(27.5%), 徳山(0%), 下関(12%), 芦屋(21.3%)
 
 # --- 定石Kelly(I戦略)用: 3層分類 ---
 # 本命場 (b1≥58%): オッズ圧縮でROI 25.8% → ベットしない
@@ -250,8 +250,15 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
-# v10.1: mc_are(44.7%), are_standard(16.5%) 停止 — 資金流出が深刻
-ACTIVE_STRATEGIES = {'conservative', 'standard', 'high_confidence', 'conservative_wide', 'bt_entropy', 'kelly_boost', 'filtered_standard', 'confident_boost', 'elite_hybrid', 'mc_quarter_kelly'}
+# v10.2: A-F停止、OPQR追加 — MC系8戦略体制
+ACTIVE_STRATEGIES = {
+    'filtered_standard', 'confident_boost', 'elite_hybrid',  # H, J, K (既存NN)
+    'mc_quarter_kelly',     # L: MC + ModelA + Quarter Kelly (基準)
+    'mc_early_race',        # O: L + R1-R4限定
+    'mc_venue_focus',       # P: L + 得意会場ホワイトリスト
+    'mc_high_ev',           # Q: L + EV≥1.0フィルター
+    'mc_are_v2',            # R: MC + ModelB + Lの設定で再挑戦
+}
 
 
 def _get_today_bet_count(strategy_type):
@@ -424,11 +431,31 @@ class KellyBettingStrategy:
                 results[strategy_name] = []
                 continue
 
+            # 場ホワイトリスト（指定時はリスト内の会場のみベット）
+            include_venues = strategy_config.get('include_venues', [])
+            if include_venues and venue_id is not None and venue_id not in include_venues:
+                logger.info(
+                    f"場ホワイトリスト: {strategy_name} スキップ "
+                    f"(場{venue_id} not in {include_venues})"
+                )
+                results[strategy_name] = []
+                continue
+
             exclude_races = strategy_config.get('exclude_race_numbers', [])
             if race_number is not None and race_number in exclude_races:
                 logger.info(
                     f"R除外フィルタ: {strategy_name} スキップ "
                     f"(R{race_number} in {exclude_races})"
+                )
+                results[strategy_name] = []
+                continue
+
+            # レース番号上限フィルター（序盤レース特化用）
+            max_race = strategy_config.get('max_race_number', 12)
+            if race_number is not None and race_number > max_race:
+                logger.info(
+                    f"R上限フィルタ: {strategy_name} スキップ "
+                    f"(R{race_number} > max_race={max_race})"
                 )
                 results[strategy_name] = []
                 continue
