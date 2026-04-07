@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "v10.0-12strategies"
+_DEPLOY_VERSION = "v10.1-10strategies"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -209,15 +209,13 @@ STRATEGY_NAMES = {
     'confident_boost': 'J: C+F合体 (entropy+覚醒+荒場)',
     'elite_hybrid': 'K: J+H合体 (entropy+場制限+56skip+gain2.0)',
     'mc_quarter_kelly': 'L: MC-A (ModelA+MC+QuarterKelly)',
-    'are_standard': 'M: NN-B (荒れ専門+StandardKelly)',
-    'mc_are': 'N: MC-B (荒れ専門+MC+QuarterKelly)',
 }
 
 STRATEGY_ORDER = [
     'conservative', 'standard', 'high_confidence',
     'conservative_wide', 'bt_entropy', 'kelly_boost',
     'filtered_standard', 'confident_boost', 'elite_hybrid',
-    'mc_quarter_kelly', 'are_standard', 'mc_are',
+    'mc_quarter_kelly',
 ]
 
 
@@ -439,8 +437,9 @@ def tab2_trend_fragment():
             df_daily['total_amount'].fillna(0)
         )
 
-        # 戦略別チェックボックス
-        strategies = sorted(df_daily['strategy_type'].unique())
+        # 戦略別チェックボックス（停止済み戦略を除外）
+        strategies = sorted(s for s in df_daily['strategy_type'].unique()
+                            if s in STRATEGY_NAMES)
         selected = []
         cols_cb = st.columns(len(strategies))
         for i, s in enumerate(strategies):
