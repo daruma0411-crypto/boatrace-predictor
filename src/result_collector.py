@@ -87,7 +87,7 @@ class ResultCollector:
             settled_count += count
             logger.info(
                 f"精算完了: 場{venue_id} R{race_number} "
-                f"(確定: {winning_combo}, 払戻: ¥{payoff_per_100:,}/100円) "
+                f"(確定: {winning_combo_3t}, 払戻: ¥{payoff_3t:,}/100円) "
                 f"{count}件更新"
             )
 
