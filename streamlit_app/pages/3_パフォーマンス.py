@@ -28,11 +28,16 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'mc_quarter_kelly': 'L: MC-A (基準)',
-    'mc_early_race': 'O: MC序盤 (R1-R4)',
-    'mc_venue_focus': 'P: MC得意場 (6会場)',
-    'mc_high_ev': 'Q: MC高EV (EV≥1.0)',
-    'mc_are_v2': 'R: MC-B v2 (ModelB)',
+    'mc_quarter_kelly': 'L: MC v1 基準',
+    'mc_early_race': 'O: MC v1 序盤',
+    'mc_venue_focus': 'P: MC v1 得意場',
+    'mc_high_ev': 'Q: MC v1 高EV',
+    'mc_are_v2': 'R: MC v1 ModelB',
+    'mc2_quarter_kelly': 'L2: MC v2 基準',
+    'mc2_early_race': 'O2: MC v2 序盤',
+    'mc2_venue_focus': 'P2: MC v2 得意場',
+    'mc2_high_ev': 'Q2: MC v2 高EV',
+    'mc2_are_v2': 'R2: MC v2 ModelB',
 }
 
 STRATEGY_COLORS = {
@@ -41,11 +46,18 @@ STRATEGY_COLORS = {
     'mc_venue_focus': '#2ca02c',
     'mc_high_ev': '#d62728',
     'mc_are_v2': '#9467bd',
+    'mc2_quarter_kelly': '#17becf',
+    'mc2_early_race': '#bcbd22',
+    'mc2_venue_focus': '#e377c2',
+    'mc2_high_ev': '#8c564b',
+    'mc2_are_v2': '#7f7f7f',
 }
 
 STRATEGY_ORDER = [
     'mc_quarter_kelly', 'mc_early_race', 'mc_venue_focus',
     'mc_high_ev', 'mc_are_v2',
+    'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus',
+    'mc2_high_ev', 'mc2_are_v2',
 ]
 
 # --- キャッシュ付きDB取得 (TTL=300秒) ---
