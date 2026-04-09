@@ -250,9 +250,8 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
-# v10.2: A-F停止、OPQR追加 — MC系8戦略体制
+# v10.3: NN全廃、MC v2 (9変数ノイズ+50K) 5戦略体制
 ACTIVE_STRATEGIES = {
-    'filtered_standard', 'confident_boost', 'elite_hybrid',  # H, J, K (既存NN)
     'mc_quarter_kelly',     # L: MC + ModelA + Quarter Kelly (基準)
     'mc_early_race',        # O: L + R1-R4限定
     'mc_venue_focus',       # P: L + 得意会場ホワイトリスト
@@ -595,7 +594,8 @@ class KellyBettingStrategy:
                     probs_6 = [0.0] + list(are_prediction['probs_1st'])
                     from src.monte_carlo import monte_carlo_sanrentan
                     mc_are = monte_carlo_sanrentan(
-                        probs_6, boats_data=boats_data, n_simulations=20000,
+                        probs_6, boats_data=boats_data, n_simulations=50000,
+                        race_data=race_data, race_number=race_number,
                     )
                     # 1号艇軸を除外
                     use_probs = {k: v for k, v in mc_are.items()
@@ -611,7 +611,8 @@ class KellyBettingStrategy:
                     from src.monte_carlo import monte_carlo_sanrentan
                     mc_sanrentan = monte_carlo_sanrentan(
                         probs_1st, boats_data=boats_data,
-                        n_simulations=20000,
+                        n_simulations=50000,
+                        race_data=race_data, race_number=race_number,
                     )
                     logger.info(
                         f"MC確率生成: {len(mc_sanrentan)}通り "

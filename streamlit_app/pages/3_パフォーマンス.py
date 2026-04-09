@@ -28,33 +28,24 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'conservative': 'A: 保守的',
-    'standard': 'B: 普通',
-    'divergence': 'C: 市場乖離',
-    'high_confidence': 'D: 高確信',
-    'ensemble': 'E: 合議制',
-    'div_confidence': 'F: 乖離+確信',
-    'bt_none': 'G: BT基本(30)',
-    'bt_entropy': 'H: BT確信(30)',
-    'bt_ensemble': 'I: BT合議(30)',
+    'mc_quarter_kelly': 'L: MC-A (基準)',
+    'mc_early_race': 'O: MC序盤 (R1-R4)',
+    'mc_venue_focus': 'P: MC得意場 (6会場)',
+    'mc_high_ev': 'Q: MC高EV (EV≥1.0)',
+    'mc_are_v2': 'R: MC-B v2 (ModelB)',
 }
 
 STRATEGY_COLORS = {
-    'conservative': '#1f77b4',
-    'standard': '#ff7f0e',
-    'divergence': '#2ca02c',
-    'high_confidence': '#d62728',
-    'ensemble': '#9467bd',
-    'div_confidence': '#8c564b',
-    'bt_none': '#17becf',
-    'bt_entropy': '#bcbd22',
-    'bt_ensemble': '#e377c2',
+    'mc_quarter_kelly': '#1f77b4',
+    'mc_early_race': '#ff7f0e',
+    'mc_venue_focus': '#2ca02c',
+    'mc_high_ev': '#d62728',
+    'mc_are_v2': '#9467bd',
 }
 
 STRATEGY_ORDER = [
-    'conservative', 'standard', 'divergence',
-    'high_confidence', 'ensemble', 'div_confidence',
-    'bt_none', 'bt_entropy', 'bt_ensemble',
+    'mc_quarter_kelly', 'mc_early_race', 'mc_venue_focus',
+    'mc_high_ev', 'mc_are_v2',
 ]
 
 # --- キャッシュ付きDB取得 (TTL=300秒) ---

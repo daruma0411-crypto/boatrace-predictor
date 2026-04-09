@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "v10.2-8strategies"
+_DEPLOY_VERSION = "v10.3-mc-v2-5strategies"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -197,18 +197,14 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'filtered_standard': 'H: 厳選3連単 (場R制限)',
-    'confident_boost': 'J: C+F合体 (entropy+覚醒)',
-    'elite_hybrid': 'K: J+H合体 (entropy+場制限+56skip)',
-    'mc_quarter_kelly': 'L: MC-A (MC+QuarterKelly)',
-    'mc_early_race': 'O: MC序盤 (L+R1-R4限定)',
-    'mc_venue_focus': 'P: MC得意場 (L+6会場限定)',
-    'mc_high_ev': 'Q: MC高EV (L+EV≥1.0)',
-    'mc_are_v2': 'R: MC-B v2 (ModelB+L設定)',
+    'mc_quarter_kelly': 'L: MC-A (基準)',
+    'mc_early_race': 'O: MC序盤 (R1-R4)',
+    'mc_venue_focus': 'P: MC得意場 (6会場)',
+    'mc_high_ev': 'Q: MC高EV (EV≥1.0)',
+    'mc_are_v2': 'R: MC-B v2 (ModelB)',
 }
 
 STRATEGY_ORDER = [
-    'filtered_standard', 'confident_boost', 'elite_hybrid',
     'mc_quarter_kelly', 'mc_early_race', 'mc_venue_focus',
     'mc_high_ev', 'mc_are_v2',
 ]
