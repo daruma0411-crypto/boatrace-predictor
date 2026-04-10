@@ -44,8 +44,8 @@ POLL_INTERVAL = 60
 # 終了時刻（JST 23:00）
 END_HOUR = 23
 
-# 本番ベット金額（固定100円）
-REAL_BET_AMOUNT = 100
+# 本番ベット金額: Kelly計算の金額をそのまま使用（100円単位に丸め）
+USE_KELLY_AMOUNT = True
 
 
 def get_pending_bets(strategy_type):
@@ -120,7 +120,7 @@ async def main_loop(strategy_type, dry_run):
 
     logger.info("=== テレボート自動購入ボット起動 ===")
     logger.info(f"  戦略: {strategy_type}")
-    logger.info(f"  ベット金額: ¥{REAL_BET_AMOUNT} 固定")
+    logger.info(f"  ベット金額: Kelly計算額（100円単位丸め）")
     logger.info(f"  DRY_RUN: {dry_run}")
     logger.info(f"  ポーリング間隔: {POLL_INTERVAL}秒")
     logger.info(f"  終了時刻: {END_HOUR}:00")
@@ -167,21 +167,24 @@ async def main_loop(strategy_type, dry_run):
                     bet_id = bet[0]
                     race_id = bet[1]
                     combination = bet[2]
-                    # bet[3] はKelly計算の金額だが、本番は100円固定
+                    kelly_amount = int(bet[3])  # Kelly計算の金額
                     strategy = bet[4]
                     venue_id = bet[7]
                     race_number = bet[8]
 
+                    # Kelly金額を100円単位に丸め（最低100円）
+                    purchase_amount = max(100, (kelly_amount // 100) * 100)
+
                     logger.info(f"  購入実行: bet_id={bet_id} "
                                 f"場{venue_id} {race_number}R {combination} "
-                                f"¥{REAL_BET_AMOUNT}")
+                                f"¥{purchase_amount:,} (Kelly: ¥{kelly_amount:,})")
 
-                    # テレボートで購入（100円固定）
+                    # テレボートで購入
                     result = await purchaser.purchase(
                         venue_id=venue_id,
                         race_number=race_number,
                         combination=combination,
-                        amount=REAL_BET_AMOUNT,
+                        amount=purchase_amount,
                     )
 
                     # 結果記録
@@ -191,7 +194,7 @@ async def main_loop(strategy_type, dry_run):
                         race_id=race_id,
                         strategy_type=strategy,
                         combination=combination,
-                        amount=REAL_BET_AMOUNT,
+                        amount=purchase_amount,
                         status=status,
                         error_message=result.get('message', '') if not result['success'] else None,
                         screenshot_path=result.get('screenshot', ''),
@@ -203,7 +206,7 @@ async def main_loop(strategy_type, dry_run):
                             venue_id=venue_id,
                             race_number=race_number,
                             combination=combination,
-                            amount=REAL_BET_AMOUNT,
+                            amount=purchase_amount,
                             success=result['success'],
                             message=result.get('message', ''),
                         )
@@ -233,8 +236,8 @@ if __name__ == '__main__':
                         help='購入対象戦略 (例: mc_quarter_kelly)')
     args = parser.parse_args()
 
-    # 戦略の決定（引数 > 環境変数 > デフォルト=L戦略）
-    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc_quarter_kelly")
+    # 戦略の決定（引数 > 環境変数 > デフォルト=L2戦略/QMC）
+    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc2_quarter_kelly")
 
     # DRY_RUNの決定（引数 > 環境変数）
     dry_run = args.dry_run or os.environ.get("TELEBOAT_DRY_RUN", "false").lower() == "true"

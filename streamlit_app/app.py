@@ -172,6 +172,34 @@ def _cached_dashboard(start_date, end_date):
         }
 
 @st.cache_data(ttl=300, show_spinner=False)
+def _cached_real_stats(start_date, end_date):
+    """purchase_log から本番購入の実績を取得"""
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT
+                    COUNT(*) as total_purchases,
+                    COALESCE(SUM(pl.amount), 0) as total_invested,
+                    COUNT(*) FILTER (WHERE b.is_hit = true) as wins,
+                    COALESCE(SUM(CASE WHEN b.is_hit = true THEN b.payout ELSE 0 END), 0) as total_payout
+                FROM purchase_log pl
+                JOIN bets b ON pl.bet_id = b.id
+                WHERE pl.status = 'success'
+                  AND pl.purchased_at >= %s
+                  AND pl.purchased_at < %s::date + 1
+            """, (start_date, end_date))
+            row = cur.fetchone()
+            return {
+                'total_purchases': row[0],
+                'total_invested': int(row[1]),
+                'wins': row[2],
+                'total_payout': int(row[3]),
+            }
+    except Exception:
+        return {'total_purchases': 0, 'total_invested': 0, 'wins': 0, 'total_payout': 0}
+
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_bets():
     return get_today_bets()
 
@@ -289,7 +317,51 @@ def period_and_cards_fragment():
     # 一括DB取得
     dashboard = _cached_dashboard(str(start_date), str(end_date))
 
-    # 戦略カード
+    # === 本番投入カード（先頭表示） ===
+    real_stats = _cached_real_stats(str(start_date), str(end_date))
+    REAL_BANKROLL = 200000  # 本番初期資金
+
+    st.subheader("本番投入")
+    real_col1, real_col2 = st.columns([1, 2])
+    with real_col1:
+        st.markdown(
+            "<p style='font-size:1.75rem;font-weight:700;margin:0 0 0.5rem 0;"
+            "color:#ff6b35'>💰 本番投入 (L2: QMC)</p>",
+            unsafe_allow_html=True,
+        )
+        if real_stats['total_purchases'] > 0:
+            invested = real_stats['total_invested']
+            payout = real_stats['total_payout']
+            net = payout - invested
+            roi = payout / invested * 100 if invested > 0 else 0
+            balance = REAL_BANKROLL + net
+            wins = real_stats['wins']
+            win_rate = wins / real_stats['total_purchases'] * 100
+
+            st.metric("残金", f"\u00a5{balance:,.0f}")
+            st.metric("投資額", f"\u00a5{invested:,}")
+            st.metric("購入数", real_stats['total_purchases'])
+            roi_delta = f"{'+'if roi >= 100 else ''}{roi - 100:.1f}%"
+            st.metric("ROI", f"{roi:.1f}%", delta=roi_delta)
+            st.metric("的中率", f"{win_rate:.1f}%")
+        else:
+            st.metric("残金", f"\u00a5{REAL_BANKROLL:,.0f}")
+            st.info("明日から本番稼働開始")
+    with real_col2:
+        st.markdown(
+            "<div style='background:#1a1a2e;border:2px solid #ff6b35;border-radius:10px;"
+            "padding:1rem;margin-top:2.5rem'>"
+            "<b>戦略:</b> L2 (QMC Sobol 8192回)<br>"
+            "<b>ベット額:</b> Kelly計算額（100円単位）<br>"
+            "<b>初期資金:</b> ¥200,000<br>"
+            "<b>自動購入:</b> テレボートSP版 (WebKit)<br>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
+    # === シミュレーション戦略カード ===
     st.subheader("戦略別サマリー")
     summary_data = dashboard['strategy_summary']
     summary_dict = {s['strategy_type']: s for s in summary_data} if summary_data else {}
