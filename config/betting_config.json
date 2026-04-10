@@ -362,7 +362,7 @@
             "kelly_prob_gain": 1.0
         },
         "mc2_quarter_kelly": {
-            "_comment": "L2戦略: MC v2 (50K/9変数) 基準",
+            "_comment": "L2戦略: QMC (Sobol 8192回) 基準",
             "mc_version": 2,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -386,7 +386,7 @@
             "kelly_prob_gain": 1.0
         },
         "mc2_early_race": {
-            "_comment": "O2戦略: MC v2 + R1-R4限定",
+            "_comment": "O2戦略: QMC + R1-R4限定",
             "mc_version": 2,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -411,7 +411,7 @@
             "max_race_number": 4
         },
         "mc2_venue_focus": {
-            "_comment": "P2戦略: MC v2 + 得意6会場限定",
+            "_comment": "P2戦略: QMC + 得意6会場限定",
             "mc_version": 2,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -436,7 +436,7 @@
             "include_venues": [4, 6, 13, 17, 23, 24]
         },
         "mc2_high_ev": {
-            "_comment": "Q2戦略: MC v2 + EV>=1.0",
+            "_comment": "Q2戦略: QMC + EV>=1.0",
             "mc_version": 2,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -460,7 +460,7 @@
             "kelly_prob_gain": 1.0
         },
         "mc2_are_v2": {
-            "_comment": "R2戦略: MC v2 + ModelB",
+            "_comment": "R2戦略: QMC + ModelB",
             "mc_version": 2,
             "model_type": "are",
             "use_monte_carlo": true,

@@ -250,7 +250,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
-# v10.4: MC v1(20K/3変数) vs MC v2(50K/9変数) A/Bテスト 10戦略
+# v10.5: MC v1(20K/3変数) vs QMC(Sobol 8192回) A/Bテスト 10戦略
 ACTIVE_STRATEGIES = {
     # MC v1 (20K/3変数) — 既存データの連続性を維持
     'mc_quarter_kelly',     # L: MC v1 基準
@@ -258,12 +258,12 @@ ACTIVE_STRATEGIES = {
     'mc_venue_focus',       # P: MC v1 + 得意会場
     'mc_high_ev',           # Q: MC v1 + EV≥1.0
     'mc_are_v2',            # R: MC v1 + ModelB
-    # MC v2 (50K/9変数) — エンジン改良版
-    'mc2_quarter_kelly',    # L2: MC v2 基準
-    'mc2_early_race',       # O2: MC v2 + R1-R4限定
-    'mc2_venue_focus',      # P2: MC v2 + 得意会場
-    'mc2_high_ev',          # Q2: MC v2 + EV≥1.0
-    'mc2_are_v2',           # R2: MC v2 + ModelB
+    # QMC (Sobol 8192回) — 準モンテカルロ法
+    'mc2_quarter_kelly',    # L2: QMC 基準
+    'mc2_early_race',       # O2: QMC + R1-R4限定
+    'mc2_venue_focus',      # P2: QMC + 得意会場
+    'mc2_high_ev',          # Q2: QMC + EV≥1.0
+    'mc2_are_v2',           # R2: QMC + ModelB
 }
 
 
@@ -597,43 +597,43 @@ class KellyBettingStrategy:
                     are_prediction['probs_3rd'],
                 )
                 if use_monte_carlo:
-                    # MC-B: Model Bの確率でモンテカルロ
-                    # 5クラス確率を6クラスに展開（1号艇=0）してMCに渡す
+                    # MC-B: Model Bの確率でモンテカルロ/QMC
+                    # 5クラス確率を6クラスに展開（1号艇=0）してMC/QMCに渡す
                     probs_6 = [0.0] + list(are_prediction['probs_1st'])
-                    from src.monte_carlo import monte_carlo_sanrentan
                     mc_ver = strategy_config.get('mc_version', 1)
                     if mc_ver >= 2:
-                        mc_are = monte_carlo_sanrentan(
-                            probs_6, boats_data=boats_data, n_simulations=50000,
-                            race_data=race_data, race_number=race_number,
+                        from src.monte_carlo import qmc_sanrentan
+                        mc_are = qmc_sanrentan(
+                            probs_6, boats_data=boats_data, n_simulations=8192,
                         )
                     else:
+                        from src.monte_carlo import monte_carlo_sanrentan
                         mc_are = monte_carlo_sanrentan(
                             probs_6, boats_data=boats_data, n_simulations=20000,
                         )
                     # 1号艇軸を除外
                     use_probs = {k: v for k, v in mc_are.items()
                                  if not k.startswith('1-')}
-                    logger.info(f"MC-B v{mc_ver}確率生成: {len(use_probs)}通り")
+                    mc_label = "QMC" if mc_ver >= 2 else f"MC v{mc_ver}"
+                    logger.info(f"MC-B {mc_label}確率生成: {len(use_probs)}通り")
                 else:
                     use_probs = are_sanrentan
                     logger.info(f"NN-B確率生成: {len(use_probs)}通り")
                 use_odds = odds_data
             elif use_monte_carlo:
-                # モンテカルロ確率（mc_version で v1/v2 分岐）
+                # モンテカルロ確率（mc_version で v1/QMC 分岐）
                 mc_ver = strategy_config.get('mc_version', 1)
                 if mc_ver >= 2:
-                    # MC v2: 50K/9変数 — 戦略ごとに生成（v2はrace_data依存）
-                    cache_key = f'mc_v2_{strategy_name}'
+                    # QMC: Sobol列 8192回 — v1と同じ3変数、サンプリングのみ改良
+                    cache_key = f'qmc_{strategy_name}'
                     if cache_key not in _mc_cache:
-                        from src.monte_carlo import monte_carlo_sanrentan
-                        _mc_cache[cache_key] = monte_carlo_sanrentan(
+                        from src.monte_carlo import qmc_sanrentan
+                        _mc_cache[cache_key] = qmc_sanrentan(
                             probs_1st, boats_data=boats_data,
-                            n_simulations=50000,
-                            race_data=race_data, race_number=race_number,
+                            n_simulations=8192,
                         )
                         logger.info(
-                            f"MC v2確率生成: {len(_mc_cache[cache_key])}通り "
+                            f"QMC確率生成: {len(_mc_cache[cache_key])}通り "
                             f"(top={max(_mc_cache[cache_key].values()):.4f})"
                         )
                     use_probs = _mc_cache[cache_key]
