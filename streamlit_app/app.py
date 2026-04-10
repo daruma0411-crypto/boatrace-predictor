@@ -352,7 +352,7 @@ def period_and_cards_fragment():
     with real_col1:
         st.markdown(
             "<p style='font-size:1.75rem;font-weight:700;margin:0 0 0.5rem 0;"
-            "color:#ff6b35'>\U0001f4b0 本番投入 (L2: QMC)</p>",
+            "color:#ff6b35'>\U0001f4b0 本番投入 (O: MC v1 序盤)</p>",
             unsafe_allow_html=True,
         )
         if real_stats['total_purchases'] > 0:
@@ -377,7 +377,7 @@ def period_and_cards_fragment():
         st.markdown(
             "<div style='background:#1a1a2e;border:2px solid #ff6b35;border-radius:10px;"
             "padding:1rem;margin-top:2.5rem'>"
-            "<b>戦略:</b> L2 (QMC Sobol 8192回)<br>"
+            "<b>戦略:</b> O (MC v1 序盤R1-R4限定)<br>"
             "<b>ベット額:</b> Kelly計算額（実額投入）<br>"
             "<b>初期資金:</b> \u00a5200,000<br>"
             "<b>自動購入:</b> テレボートSP版 (WebKit)<br>"

@@ -236,8 +236,8 @@ if __name__ == '__main__':
                         help='購入対象戦略 (例: mc_quarter_kelly)')
     args = parser.parse_args()
 
-    # 戦略の決定（引数 > 環境変数 > デフォルト=L2戦略/QMC）
-    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc2_quarter_kelly")
+    # 戦略の決定（引数 > 環境変数 > デフォルト=O戦略/MC v1序盤R1-R4）
+    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc_early_race")
 
     # DRY_RUNの決定（引数 > 環境変数）
     dry_run = args.dry_run or os.environ.get("TELEBOAT_DRY_RUN", "false").lower() == "true"
