@@ -129,6 +129,41 @@ class TelebotPurchaser:
             logger.info("  トップ画面に復帰（ヘッダー）")
             return True
 
+        # 方法3: メニューの「トップページ」をJSクリック
+        try:
+            clicked = await self.page.evaluate("""
+                () => {
+                    const els = document.querySelectorAll(".menu-list-link, a, div");
+                    for (const el of els) {
+                        if (el.textContent.trim() === "トップページ") {
+                            el.click(); return true;
+                        }
+                    }
+                    return false;
+                }
+            """)
+            if clicked:
+                await self._wait_stable()
+                await self._close_modal()
+                panels = await self.page.query_selector_all("div.jyo-panel")
+                if panels:
+                    logger.info("  トップ画面に復帰（JSクリック）")
+                    return True
+        except Exception:
+            pass
+
+        # 方法4: 直接遷移（最終手段）
+        try:
+            await self.page.goto(TELEBOAT_SP_URL + "top", wait_until="networkidle")
+            await self._wait_stable()
+            await self._close_modal()
+            panels = await self.page.query_selector_all("div.jyo-panel")
+            if panels:
+                logger.info("  トップ画面に復帰（goto）")
+                return True
+        except Exception:
+            pass
+
         logger.warning("  トップ画面への復帰に失敗")
         return False
 
@@ -181,6 +216,23 @@ class TelebotPurchaser:
 
         self._logged_in = True
         await self._close_modal()
+
+        # ログイン後 /top にいない場合は遷移
+        if "/top" not in self.page.url:
+            # メニュー画面の「トップページ」をJSクリック
+            await self.page.evaluate("""
+                () => {
+                    const els = document.querySelectorAll(".menu-list-link, a, div");
+                    for (const el of els) {
+                        if (el.textContent.trim() === "トップページ") {
+                            el.click(); return;
+                        }
+                    }
+                }
+            """)
+            await self._wait_stable()
+            await self._close_modal()
+
         await self._screenshot("login_success")
         logger.info("ログイン成功")
         return True
