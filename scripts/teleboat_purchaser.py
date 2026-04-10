@@ -1,9 +1,10 @@
 """テレボート自動購入ボット（ローカルPC常駐）
 
 60秒間隔でDBをポーリングし、未購入ベットをテレボートで購入する。
+本番運用では100円/ベット固定（Kelly金額は無視）。
 
 使い方:
-    python scripts/teleboat_purchaser.py [--dry-run] [--strategy optuna]
+    python scripts/teleboat_purchaser.py [--dry-run] [--strategy mc_quarter_kelly]
 
 環境変数（.envに設定、gitignore対象）:
     TELEBOAT_MEMBER_ID  加入者番号
@@ -18,7 +19,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime, time
+from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -43,12 +44,16 @@ POLL_INTERVAL = 60
 # 終了時刻（JST 23:00）
 END_HOUR = 23
 
+# 本番ベット金額（固定100円）
+REAL_BET_AMOUNT = 100
+
 
 def get_pending_bets(strategy_type):
-    """未購入かつアクティブ戦略のベットを取得
+    """未購入かつ締切3分以内のベットを取得
 
     Returns:
-        list[dict]: 未購入ベットのリスト
+        list[tuple]: (bet_id, race_id, combination, amount, strategy_type,
+                      odds, expected_value, venue_id, race_number, deadline_time)
     """
     with get_db_connection() as conn:
         cur = conn.cursor()
@@ -97,7 +102,8 @@ def get_today_stats(strategy_type):
             WHERE strategy_type = %s
               AND created_at >= CURRENT_DATE
         """, (strategy_type,))
-        return cur.fetchone()
+        row = cur.fetchone()
+        return {'success_count': row[0], 'failed_count': row[1], 'total_amount': row[2]}
 
 
 async def main_loop(strategy_type, dry_run):
@@ -112,8 +118,9 @@ async def main_loop(strategy_type, dry_run):
         logger.error("TELEBOAT_MEMBER_ID, TELEBOAT_PIN, TELEBOAT_AUTH を .env に設定してください")
         sys.exit(1)
 
-    logger.info(f"=== テレボート自動購入ボット起動 ===")
+    logger.info("=== テレボート自動購入ボット起動 ===")
     logger.info(f"  戦略: {strategy_type}")
+    logger.info(f"  ベット金額: ¥{REAL_BET_AMOUNT} 固定")
     logger.info(f"  DRY_RUN: {dry_run}")
     logger.info(f"  ポーリング間隔: {POLL_INTERVAL}秒")
     logger.info(f"  終了時刻: {END_HOUR}:00")
@@ -155,22 +162,26 @@ async def main_loop(strategy_type, dry_run):
                 logger.info(f"未購入ベット: {len(pending_bets)}件")
 
                 for bet in pending_bets:
-                    bet_id = bet['id']
-                    venue_id = bet['venue_id']
-                    race_number = bet['race_number']
-                    combination = bet['combination']
-                    amount = bet['amount']
-                    race_id = bet['race_id']
+                    # tuple: (id, race_id, combination, amount, strategy_type,
+                    #          odds, ev, venue_id, race_number, deadline_time)
+                    bet_id = bet[0]
+                    race_id = bet[1]
+                    combination = bet[2]
+                    # bet[3] はKelly計算の金額だが、本番は100円固定
+                    strategy = bet[4]
+                    venue_id = bet[7]
+                    race_number = bet[8]
 
                     logger.info(f"  購入実行: bet_id={bet_id} "
-                                f"場{venue_id} {race_number}R {combination} ¥{amount:,}")
+                                f"場{venue_id} {race_number}R {combination} "
+                                f"¥{REAL_BET_AMOUNT}")
 
-                    # テレボートで購入
+                    # テレボートで購入（100円固定）
                     result = await purchaser.purchase(
                         venue_id=venue_id,
                         race_number=race_number,
                         combination=combination,
-                        amount=amount,
+                        amount=REAL_BET_AMOUNT,
                     )
 
                     # 結果記録
@@ -178,23 +189,26 @@ async def main_loop(strategy_type, dry_run):
                     record_purchase(
                         bet_id=bet_id,
                         race_id=race_id,
-                        strategy_type=strategy_type,
+                        strategy_type=strategy,
                         combination=combination,
-                        amount=amount,
+                        amount=REAL_BET_AMOUNT,
                         status=status,
                         error_message=result.get('message', '') if not result['success'] else None,
                         screenshot_path=result.get('screenshot', ''),
                     )
 
                     # LINE通知
-                    send_line_purchase_notification(
-                        venue_id=venue_id,
-                        race_number=race_number,
-                        combination=combination,
-                        amount=amount,
-                        success=result['success'],
-                        message=result.get('message', ''),
-                    )
+                    try:
+                        send_line_purchase_notification(
+                            venue_id=venue_id,
+                            race_number=race_number,
+                            combination=combination,
+                            amount=REAL_BET_AMOUNT,
+                            success=result['success'],
+                            message=result.get('message', ''),
+                        )
+                    except Exception as e:
+                        logger.warning(f"  LINE通知失敗: {e}")
 
                     logger.info(f"  結果: {status} - {result['message']}")
 
@@ -216,11 +230,11 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true',
                         help='購入確定せず確認画面まで（テスト用）')
     parser.add_argument('--strategy', default=None,
-                        help='購入対象戦略 (例: optuna, conservative)')
+                        help='購入対象戦略 (例: mc_quarter_kelly)')
     args = parser.parse_args()
 
-    # 戦略の決定（引数 > 環境変数 > デフォルト）
-    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "optuna")
+    # 戦略の決定（引数 > 環境変数 > デフォルト=L戦略）
+    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc_quarter_kelly")
 
     # DRY_RUNの決定（引数 > 環境変数）
     dry_run = args.dry_run or os.environ.get("TELEBOAT_DRY_RUN", "false").lower() == "true"

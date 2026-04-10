@@ -9,11 +9,12 @@ WebKit (Safari) エミュレーション (iPhone 12 Pro) でテレボートSP版
     spweb.brtb.jp/top にリダイレクト
 
 投票フロー:
-    トップ(ul.jyo-list) → div.jyo-panel クリック →
-    /bet ページ → 場/レース切替(btn-select-m / btn-select-race) →
-    着順チェックボックス(input[name=bet1/bet2/bet3]) →
-    金額入力(input[type=tel].textbox) →
-    「ベットリストに追加して投票へ進む」→ 確認 → 投票確定
+    トップ → 開催場パネル → 投票メニュー →
+    着順label(bet1-N/bet2-N/bet3-N) → 金額(100円単位) →
+    「投票へ進む」→ ベットリスト「次へ」→ 合計金額入力 → 「投票」確定
+
+2件目以降:
+    投票結果「場を変更して投票」→ トップ画面に復帰 → 次の場を選択
 """
 import asyncio
 import logging
@@ -44,7 +45,9 @@ class TelebotPurchaser:
         await purchaser.start()
         await purchaser.login()
         result = await purchaser.purchase(venue_id=12, race_number=5,
-                                          combination="1-2-3", amount=500)
+                                          combination="1-2-3", amount=100)
+        # 2件目以降: navigate_to_top()不要（purchase内で自動復帰）
+        result2 = await purchaser.purchase(venue_id=6, race_number=3, ...)
         balance = await purchaser.get_balance()
         await purchaser.close()
     """
@@ -98,6 +101,36 @@ class TelebotPurchaser:
             '.forEach(e=>e.style.display="none")'
         )
         await asyncio.sleep(0.5)
+
+    async def _navigate_to_top(self):
+        """トップ画面（開催場一覧）に復帰
+
+        投票結果画面の「場を変更して投票」ボタン、または
+        投票メニューの「トップ」リンクを使う。
+        gotoによるセッション切れを回避する。
+        """
+        # 方法1: 「場を変更して投票」ボタン（投票結果画面）
+        buttons = await self.page.query_selector_all("button, a, div[class*='btn']")
+        for btn in buttons:
+            text = (await btn.inner_text()).strip()
+            if "場を変更" in text or "トップへ戻る" in text:
+                await btn.click()
+                await self._wait_stable()
+                await self._close_modal()
+                logger.info("  トップ画面に復帰")
+                return True
+
+        # 方法2: ヘッダーの「トップ」リンク
+        top_link = await self.page.query_selector("a[href*='/top'], a:has-text('トップ')")
+        if top_link:
+            await top_link.click()
+            await self._wait_stable()
+            await self._close_modal()
+            logger.info("  トップ画面に復帰（ヘッダー）")
+            return True
+
+        logger.warning("  トップ画面への復帰に失敗")
+        return False
 
     async def login(self):
         """ログイン
@@ -155,16 +188,6 @@ class TelebotPurchaser:
     async def purchase(self, venue_id, race_number, combination, amount):
         """舟券購入（3連単）
 
-        投票画面の構造:
-        - トップ: ul.jyo-list → div.jyo-panel (場名: div.jyo-panel-name)
-        - 投票画面: /bet
-        - 場切替: button.btn-select-m
-        - レース切替: button.btn-select-race
-        - 着順: input[name=bet1] (1着), input[name=bet2] (2着), input[name=bet3] (3着)
-          各6個（1号艇〜6号艇の順）
-        - 金額: input[type=tel].textbox (100円単位の数値)
-        - 確定: 「ベットリストに追加して投票へ進む」→「投票」
-
         Args:
             venue_id: 会場ID (1-24)
             race_number: レース番号 (1-12)
@@ -185,12 +208,19 @@ class TelebotPurchaser:
             return {"success": False, "message": f"組合せ形式不正: {combination}", "screenshot": ""}
 
         first, second, third = [int(p) for p in parts]
+        amount_unit = amount // 100
 
         try:
             # --- Step 1: トップ画面 → 開催場クリック ---
-            await self.page.goto(TELEBOAT_SP_URL + "top", wait_until="networkidle")
+            # ログイン直後は /top にいる。2件目以降は _navigate_to_top() で復帰済み。
+            # /top にいない場合のみボタン経由で復帰を試みる。
+            if "/top" not in self.page.url:
+                navigated = await self._navigate_to_top()
+                if not navigated:
+                    return {"success": False, "message": "トップ画面に戻れません",
+                            "screenshot": await self._screenshot("error_nav")}
+
             await self._close_modal()
-            await self._screenshot("p01_top")
 
             venue_clicked = False
             panels = await self.page.query_selector_all("div.jyo-panel")
@@ -213,19 +243,14 @@ class TelebotPurchaser:
                 return {"success": False, "message": f"場が見つからない/非開催: {venue_name}",
                         "screenshot": ss}
 
-            await self._screenshot("p02_bet_page")
-
             # --- Step 2: レース切替 ---
-            # 現在のレース番号を確認
             race_btn = await self.page.query_selector("button.btn-select-race")
             if race_btn:
                 current_race_text = (await race_btn.inner_text()).strip()
                 if not current_race_text.startswith(f"{race_number}R"):
-                    # レース番号が違うのでドロップダウンから選択
                     await race_btn.click()
                     await asyncio.sleep(1)
 
-                    # ドロップダウンリストからレースを選択
                     race_options = await self.page.query_selector_all(
                         "li[class*='selectbox'], div[class*='selectbox-item']"
                     )
@@ -237,26 +262,20 @@ class TelebotPurchaser:
                             logger.info(f"  レース切替: {race_number}R")
                             break
 
-            await self._screenshot("p03_race_selected")
-
             # --- Step 3: 勝式が「3連単」であることを確認 ---
-            # デフォルトが3連単でない場合は切替
             bet_type_el = await self.page.query_selector(
                 "div.selectbox:has(button:has-text('3連単')), "
                 "button:has-text('3連単')"
             )
             if not bet_type_el:
-                # 勝式ドロップダウンを探してクリック
                 selectboxes = await self.page.query_selector_all("div.selectbox")
                 for sb in selectboxes:
                     text = (await sb.inner_text()).strip()
                     if any(k in text for k in ['単', '複', '連', 'ワイド']):
-                        # これが勝式ドロップダウン
                         btn = await sb.query_selector("button")
                         if btn:
                             await btn.click()
                             await asyncio.sleep(0.5)
-                            # 3連単を選択
                             options = await self.page.query_selector_all("li")
                             for opt in options:
                                 if "3連単" in (await opt.inner_text()).strip():
@@ -266,36 +285,16 @@ class TelebotPurchaser:
                                     break
                         break
 
-            # --- Step 4: 着順チェックボックス ---
-            # input[name=bet1] が6個(1号艇〜6号艇), bet2, bet3 も同様
-            # N号艇はN番目(0-indexed: N-1)のチェックボックス
-
-            bet1_inputs = await self.page.query_selector_all('input[name="bet1"]')
-            bet2_inputs = await self.page.query_selector_all('input[name="bet2"]')
-            bet3_inputs = await self.page.query_selector_all('input[name="bet3"]')
-
-            if len(bet1_inputs) < 6 or len(bet2_inputs) < 6 or len(bet3_inputs) < 6:
-                ss = await self._screenshot("error_no_checkboxes")
-                return {"success": False,
-                        "message": f"チェックボックス不足: bet1={len(bet1_inputs)} bet2={len(bet2_inputs)} bet3={len(bet3_inputs)}",
-                        "screenshot": ss}
-
-            # チェックボックスをクリック（labelをクリックする方が確実）
-            # 1着: first号艇 (index = first - 1)
-            await bet1_inputs[first - 1].click()
+            # --- Step 4: 着順選択 (label経由) ---
+            await self.page.click(f'label[for="bet1-{first}"]')
             await asyncio.sleep(0.3)
-            # 2着: second号艇
-            await bet2_inputs[second - 1].click()
+            await self.page.click(f'label[for="bet2-{second}"]')
             await asyncio.sleep(0.3)
-            # 3着: third号艇
-            await bet3_inputs[third - 1].click()
+            await self.page.click(f'label[for="bet3-{third}"]')
             await asyncio.sleep(0.3)
-
             logger.info(f"  着順選択: {first}-{second}-{third}")
-            await self._screenshot("p04_numbers")
 
-            # --- Step 5: 金額入力 ---
-            amount_unit = amount // 100
+            # --- Step 5: 金額入力 (100円単位) ---
             amount_input = await self.page.query_selector('input[type="tel"].textbox')
             if not amount_input:
                 amount_input = await self.page.query_selector('input.textbox')
@@ -304,8 +303,6 @@ class TelebotPurchaser:
                 logger.info(f"  金額: {amount_unit} (x100 = ¥{amount:,})")
             else:
                 logger.warning("  金額入力フィールドが見つかりません")
-
-            await self._screenshot("p05_amount")
 
             # --- Step 6: 「ベットリストに追加して投票へ進む」 ---
             add_btn = None
@@ -330,36 +327,49 @@ class TelebotPurchaser:
                 return {"success": False, "message": "投票へ進むボタンが見つかりません",
                         "screenshot": ss}
 
-            await self._screenshot("p06_betlist")
+            # --- Step 7: ベットリスト画面 →「次へ」→ 確認画面 ---
+            next_btn = None
+            buttons = await self.page.query_selector_all("button, div[class*='btn'], a[class*='btn']")
+            for btn in buttons:
+                text = (await btn.inner_text()).strip()
+                if text == "次へ":
+                    next_btn = btn
+                    break
 
-            # --- Step 7: 合計金額確認 → 「投票」ボタン ---
-            # 投票確認画面で合計金額入力が必要な場合がある
-            confirm_input = await self.page.query_selector(
-                'input[type="tel"].textbox, input[class*="total"]'
-            )
-            if confirm_input:
-                # 合計金額を入力（Webの仕様に応じて調整）
-                current_val = await confirm_input.evaluate("el => el.value")
-                if not current_val:
-                    await confirm_input.fill(str(amount_unit))
+            if next_btn:
+                await next_btn.click()
+                await self._wait_stable()
+                logger.info("  次へ → 確認画面")
+            else:
+                ss = await self._screenshot("error_no_next_btn")
+                return {"success": False, "message": "「次へ」ボタンが見つかりません",
+                        "screenshot": ss}
 
-            confirm_ss = await self._screenshot("p07_confirm")
-
-            # --- Step 8: DRY_RUN ---
+            # --- DRY_RUN チェック (最終確認画面で停止) ---
             if self.dry_run:
-                logger.info(f"  [DRY RUN] 購入確定スキップ")
+                final_ss = await self._screenshot("dryrun_stop")
+                logger.info("  [DRY RUN] 投票確定スキップ")
+                await self._navigate_to_top()
                 return {
                     "success": True,
                     "message": f"[DRY RUN] {venue_name} {race_number}R {combination} ¥{amount:,}",
-                    "screenshot": confirm_ss,
+                    "screenshot": final_ss,
                 }
 
-            # --- Step 9: 「投票」ボタン ---
+            # --- Step 8: 確認画面 — 合計金額入力 + 「投票」 ---
+            total_input = await self.page.query_selector('input[type="tel"].textbox')
+            if not total_input:
+                total_input = await self.page.query_selector('input.textbox')
+            if total_input:
+                await total_input.fill(str(amount))
+                logger.info(f"  合計金額入力: {amount} 円")
+                await asyncio.sleep(0.3)
+
             vote_btn = None
-            buttons = await self.page.query_selector_all("button, div[class*='btn']")
+            buttons = await self.page.query_selector_all("button, div[class*='btn'], a[class*='btn']")
             for btn in buttons:
                 text = (await btn.inner_text()).strip()
-                if text == "投票" or text == "投票する":
+                if text in ("投票", "投票する"):
                     vote_btn = btn
                     break
 
@@ -368,24 +378,34 @@ class TelebotPurchaser:
                 await self._wait_stable()
                 logger.info("  投票確定")
             else:
-                return {"success": False, "message": "投票ボタンが見つかりません",
-                        "screenshot": confirm_ss}
+                ss = await self._screenshot("error_no_vote_btn")
+                return {"success": False, "message": "「投票」ボタンが見つかりません",
+                        "screenshot": ss}
 
-            complete_ss = await self._screenshot("p08_complete")
+            # --- Step 9: 投票結果確認 ---
+            complete_ss = await self._screenshot("complete")
 
             page_text = await self.page.inner_text("body")
             if any(k in page_text for k in ["完了", "受付", "投票しました"]):
                 msg = f"購入完了: {venue_name} {race_number}R 3連単 {combination} ¥{amount:,}"
                 logger.info(f"  {msg}")
+                # 次の購入に備えてトップ画面に復帰
+                await self._navigate_to_top()
                 return {"success": True, "message": msg, "screenshot": complete_ss}
             else:
                 msg = f"購入結果不明: {venue_name} {race_number}R（SS確認）"
                 logger.warning(f"  {msg}")
+                await self._navigate_to_top()
                 return {"success": True, "message": msg, "screenshot": complete_ss}
 
         except Exception as e:
             error_ss = await self._screenshot("error")
             logger.error(f"  購入エラー: {e}")
+            # エラー時もトップ復帰を試みる
+            try:
+                await self._navigate_to_top()
+            except Exception:
+                pass
             return {"success": False, "message": str(e), "screenshot": error_ss}
 
     async def get_balance(self):
@@ -396,12 +416,22 @@ class TelebotPurchaser:
         """
         try:
             page_text = await self.page.inner_text("body")
+
+            # パターン1: 「購入残高 1,000 円」
             match = re.search(r'購入残高\s*([\d,]+)\s*円', page_text)
             if match:
                 balance = int(match.group(1).replace(',', ''))
                 logger.info(f"残高: ¥{balance:,}")
                 return balance
 
+            # パターン2: 「購入残高」の後に数字
+            match = re.search(r'購入残高[^\d]*([\d,]+)', page_text)
+            if match:
+                balance = int(match.group(1).replace(',', ''))
+                logger.info(f"残高: ¥{balance:,}")
+                return balance
+
+            # パターン3: 「残高」+ 数字 + 「円」
             match = re.search(r'残高[^\d]*?([\d,]+)\s*円', page_text)
             if match:
                 balance = int(match.group(1).replace(',', ''))
