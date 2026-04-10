@@ -200,6 +200,29 @@ def _cached_real_stats(start_date, end_date):
         return {'total_purchases': 0, 'total_invested': 0, 'wins': 0, 'total_payout': 0}
 
 @st.cache_data(ttl=300, show_spinner=False)
+def _cached_real_daily(start_date, end_date):
+    """purchase_log から本番購入の日次推移を取得"""
+    try:
+        with get_db_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT
+                    pl.purchased_at::date as day,
+                    SUM(pl.amount) as invested,
+                    COALESCE(SUM(CASE WHEN b.is_hit = true THEN b.payout ELSE 0 END), 0) as payout
+                FROM purchase_log pl
+                JOIN bets b ON pl.bet_id = b.id
+                WHERE pl.status = 'success'
+                  AND pl.purchased_at >= %s
+                  AND pl.purchased_at < %s::date + 1
+                GROUP BY pl.purchased_at::date
+                ORDER BY day
+            """, (start_date, end_date))
+            return [{'day': r[0], 'invested': int(r[1]), 'payout': int(r[2])} for r in cur.fetchall()]
+    except Exception:
+        return []
+
+@st.cache_data(ttl=300, show_spinner=False)
 def _cached_today_bets():
     return get_today_bets()
 
@@ -361,6 +384,55 @@ def period_and_cards_fragment():
             "</div>",
             unsafe_allow_html=True,
         )
+
+    # === 本番投入グラフ ===
+    try:
+        real_daily = _cached_real_daily(str(start_date), str(end_date))
+    except Exception:
+        real_daily = []
+
+    if real_daily:
+        import plotly.graph_objects as go
+
+        # 日次の累積残金を計算
+        cumul_net = 0
+        dates = []
+        balances = []
+        for d in real_daily:
+            cumul_net += d['payout'] - d['invested']
+            dates.append(d['day'])
+            balances.append(REAL_BANKROLL + cumul_net)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dates, y=balances,
+            mode='lines+markers',
+            name='本番投入',
+            line=dict(color='#ff6b35', width=3),
+            marker=dict(size=8),
+            fill='tozeroy',
+            fillcolor='rgba(255,107,53,0.1)',
+        ))
+        # 初期資金ライン
+        fig.add_hline(
+            y=REAL_BANKROLL, line_dash="dash",
+            line_color="rgba(255,255,255,0.3)",
+            annotation_text=f"初期資金 \u00a5{REAL_BANKROLL:,}",
+            annotation_position="bottom right",
+            annotation_font_color="rgba(255,255,255,0.5)",
+        )
+        fig.update_layout(
+            title=None,
+            xaxis_title="日付",
+            yaxis_title="残高 (円)",
+            template="plotly_dark",
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            showlegend=False,
+            yaxis=dict(tickformat=","),
+        )
+        st.plotly_chart(fig, use_container_width=True,
+                       config={'displayModeBar': False, 'staticPlot': True})
 
     st.divider()
 
