@@ -318,15 +318,18 @@ def period_and_cards_fragment():
     dashboard = _cached_dashboard(str(start_date), str(end_date))
 
     # === 本番投入カード（先頭表示） ===
-    real_stats = _cached_real_stats(str(start_date), str(end_date))
     REAL_BANKROLL = 200000  # 本番初期資金
+    try:
+        real_stats = _cached_real_stats(str(start_date), str(end_date))
+    except Exception:
+        real_stats = {'total_purchases': 0, 'total_invested': 0, 'wins': 0, 'total_payout': 0}
 
     st.subheader("本番投入")
     real_col1, real_col2 = st.columns([1, 2])
     with real_col1:
         st.markdown(
             "<p style='font-size:1.75rem;font-weight:700;margin:0 0 0.5rem 0;"
-            "color:#ff6b35'>💰 本番投入 (L2: QMC)</p>",
+            "color:#ff6b35'>\U0001f4b0 本番投入 (L2: QMC)</p>",
             unsafe_allow_html=True,
         )
         if real_stats['total_purchases'] > 0:
@@ -353,7 +356,7 @@ def period_and_cards_fragment():
             "padding:1rem;margin-top:2.5rem'>"
             "<b>戦略:</b> L2 (QMC Sobol 8192回)<br>"
             "<b>ベット額:</b> Kelly計算額（100円単位）<br>"
-            "<b>初期資金:</b> ¥200,000<br>"
+            "<b>初期資金:</b> \u00a5200,000<br>"
             "<b>自動購入:</b> テレボートSP版 (WebKit)<br>"
             "</div>",
             unsafe_allow_html=True,
