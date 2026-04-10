@@ -250,7 +250,7 @@ DAILY_BET_LIMIT_PER_STRATEGY = 9999  # リミット無効化 (比較テスト中
 
 TEST_MODE = False  # Kelly有効化: 日次損失制限・ドローダウン防止ON
 
-# v10.5: MC v1(20K/3変数) vs QMC(Sobol 8192回) A/Bテスト 10戦略
+# v10.6: MC v1 vs QMC vs MC v3(序盤特化) A/Bテスト 11戦略
 ACTIVE_STRATEGIES = {
     # MC v1 (20K/3変数) — 既存データの連続性を維持
     'mc_quarter_kelly',     # L: MC v1 基準
@@ -264,6 +264,8 @@ ACTIVE_STRATEGIES = {
     'mc2_venue_focus',      # P2: QMC + 得意会場
     'mc2_high_ev',          # Q2: QMC + EV≥1.0
     'mc2_are_v2',           # R2: QMC + ModelB
+    # QMC v3 (序盤特化ノイズモデル + Sobol列) — クラス分散/展示タイム差/当地勝率+風速/波高
+    'mc3_early_race',       # O3: QMC v3 + R1-R4限定
 }
 
 
@@ -621,9 +623,25 @@ class KellyBettingStrategy:
                     logger.info(f"NN-B確率生成: {len(use_probs)}通り")
                 use_odds = odds_data
             elif use_monte_carlo:
-                # モンテカルロ確率（mc_version で v1/QMC 分岐）
+                # モンテカルロ確率（mc_version で v1/QMC/v3 分岐）
                 mc_ver = strategy_config.get('mc_version', 1)
-                if mc_ver >= 2:
+                if mc_ver >= 3:
+                    # QMC v3: 序盤特化ノイズモデル + Sobol列（全変数）
+                    cache_key = f'qmc_v3_{strategy_name}'
+                    if cache_key not in _mc_cache:
+                        from src.monte_carlo import qmc_sanrentan_v3
+                        _mc_cache[cache_key] = qmc_sanrentan_v3(
+                            probs_1st, boats_data=boats_data,
+                            n_simulations=8192,
+                            race_data=race_data,
+                            race_number=race_number,
+                        )
+                        logger.info(
+                            f"QMC v3確率生成: {len(_mc_cache[cache_key])}通り "
+                            f"(top={max(_mc_cache[cache_key].values()):.4f})"
+                        )
+                    use_probs = _mc_cache[cache_key]
+                elif mc_ver >= 2:
                     # QMC: Sobol列 8192回 — v1と同じ3変数、サンプリングのみ改良
                     cache_key = f'qmc_{strategy_name}'
                     if cache_key not in _mc_cache:

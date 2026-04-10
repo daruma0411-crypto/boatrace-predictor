@@ -5,7 +5,7 @@ import threading
 import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-_DEPLOY_VERSION = "v10.5-mc-v1-qmc-ab-10strategies"
+_DEPLOY_VERSION = "v10.6-mc-v1-qmc-v3early-11strategies"
 
 # モジュールロード時に即座にDB書き込み（クラッシュ箇所特定用）
 try:
@@ -258,6 +258,7 @@ STRATEGY_NAMES = {
     'mc2_venue_focus': 'P2: QMC 得意場',
     'mc2_high_ev': 'Q2: QMC 高EV',
     'mc2_are_v2': 'R2: QMC ModelB',
+    'mc3_early_race': 'O3: QMC v3 序盤',
 }
 
 STRATEGY_ORDER = [
@@ -265,6 +266,7 @@ STRATEGY_ORDER = [
     'mc_high_ev', 'mc_are_v2',
     'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus',
     'mc2_high_ev', 'mc2_are_v2',
+    'mc3_early_race',
 ]
 
 
