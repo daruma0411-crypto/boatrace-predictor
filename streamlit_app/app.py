@@ -355,7 +355,7 @@ def period_and_cards_fragment():
             "<div style='background:#1a1a2e;border:2px solid #ff6b35;border-radius:10px;"
             "padding:1rem;margin-top:2.5rem'>"
             "<b>戦略:</b> L2 (QMC Sobol 8192回)<br>"
-            "<b>ベット額:</b> Kelly計算額（100円単位）<br>"
+            "<b>ベット額:</b> Kelly計算額（実額投入）<br>"
             "<b>初期資金:</b> \u00a5200,000<br>"
             "<b>自動購入:</b> テレボートSP版 (WebKit)<br>"
             "</div>",
