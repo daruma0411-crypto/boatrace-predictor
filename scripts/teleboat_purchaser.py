@@ -103,7 +103,11 @@ def get_today_stats(strategy_type):
               AND created_at >= CURRENT_DATE
         """, (strategy_type,))
         row = cur.fetchone()
-        return {'success_count': row[0], 'failed_count': row[1], 'total_amount': row[2]}
+        return {
+            'success_count': row['success_count'],
+            'failed_count': row['failed_count'],
+            'total_amount': row['total_amount'],
+        }
 
 
 async def main_loop(strategy_type, dry_run):
@@ -162,15 +166,14 @@ async def main_loop(strategy_type, dry_run):
                 logger.info(f"未購入ベット: {len(pending_bets)}件")
 
                 for bet in pending_bets:
-                    # tuple: (id, race_id, combination, amount, strategy_type,
-                    #          odds, ev, venue_id, race_number, deadline_time)
-                    bet_id = bet[0]
-                    race_id = bet[1]
-                    combination = bet[2]
-                    kelly_amount = int(bet[3])  # Kelly計算の金額
-                    strategy = bet[4]
-                    venue_id = bet[7]
-                    race_number = bet[8]
+                    # RealDictCursor: dict形式で返る
+                    bet_id = bet['id']
+                    race_id = bet['race_id']
+                    combination = bet['combination']
+                    kelly_amount = int(bet['amount'])
+                    strategy = bet['strategy_type']
+                    venue_id = bet['venue_id']
+                    race_number = bet['race_number']
 
                     # Kelly金額を100円単位に丸め（最低100円）
                     purchase_amount = max(100, (kelly_amount // 100) * 100)
