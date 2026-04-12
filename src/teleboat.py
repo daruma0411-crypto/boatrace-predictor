@@ -177,8 +177,19 @@ class TelebotPurchaser:
 
         # Step 1: トップページ → ログインボタン
         await self.page.goto(TELEBOAT_SP_URL, wait_until="networkidle")
-        login_div = await self.page.query_selector("div.btn-login")
+        await self._wait_stable()
+
+        # ログインボタンをリトライ付きで探す（サイト読み込みが遅い場合に対応）
+        login_div = None
+        for attempt in range(3):
+            login_div = await self.page.query_selector("div.btn-login")
+            if login_div:
+                break
+            logger.info(f"  ログインボタン待ち... ({attempt + 1}/3)")
+            await asyncio.sleep(3)
+
         if not login_div:
+            await self._screenshot("error_no_login_btn")
             logger.error("div.btn-login が見つかりません")
             return False
         await login_div.click()

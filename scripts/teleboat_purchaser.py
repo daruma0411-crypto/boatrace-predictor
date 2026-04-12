@@ -129,13 +129,22 @@ async def main_loop(strategy_type, dry_run):
     logger.info(f"  ポーリング間隔: {POLL_INTERVAL}秒")
     logger.info(f"  終了時刻: {END_HOUR}:00")
 
-    # テレボートログイン
+    # テレボートログイン（リトライ付き）
     purchaser = TelebotPurchaser(member_id, pin, auth, dry_run=dry_run)
     await purchaser.start()
 
-    login_ok = await purchaser.login()
+    login_ok = False
+    for login_attempt in range(3):
+        login_ok = await purchaser.login()
+        if login_ok:
+            break
+        logger.warning(f"ログイン失敗 ({login_attempt + 1}/3)、60秒後にリトライ...")
+        await purchaser.close()
+        await asyncio.sleep(60)
+        await purchaser.start()
+
     if not login_ok:
-        logger.error("テレボートログイン失敗。終了します。")
+        logger.error("テレボートログイン3回失敗。終了します。")
         await purchaser.close()
         sys.exit(1)
 
