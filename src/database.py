@@ -309,4 +309,4 @@ def get_current_bankroll(strategy_type=None):
                   AND created_at >= %s
             """, (BANKROLL_RESET_DATE,))
         row = cur.fetchone()
-        return row['profit'] if row else 0
+        return float(row['profit']) if row else 0.0
