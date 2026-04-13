@@ -182,7 +182,10 @@ def _cached_real_stats(start_date, end_date):
                     COUNT(*) as total_purchases,
                     COALESCE(SUM(pl.amount), 0) as total_invested,
                     COUNT(*) FILTER (WHERE b.is_hit = true) as wins,
-                    COALESCE(SUM(CASE WHEN b.is_hit = true THEN b.payout ELSE 0 END), 0) as total_payout
+                    COALESCE(SUM(CASE WHEN b.is_hit = true
+                        THEN COALESCE(b.return_amount, b.payout, 0)
+                        ELSE 0 END), 0) as total_payout,
+                    COUNT(*) FILTER (WHERE b.result IS NOT NULL) as settled
                 FROM purchase_log pl
                 JOIN bets b ON pl.bet_id = b.id
                 WHERE pl.status = 'success'
@@ -195,6 +198,7 @@ def _cached_real_stats(start_date, end_date):
                 'total_invested': int(row[1]),
                 'wins': row[2],
                 'total_payout': int(row[3]),
+                'settled': row[4],
             }
     except Exception:
         return {'total_purchases': 0, 'total_invested': 0, 'wins': 0, 'total_payout': 0}
@@ -347,7 +351,7 @@ def period_and_cards_fragment():
     try:
         real_stats = _cached_real_stats(str(start_date), str(end_date))
     except Exception:
-        real_stats = {'total_purchases': 0, 'total_invested': 0, 'wins': 0, 'total_payout': 0}
+        real_stats = {'total_purchases': 0, 'total_invested': 0, 'wins': 0, 'total_payout': 0, 'settled': 0}
 
     st.subheader("本番投入")
     real_col1, real_col2 = st.columns([1, 2])
@@ -361,20 +365,25 @@ def period_and_cards_fragment():
             invested = real_stats['total_invested']
             payout = real_stats['total_payout']
             net = payout - invested
-            roi = payout / invested * 100 if invested > 0 else 0
             balance = REAL_BANKROLL + net
             wins = real_stats['wins']
-            win_rate = wins / real_stats['total_purchases'] * 100
+            settled = real_stats.get('settled', 0)
+            total = real_stats['total_purchases']
 
             st.metric("残金", f"\u00a5{balance:,.0f}")
             st.metric("投資額", f"\u00a5{invested:,}")
-            st.metric("購入数", real_stats['total_purchases'])
-            roi_delta = f"{'+'if roi >= 100 else ''}{roi - 100:.1f}%"
-            st.metric("ROI", f"{roi:.1f}%", delta=roi_delta)
-            st.metric("的中率", f"{win_rate:.1f}%")
+            st.metric("購入数", f"{total} ({settled}件確定)")
+            if settled > 0:
+                roi = payout / invested * 100 if invested > 0 else 0
+                roi_delta = f"{'+'if roi >= 100 else ''}{roi - 100:.1f}%"
+                st.metric("ROI", f"{roi:.1f}%", delta=roi_delta)
+                win_rate = wins / settled * 100
+                st.metric("的中率", f"{win_rate:.1f}%")
+            else:
+                st.info("結果待ち")
         else:
             st.metric("残金", f"\u00a5{REAL_BANKROLL:,.0f}")
-            st.info("明日から本番稼働開始")
+            st.info("本番稼働待ち")
     with real_col2:
         st.markdown(
             "<div style='background:#1a1a2e;border:2px solid #ff6b35;border-radius:10px;"
