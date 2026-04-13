@@ -295,7 +295,8 @@ class TelebotPurchaser:
                 if name_el:
                     name = (await name_el.inner_text()).strip()
                     if name == venue_name:
-                        await panel.click()
+                        # JSクリックでビューポート外でも確実にクリック
+                        await panel.evaluate("el => el.click()")
                         await self._wait_stable()
                         venue_clicked = True
                         logger.info(f"  場選択: {venue_name}")
@@ -348,13 +349,19 @@ class TelebotPurchaser:
                                     break
                         break
 
-            # --- Step 4: 着順選択 (label経由) ---
-            await self.page.click(f'label[for="bet1-{first}"]')
-            await asyncio.sleep(0.3)
-            await self.page.click(f'label[for="bet2-{second}"]')
-            await asyncio.sleep(0.3)
-            await self.page.click(f'label[for="bet3-{third}"]')
-            await asyncio.sleep(0.3)
+            # --- Step 4: 着順選択 (JSクリックでビューポート外でも動作) ---
+            for bet_name, boat_num in [("bet1", first), ("bet2", second), ("bet3", third)]:
+                clicked = await self.page.evaluate(
+                    """(selector) => {
+                        const el = document.querySelector(selector);
+                        if (el) { el.click(); return true; }
+                        return false;
+                    }""",
+                    f'label[for="{bet_name}-{boat_num}"]',
+                )
+                if not clicked:
+                    logger.warning(f"  label[for={bet_name}-{boat_num}] not found")
+                await asyncio.sleep(0.3)
             logger.info(f"  着順選択: {first}-{second}-{third}")
 
             # --- Step 5: 金額入力 (100円単位) ---
@@ -382,7 +389,7 @@ class TelebotPurchaser:
                     ss = await self._screenshot("error_btn_disabled")
                     return {"success": False, "message": "投票ボタンが無効（入力不足?）",
                             "screenshot": ss}
-                await add_btn.click()
+                await add_btn.evaluate("el => el.click()")
                 await self._wait_stable()
                 logger.info("  ベットリスト追加 → 投票画面")
             else:
@@ -400,7 +407,7 @@ class TelebotPurchaser:
                     break
 
             if next_btn:
-                await next_btn.click()
+                await next_btn.evaluate("el => el.click()")
                 await self._wait_stable()
                 logger.info("  次へ → 確認画面")
             else:
@@ -437,7 +444,7 @@ class TelebotPurchaser:
                     break
 
             if vote_btn:
-                await vote_btn.click()
+                await vote_btn.evaluate("el => el.click()")
                 await self._wait_stable()
                 logger.info("  投票確定")
             else:
