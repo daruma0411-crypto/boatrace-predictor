@@ -737,19 +737,32 @@ class DynamicRaceScheduler:
             except Exception as e:
                 logger.warning(f"Model B予測失敗: {e}")
 
-            all_bets = self.betting.calculate_all_strategies(
-                prediction['probs_1st'],
-                prediction['probs_2nd'],
-                prediction['probs_3rd'],
-                odds_dict,
-                venue_id=race['venue_id'],
-                race_number=race['race_number'],
-                ensemble_predictions=ensemble_preds,
-                odds_2t=odds_2t,
-                boats_data=boats_data,
-                race_data=race_data,
-                are_prediction=are_pred,
-            )
+            try:
+                all_bets = self.betting.calculate_all_strategies(
+                    prediction['probs_1st'],
+                    prediction['probs_2nd'],
+                    prediction['probs_3rd'],
+                    odds_dict,
+                    venue_id=race['venue_id'],
+                    race_number=race['race_number'],
+                    ensemble_predictions=ensemble_preds,
+                    odds_2t=odds_2t,
+                    boats_data=boats_data,
+                    race_data=race_data,
+                    are_prediction=are_pred,
+                )
+            except Exception as e:
+                logger.error(f"[場{vid} R{rn}] betting計算エラー: {e}", exc_info=True)
+                try:
+                    with get_db_connection() as conn:
+                        cur = conn.cursor()
+                        cur.execute(
+                            "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
+                            ('betting_error', f'venue={vid} R={rn}: {str(e)[:300]}'),
+                        )
+                except Exception:
+                    pass
+                all_bets = {}
 
             for strategy_type, bets in all_bets.items():
                 # ベット有無に関わらず予測を保存（結果照合・分析用）
