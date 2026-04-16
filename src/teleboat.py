@@ -95,10 +95,11 @@ class TelebotPurchaser:
         await asyncio.sleep(1)
 
     async def _close_modal(self):
-        """お知らせモーダルを閉じる"""
+        """お知らせモーダル・エラーモーダルを閉じる"""
         await self.page.evaluate(
-            'document.querySelectorAll("[class*=modal],[class*=overlay]")'
-            '.forEach(e=>e.style.display="none")'
+            'document.querySelectorAll('
+            '"[class*=modal],[class*=overlay],[class*=error-block],.l-error-block"'
+            ').forEach(e=>e.style.display="none")'
         )
         await asyncio.sleep(0.5)
 
@@ -350,6 +351,7 @@ class TelebotPurchaser:
                         break
 
             # --- Step 4: 着順選択 (JSクリックでビューポート外でも動作) ---
+            await self._close_modal()
             for bet_name, boat_num in [("bet1", first), ("bet2", second), ("bet3", third)]:
                 clicked = await self.page.evaluate(
                     """(selector) => {
