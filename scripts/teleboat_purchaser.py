@@ -172,7 +172,14 @@ async def main_loop(strategy_type, dry_run):
             pending_bets = get_pending_bets(strategy_type)
 
             if pending_bets:
-                logger.info(f"未購入ベット: {len(pending_bets)}件")
+                # 残高チェック（入金忘れ対策: 残高不足なら購入スキップ）
+                current_balance = await purchaser.get_balance()
+                if current_balance is not None and current_balance <= 0:
+                    logger.warning(f"残高不足 (¥0) — 入金待ち。{len(pending_bets)}件スキップ")
+                    await asyncio.sleep(POLL_INTERVAL)
+                    continue
+
+                logger.info(f"未購入ベット: {len(pending_bets)}件 (残高: ¥{current_balance:,})")
 
                 for bet in pending_bets:
                     # RealDictCursor: dict形式で返る
