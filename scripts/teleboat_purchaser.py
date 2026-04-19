@@ -48,12 +48,14 @@ END_HOUR = 23
 USE_KELLY_AMOUNT = True
 
 
-def get_pending_bets(strategy_type):
-    """未購入かつ締切3分以内のベットを取得
+def get_pending_bets(strategy_types):
+    """未購入かつ締切3分以内のベットを取得（複数戦略対応）
+
+    Args:
+        strategy_types: list[str] 購入対象の戦略名リスト
 
     Returns:
-        list[tuple]: (bet_id, race_id, combination, amount, strategy_type,
-                      odds, expected_value, venue_id, race_number, deadline_time)
+        list[dict]: bets + races情報
     """
     with get_db_connection() as conn:
         cur = conn.cursor()
@@ -65,12 +67,12 @@ def get_pending_bets(strategy_type):
             JOIN races r ON b.race_id = r.id
             LEFT JOIN purchase_log pl ON pl.bet_id = b.id
             WHERE pl.id IS NULL
-              AND b.strategy_type = %s
+              AND b.strategy_type = ANY(%s)
               AND b.created_at >= CURRENT_DATE
               AND r.deadline_time > NOW()
               AND r.deadline_time < NOW() + INTERVAL '3 minutes'
-            ORDER BY r.deadline_time ASC
-        """, (strategy_type,))
+            ORDER BY r.deadline_time ASC, b.strategy_type ASC
+        """, (strategy_types,))
         return cur.fetchall()
 
 
@@ -89,8 +91,8 @@ def record_purchase(bet_id, race_id, strategy_type, combination, amount,
               status, error_message, screenshot_path, status))
 
 
-def get_today_stats(strategy_type):
-    """当日の購入統計"""
+def get_today_stats(strategy_types):
+    """当日の購入統計（複数戦略対応）"""
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -99,9 +101,9 @@ def get_today_stats(strategy_type):
                 COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
                 COALESCE(SUM(amount) FILTER (WHERE status = 'success'), 0) as total_amount
             FROM purchase_log
-            WHERE strategy_type = %s
+            WHERE strategy_type = ANY(%s)
               AND created_at >= CURRENT_DATE
-        """, (strategy_type,))
+        """, (strategy_types,))
         row = cur.fetchone()
         return {
             'success_count': row['success_count'],
@@ -110,8 +112,8 @@ def get_today_stats(strategy_type):
         }
 
 
-async def main_loop(strategy_type, dry_run):
-    """メインポーリングループ"""
+async def main_loop(strategy_types, dry_run):
+    """メインポーリングループ（複数戦略対応）"""
 
     # 環境変数チェック
     member_id = os.environ.get("TELEBOAT_MEMBER_ID")
@@ -123,7 +125,7 @@ async def main_loop(strategy_type, dry_run):
         sys.exit(1)
 
     logger.info("=== テレボート自動購入ボット起動 ===")
-    logger.info(f"  戦略: {strategy_type}")
+    logger.info(f"  戦略: {','.join(strategy_types)} ({len(strategy_types)}個)")
     logger.info(f"  ベット金額: Kelly計算額（100円単位丸め）")
     logger.info(f"  DRY_RUN: {dry_run}")
     logger.info(f"  ポーリング間隔: {POLL_INTERVAL}秒")
@@ -161,7 +163,7 @@ async def main_loop(strategy_type, dry_run):
 
             # 終了時刻チェック
             if now.hour >= END_HOUR:
-                stats = get_today_stats(strategy_type)
+                stats = get_today_stats(strategy_types)
                 logger.info(f"=== {END_HOUR}:00 終了 ===")
                 logger.info(f"  成功: {stats['success_count']}件")
                 logger.info(f"  失敗: {stats['failed_count']}件")
@@ -169,7 +171,7 @@ async def main_loop(strategy_type, dry_run):
                 break
 
             # 未購入ベット取得
-            pending_bets = get_pending_bets(strategy_type)
+            pending_bets = get_pending_bets(strategy_types)
 
             if pending_bets:
                 # 残高チェック（入金忘れ対策: 残高不足なら購入スキップ）
@@ -252,13 +254,14 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true',
                         help='購入確定せず確認画面まで（テスト用）')
     parser.add_argument('--strategy', default=None,
-                        help='購入対象戦略 (例: mc_quarter_kelly)')
+                        help='購入対象戦略、カンマ区切りで複数可 (例: mc_early_race,mc_venue_focus)')
     args = parser.parse_args()
 
-    # 戦略の決定（引数 > 環境変数 > デフォルト=R2戦略/QMC ModelB）
-    strategy = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc2_are_v2")
+    # 戦略の決定（引数 > 環境変数 > デフォルト）。カンマ区切りを list 化。
+    strategy_env = args.strategy or os.environ.get("TELEBOAT_STRATEGY", "mc_early_race")
+    strategy_types = [s.strip() for s in strategy_env.split(',') if s.strip()]
 
     # DRY_RUNの決定（引数 > 環境変数）
     dry_run = args.dry_run or os.environ.get("TELEBOAT_DRY_RUN", "false").lower() == "true"
 
-    asyncio.run(main_loop(strategy, dry_run))
+    asyncio.run(main_loop(strategy_types, dry_run))
