@@ -12,3 +12,4 @@ Thumbs.db
 venv/
 .venv/
 scripts/teleboat_screenshots/
+scripts/teleboat_ui_debug/
