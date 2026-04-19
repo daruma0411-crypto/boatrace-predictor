@@ -202,7 +202,7 @@
             "exclude_venues": [14, 20, 22]
         },
         "mc_quarter_kelly": {
-            "_comment": "L戦略: MC-A (Model A + モンテカルロ + Quarter Kelly)",
+            "_comment": "L戦略: MC-A (Model A + モンテカルロ + Quarter Kelly) | max_odds 80→40 (2026-04-19: V1 A/B test)",
             "use_monte_carlo": true,
             "real_kelly": true,
             "joseki_mode": true,
@@ -218,7 +218,7 @@
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
             "min_odds": 5.0,
-            "max_odds": 80,
+            "max_odds": 40,
             "filter_type": "entropy",
             "max_entropy": 2.3,
             "min_probability": 0.005,
@@ -267,7 +267,7 @@
             "kelly_prob_gain": 1.0
         },
         "mc_early_race": {
-            "_comment": "O戦略: L + R1-R4限定 (序盤レースR1:108%,R2:107%のオッズ歪みを狙う)",
+            "_comment": "O戦略: L + R1-R4限定 | max_odds 80→40 (2026-04-19: V1 A/B test)",
             "use_monte_carlo": true,
             "real_kelly": true,
             "joseki_mode": true,
@@ -283,7 +283,7 @@
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
             "min_odds": 5.0,
-            "max_odds": 80,
+            "max_odds": 40,
             "filter_type": "entropy",
             "max_entropy": 2.3,
             "min_probability": 0.005,
@@ -291,7 +291,7 @@
             "max_race_number": 4
         },
         "mc_venue_focus": {
-            "_comment": "P戦略: L + 得意会場ホワイトリスト (唐津176%,大村175%,尼崎130%,浜名湖121%,平和島102%,宮島102%)",
+            "_comment": "P戦略: L + 得意会場ホワイトリスト | max_odds 80→40 (2026-04-19: V1 A/B test)",
             "use_monte_carlo": true,
             "real_kelly": true,
             "joseki_mode": true,
@@ -307,7 +307,7 @@
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
             "min_odds": 5.0,
-            "max_odds": 80,
+            "max_odds": 40,
             "filter_type": "entropy",
             "max_entropy": 2.3,
             "min_probability": 0.005,
@@ -315,7 +315,7 @@
             "include_venues": [4, 6, 13, 17, 23, 24]
         },
         "mc_high_ev": {
-            "_comment": "Q戦略: L + EV>=1.0フィルター (EV1.0-1.2帯が回収率116%の黄金ゾーン)",
+            "_comment": "Q戦略: L + EV>=1.0フィルター | max_odds 80→40 (2026-04-19: V1 A/B test)",
             "use_monte_carlo": true,
             "real_kelly": true,
             "joseki_mode": true,
@@ -331,14 +331,14 @@
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
             "min_odds": 5.0,
-            "max_odds": 80,
+            "max_odds": 40,
             "filter_type": "entropy",
             "max_entropy": 2.3,
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0
         },
         "mc_are_v2": {
-            "_comment": "R戦略: ModelB + Lの設定で再挑戦 (MC+QuarterKelly+entropy+joseki)",
+            "_comment": "R戦略: ModelB + Lの設定で再挑戦 | max_odds 80→40 (2026-04-19: V1 A/B test)",
             "model_type": "are",
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -355,7 +355,7 @@
             "max_recommended_bets": 3,
             "min_bet_amount": 100,
             "min_odds": 5.0,
-            "max_odds": 80,
+            "max_odds": 40,
             "filter_type": "entropy",
             "max_entropy": 2.3,
             "min_probability": 0.005,
