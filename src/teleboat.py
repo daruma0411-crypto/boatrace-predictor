@@ -87,12 +87,12 @@ class TelebotPurchaser:
         return str(path)
 
     async def _wait_stable(self, timeout=10000):
-        """ページ安定待ち"""
+        """ページ安定待ち (Linux WebKit での早期networkidle対策で sleep 増量)"""
         try:
             await self.page.wait_for_load_state("networkidle", timeout=timeout)
         except Exception:
             pass
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
 
     async def _close_modal(self):
         """お知らせモーダル・エラーモーダルを閉じる"""
@@ -299,6 +299,14 @@ class TelebotPurchaser:
                         # JSクリックでビューポート外でも確実にクリック
                         await panel.evaluate("el => el.click()")
                         await self._wait_stable()
+                        # 場遷移後、bet画面に実際に到達したか確認（着順ラベル出現待ち）
+                        try:
+                            await self.page.wait_for_selector(
+                                "label[for='bet1-1']", timeout=10000
+                            )
+                        except Exception:
+                            logger.warning(f"  bet画面遷移遅延: {venue_name}")
+                            await asyncio.sleep(2)  # 追加待機
                         venue_clicked = True
                         logger.info(f"  場選択: {venue_name}")
                         break
