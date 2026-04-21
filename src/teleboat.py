@@ -181,6 +181,81 @@ class TelebotPurchaser:
         logger.warning("  トップ画面への復帰に失敗")
         return False
 
+    async def _find_venue_panel(self, venue_name):
+        """場パネル要素を名前で検索（無効でないもの）"""
+        panels = await self.page.query_selector_all("div.jyo-panel")
+        for p in panels:
+            cls = await p.get_attribute("class") or ""
+            if "is-disabled" in cls:
+                continue
+            name_el = await p.query_selector(".jyo-panel-name")
+            if name_el and (await name_el.inner_text()).strip() == venue_name:
+                return p
+        return None
+
+    async def _click_venue_to_bet(self, venue_name):
+        """場パネルをクリックしてbet入力画面に遷移する。
+
+        複数のクリック手法をフォールバックでリトライ:
+          1. Playwright native click (mousedown/mouseup含む本物の操作)
+          2. <li>親要素を native click (onClickが親にバインドされてる場合)
+          3. JS el.click() (最終手段)
+
+        各手法の間で _navigate_to_top によりページ状態をリセット。
+        /jyomenu 中間画面や /top停滞をまとめて処理する。
+
+        Returns:
+            bool: bet画面到達に成功したか
+        """
+        methods = [
+            ("native", "el"),
+            ("native_li", "li"),
+            ("js", "js"),
+        ]
+
+        for idx, (method_name, target) in enumerate(methods):
+            if idx > 0:
+                # 2回目以降: トップ状態にリセット
+                await self._navigate_to_top()
+                await self._close_modal()
+
+            panel = await self._find_venue_panel(venue_name)
+            if not panel:
+                logger.warning(f"  場パネル未検出: {venue_name} (方法={method_name})")
+                return False
+
+            try:
+                await panel.scroll_into_view_if_needed(timeout=3000)
+            except Exception:
+                pass
+
+            try:
+                if target == "el":
+                    await panel.click(timeout=5000)
+                elif target == "li":
+                    await panel.evaluate("el => (el.closest('li') || el).click()")
+                else:
+                    await panel.evaluate("el => el.click()")
+                await self._wait_stable()
+            except Exception as e:
+                logger.warning(f"  クリック例外 ({method_name}): {e}")
+                continue
+
+            # bet画面到達判定
+            try:
+                await self.page.wait_for_selector(
+                    "label[for='bet1-1']", timeout=8000
+                )
+                logger.info(f"  場選択: {venue_name} (方法={method_name})")
+                return True
+            except Exception:
+                logger.warning(
+                    f"  遷移失敗 ({method_name}, URL={self.page.url})"
+                )
+                continue
+
+        return False
+
     async def _ensure_session_alive(self):
         """セッション生存確認＋復旧
 
@@ -338,72 +413,24 @@ class TelebotPurchaser:
 
             await self._close_modal()
 
-            # 場パネルクリック（/jyomenu中間画面対策で最大2回試行）
-            # 2026-04-21: パネルクリックが時々 /jyomenu に飛んでbet画面に届かない現象あり。
-            # その場合は _navigate_to_top 経由で再試行すると成功する。
-            venue_clicked = False
-            venue_found = False
-            for attempt in range(2):
-                panels = await self.page.query_selector_all("div.jyo-panel")
-                clicked_this_attempt = False
-                for panel in panels:
-                    cls = await panel.get_attribute("class") or ""
-                    if "is-disabled" in cls:
-                        continue
-                    name_el = await panel.query_selector(".jyo-panel-name")
-                    if name_el and (await name_el.inner_text()).strip() == venue_name:
-                        venue_found = True
-                        await panel.evaluate("el => el.click()")
-                        await self._wait_stable()
-                        clicked_this_attempt = True
-                        break
-
-                if not clicked_this_attempt:
-                    break  # そもそも場パネルが見つからない
-
-                # bet画面到達判定
-                try:
-                    await self.page.wait_for_selector(
-                        "label[for='bet1-1']", timeout=10000
-                    )
-                    venue_clicked = True
-                    break
-                except Exception:
-                    # /jyomenu中間画面に飛んでいる場合は1回だけリトライ
-                    if "/jyomenu" in self.page.url and attempt == 0:
-                        logger.warning(
-                            f"  /jyomenu経由を検知 → トップ復帰してリトライ"
-                        )
-                        await self._navigate_to_top()
-                        continue
-                    # その他の遷移失敗は診断保存して抜ける
-                    ss = await self._screenshot("error_venue_transition")
-                    await self._dump_html("error_venue_transition")
-                    logger.error(
-                        f"  bet画面遷移失敗: {venue_name} "
-                        f"(URL={self.page.url})"
-                    )
-                    return {
-                        "success": False,
-                        "message": f"bet画面遷移失敗: {venue_name}",
-                        "screenshot": ss,
-                    }
-
-            if not venue_found:
-                ss = await self._screenshot("error_venue")
-                return {"success": False, "message": f"場が見つからない/非開催: {venue_name}",
-                        "screenshot": ss}
+            # 場パネルクリック → bet画面遷移
+            # React + Swiperで JS el.click() がonClickを発火できない場合があるため、
+            # Playwright native click等を含む複数手法でフォールバックリトライする。
+            # 失敗パターン: /jyomenu 中間画面 or /top 停滞 (2026-04-21 実運用で両方確認)
+            venue_clicked = await self._click_venue_to_bet(venue_name)
             if not venue_clicked:
+                # 場が見つからない場合も、全手法失敗時もここに来る
                 ss = await self._screenshot("error_venue_transition")
                 await self._dump_html("error_venue_transition")
                 logger.error(
-                    f"  bet画面遷移失敗(リトライ後): {venue_name} "
+                    f"  bet画面遷移失敗(全手法): {venue_name} "
                     f"(URL={self.page.url})"
                 )
-                return {"success": False,
-                        "message": f"bet画面遷移失敗(リトライ後): {venue_name}",
-                        "screenshot": ss}
-            logger.info(f"  場選択: {venue_name}")
+                return {
+                    "success": False,
+                    "message": f"bet画面遷移失敗: {venue_name}",
+                    "screenshot": ss,
+                }
 
             # --- Step 2: レース切替 ---
             race_btn = await self.page.query_selector("button.btn-select-race")
