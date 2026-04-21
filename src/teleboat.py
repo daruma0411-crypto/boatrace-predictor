@@ -86,6 +86,19 @@ class TelebotPurchaser:
         logger.debug(f"SS: {path.name}")
         return str(path)
 
+    async def _dump_html(self, name):
+        """HTMLダンプ保存（失敗診断用）"""
+        try:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = SS_DIR / f"{ts}_{name}.html"
+            html = await self.page.content()
+            path.write_text(html, encoding="utf-8")
+            logger.debug(f"HTML: {path.name}")
+            return str(path)
+        except Exception as e:
+            logger.warning(f"  HTMLダンプ失敗: {e}")
+            return None
+
     async def _wait_stable(self, timeout=10000):
         """ページ安定待ち (Linux WebKit での早期networkidle対策で sleep 増量)"""
         try:
@@ -166,6 +179,47 @@ class TelebotPurchaser:
             pass
 
         logger.warning("  トップ画面への復帰に失敗")
+        return False
+
+    async def _ensure_session_alive(self):
+        """セッション生存確認＋復旧
+
+        長時間アイドル後にWebKitセッションが劣化し、場パネルクリックが
+        空振りする現象（2026-04-20確認）への対策。
+
+        流れ：
+          1. /top にいない → _navigate_to_top
+          2. div.jyo-panel が見える → OK
+          3. 見えない → page.reload
+          4. reload後も見えない → 再ログイン
+        """
+        if "/top" not in self.page.url:
+            await self._navigate_to_top()
+
+        panel = await self.page.query_selector("div.jyo-panel")
+        if panel:
+            return True
+
+        logger.warning("  jyo-panel不在 → reload試行")
+        try:
+            await self.page.reload(wait_until="networkidle", timeout=20000)
+            await self._wait_stable()
+            await self._close_modal()
+            panel = await self.page.query_selector("div.jyo-panel")
+            if panel:
+                logger.info("  reload復旧成功")
+                return True
+        except Exception as e:
+            logger.warning(f"  reload失敗: {e}")
+
+        logger.warning("  reload復旧失敗 → 再ログイン試行")
+        self._logged_in = False
+        if await self.login():
+            panel = await self.page.query_selector("div.jyo-panel")
+            if panel:
+                logger.info("  再ログイン復旧成功")
+                return True
+        logger.error("  セッション復旧失敗")
         return False
 
     async def login(self):
@@ -275,14 +329,12 @@ class TelebotPurchaser:
         amount_unit = amount // 100
 
         try:
-            # --- Step 1: トップ画面 → 開催場クリック ---
-            # ログイン直後は /top にいる。2件目以降は _navigate_to_top() で復帰済み。
-            # /top にいない場合のみボタン経由で復帰を試みる。
-            if "/top" not in self.page.url:
-                navigated = await self._navigate_to_top()
-                if not navigated:
-                    return {"success": False, "message": "トップ画面に戻れません",
-                            "screenshot": await self._screenshot("error_nav")}
+            # --- Step 0: セッション生存確認 (長時間アイドル対策) ---
+            if not await self._ensure_session_alive():
+                ss = await self._screenshot("error_session_dead")
+                await self._dump_html("error_session_dead")
+                return {"success": False, "message": "セッション劣化・復旧失敗",
+                        "screenshot": ss}
 
             await self._close_modal()
 
@@ -300,13 +352,23 @@ class TelebotPurchaser:
                         await panel.evaluate("el => el.click()")
                         await self._wait_stable()
                         # 場遷移後、bet画面に実際に到達したか確認（着順ラベル出現待ち）
+                        # 失敗時は継続せず即リターン（空振り購入試行を防止）
                         try:
                             await self.page.wait_for_selector(
                                 "label[for='bet1-1']", timeout=10000
                             )
                         except Exception:
-                            logger.warning(f"  bet画面遷移遅延: {venue_name}")
-                            await asyncio.sleep(2)  # 追加待機
+                            ss = await self._screenshot(f"error_venue_transition")
+                            await self._dump_html(f"error_venue_transition")
+                            logger.error(
+                                f"  bet画面遷移失敗: {venue_name} "
+                                f"(URL={self.page.url})"
+                            )
+                            return {
+                                "success": False,
+                                "message": f"bet画面遷移失敗: {venue_name}",
+                                "screenshot": ss,
+                            }
                         venue_clicked = True
                         logger.info(f"  場選択: {venue_name}")
                         break
