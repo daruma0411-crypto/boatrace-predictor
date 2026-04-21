@@ -338,45 +338,72 @@ class TelebotPurchaser:
 
             await self._close_modal()
 
+            # 場パネルクリック（/jyomenu中間画面対策で最大2回試行）
+            # 2026-04-21: パネルクリックが時々 /jyomenu に飛んでbet画面に届かない現象あり。
+            # その場合は _navigate_to_top 経由で再試行すると成功する。
             venue_clicked = False
-            panels = await self.page.query_selector_all("div.jyo-panel")
-            for panel in panels:
-                cls = await panel.get_attribute("class") or ""
-                if "is-disabled" in cls:
-                    continue
-                name_el = await panel.query_selector(".jyo-panel-name")
-                if name_el:
-                    name = (await name_el.inner_text()).strip()
-                    if name == venue_name:
-                        # JSクリックでビューポート外でも確実にクリック
+            venue_found = False
+            for attempt in range(2):
+                panels = await self.page.query_selector_all("div.jyo-panel")
+                clicked_this_attempt = False
+                for panel in panels:
+                    cls = await panel.get_attribute("class") or ""
+                    if "is-disabled" in cls:
+                        continue
+                    name_el = await panel.query_selector(".jyo-panel-name")
+                    if name_el and (await name_el.inner_text()).strip() == venue_name:
+                        venue_found = True
                         await panel.evaluate("el => el.click()")
                         await self._wait_stable()
-                        # 場遷移後、bet画面に実際に到達したか確認（着順ラベル出現待ち）
-                        # 失敗時は継続せず即リターン（空振り購入試行を防止）
-                        try:
-                            await self.page.wait_for_selector(
-                                "label[for='bet1-1']", timeout=10000
-                            )
-                        except Exception:
-                            ss = await self._screenshot(f"error_venue_transition")
-                            await self._dump_html(f"error_venue_transition")
-                            logger.error(
-                                f"  bet画面遷移失敗: {venue_name} "
-                                f"(URL={self.page.url})"
-                            )
-                            return {
-                                "success": False,
-                                "message": f"bet画面遷移失敗: {venue_name}",
-                                "screenshot": ss,
-                            }
-                        venue_clicked = True
-                        logger.info(f"  場選択: {venue_name}")
+                        clicked_this_attempt = True
                         break
 
-            if not venue_clicked:
+                if not clicked_this_attempt:
+                    break  # そもそも場パネルが見つからない
+
+                # bet画面到達判定
+                try:
+                    await self.page.wait_for_selector(
+                        "label[for='bet1-1']", timeout=10000
+                    )
+                    venue_clicked = True
+                    break
+                except Exception:
+                    # /jyomenu中間画面に飛んでいる場合は1回だけリトライ
+                    if "/jyomenu" in self.page.url and attempt == 0:
+                        logger.warning(
+                            f"  /jyomenu経由を検知 → トップ復帰してリトライ"
+                        )
+                        await self._navigate_to_top()
+                        continue
+                    # その他の遷移失敗は診断保存して抜ける
+                    ss = await self._screenshot("error_venue_transition")
+                    await self._dump_html("error_venue_transition")
+                    logger.error(
+                        f"  bet画面遷移失敗: {venue_name} "
+                        f"(URL={self.page.url})"
+                    )
+                    return {
+                        "success": False,
+                        "message": f"bet画面遷移失敗: {venue_name}",
+                        "screenshot": ss,
+                    }
+
+            if not venue_found:
                 ss = await self._screenshot("error_venue")
                 return {"success": False, "message": f"場が見つからない/非開催: {venue_name}",
                         "screenshot": ss}
+            if not venue_clicked:
+                ss = await self._screenshot("error_venue_transition")
+                await self._dump_html("error_venue_transition")
+                logger.error(
+                    f"  bet画面遷移失敗(リトライ後): {venue_name} "
+                    f"(URL={self.page.url})"
+                )
+                return {"success": False,
+                        "message": f"bet画面遷移失敗(リトライ後): {venue_name}",
+                        "screenshot": ss}
+            logger.info(f"  場選択: {venue_name}")
 
             # --- Step 2: レース切替 ---
             race_btn = await self.page.query_selector("button.btn-select-race")
