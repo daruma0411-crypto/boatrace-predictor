@@ -263,6 +263,7 @@ STRATEGY_NAMES = {
     'mc2_high_ev': 'Q2: QMC 高EV',
     'mc2_are_v2': 'R2: QMC ModelB',
     'mc3_early_race': 'O3: QMC v3 序盤',
+    'mc_early_race_filtered': 'Of: O+Miss分析フィルタ',
 }
 
 STRATEGY_ORDER = [
@@ -271,6 +272,7 @@ STRATEGY_ORDER = [
     'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus',
     'mc2_high_ev', 'mc2_are_v2',
     'mc3_early_race',
+    'mc_early_race_filtered',
 ]
 
 
