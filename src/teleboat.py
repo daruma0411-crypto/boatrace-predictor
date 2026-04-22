@@ -52,6 +52,11 @@ class TelebotPurchaser:
         await purchaser.close()
     """
 
+    # 最終活動（ログイン成功・購入成功）からこの秒数経過すると、
+    # 次の購入前に page.reload() で React セッションをリフレッシュする。
+    # 2026-04-22: アイドル 2h 後にイベントハンドラが死ぬ現象の恒久対策。
+    IDLE_RELOAD_SEC = 10 * 60  # 10分
+
     def __init__(self, member_id, pin, auth_number, dry_run=False):
         self.member_id = member_id
         self.pin = pin
@@ -61,6 +66,7 @@ class TelebotPurchaser:
         self.context = None
         self.page = None
         self._logged_in = False
+        self._last_active = None  # datetime: 最後にログイン成功/購入成功した時刻
 
     async def start(self):
         """WebKit (Safari) ブラウザ起動 + iPhone 12 Pro エミュレーション"""
@@ -260,14 +266,31 @@ class TelebotPurchaser:
         """セッション生存確認＋復旧
 
         長時間アイドル後にWebKitセッションが劣化し、場パネルクリックが
-        空振りする現象（2026-04-20確認）への対策。
+        空振りする現象（2026-04-20〜04-22確認）への対策。
 
         流れ：
+          0. アイドル > IDLE_RELOAD_SEC なら予防的 reload（React再初期化）
           1. /top にいない → _navigate_to_top
           2. div.jyo-panel が見える → OK
           3. 見えない → page.reload
           4. reload後も見えない → 再ログイン
         """
+        # 予防的リフレッシュ: 最終成功から一定時間経ってる場合は reload で
+        # React のイベントハンドラを再接続（panels見えててもonClickが死んでるため）
+        if self._last_active:
+            idle_sec = (datetime.now() - self._last_active).total_seconds()
+            if idle_sec > self.IDLE_RELOAD_SEC:
+                logger.info(
+                    f"  長時間アイドル検知 ({idle_sec:.0f}秒) → 予防的reload"
+                )
+                try:
+                    await self.page.reload(wait_until="networkidle", timeout=20000)
+                    await self._wait_stable()
+                    await self._close_modal()
+                    self._last_active = datetime.now()
+                except Exception as e:
+                    logger.warning(f"  予防的reload失敗: {e}")
+
         if "/top" not in self.page.url:
             await self._navigate_to_top()
 
@@ -356,6 +379,7 @@ class TelebotPurchaser:
             return False
 
         self._logged_in = True
+        self._last_active = datetime.now()
         await self._close_modal()
 
         # ログイン後 /top にいない場合は遷移
@@ -585,12 +609,14 @@ class TelebotPurchaser:
             if any(k in page_text for k in ["完了", "受付", "投票しました"]):
                 msg = f"購入完了: {venue_name} {race_number}R 3連単 {combination} ¥{amount:,}"
                 logger.info(f"  {msg}")
+                self._last_active = datetime.now()
                 # 次の購入に備えてトップ画面に復帰
                 await self._navigate_to_top()
                 return {"success": True, "message": msg, "screenshot": complete_ss}
             else:
                 msg = f"購入結果不明: {venue_name} {race_number}R（SS確認）"
                 logger.warning(f"  {msg}")
+                self._last_active = datetime.now()
                 await self._navigate_to_top()
                 return {"success": True, "message": msg, "screenshot": complete_ss}
 
