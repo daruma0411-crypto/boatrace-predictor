@@ -52,10 +52,10 @@ class TelebotPurchaser:
         await purchaser.close()
     """
 
-    # 最終活動（ログイン成功・購入成功）からこの秒数経過すると、
-    # 次の購入前に page.reload() で React セッションをリフレッシュする。
-    # 2026-04-22: アイドル 2h 後にイベントハンドラが死ぬ現象の恒久対策。
-    IDLE_RELOAD_SEC = 10 * 60  # 10分
+    # 購入毎に完全再ログインで状態完全リセット。ただし直前成功から
+    # この秒数以内なら省略（同レース連続購入の高速化）。
+    # 2026-04-22: アイドル後のReactハンドラ死滅問題への確実な対策。
+    RELOGIN_SKIP_SEC = 60
 
     def __init__(self, member_id, pin, auth_number, dry_run=False):
         self.member_id = member_id
@@ -262,34 +262,52 @@ class TelebotPurchaser:
 
         return False
 
+    async def _reconnect(self):
+        """ブラウザを閉じて新ブラウザを起動 + 再ログイン（状態完全リセット）。
+
+        長時間アイドル後にReactイベントハンドラが死滅する問題への確実な対策。
+        reload()やnavigate_to_top()では復旧しないパターン（2026-04-22実証）を
+        カバーする。所要時間: 約15秒。
+        """
+        logger.info("  完全再ログイン（状態リセット）")
+        try:
+            if self.browser:
+                await self.browser.close()
+        except Exception:
+            pass
+
+        try:
+            iphone = self._pw.devices['iPhone 12 Pro']
+            self.browser = await self._pw.webkit.launch(headless=True)
+            self.context = await self.browser.new_context(**iphone)
+            self.page = await self.context.new_page()
+            self.page.set_default_timeout(15000)
+            self.page.set_default_navigation_timeout(30000)
+        except Exception as e:
+            logger.error(f"  ブラウザ再起動失敗: {e}")
+            return False
+
+        self._logged_in = False
+        return await self.login()
+
     async def _ensure_session_alive(self):
         """セッション生存確認＋復旧
 
-        長時間アイドル後にWebKitセッションが劣化し、場パネルクリックが
-        空振りする現象（2026-04-20〜04-22確認）への対策。
-
-        流れ：
-          0. アイドル > IDLE_RELOAD_SEC なら予防的 reload（React再初期化）
-          1. /top にいない → _navigate_to_top
-          2. div.jyo-panel が見える → OK
-          3. 見えない → page.reload
-          4. reload後も見えない → 再ログイン
+        購入前に呼ばれる安全網。直前1分以内の成功があれば状態はまだ新鮮なので
+        スキップ。それ以外は完全再ログインで状態を確実にリセットする。
         """
-        # 予防的リフレッシュ: 最終成功から一定時間経ってる場合は reload で
-        # React のイベントハンドラを再接続（panels見えててもonClickが死んでるため）
+        # 直前成功から短時間なら状態fresh判定でスキップ
         if self._last_active:
             idle_sec = (datetime.now() - self._last_active).total_seconds()
-            if idle_sec > self.IDLE_RELOAD_SEC:
-                logger.info(
-                    f"  長時間アイドル検知 ({idle_sec:.0f}秒) → 予防的reload"
-                )
-                try:
-                    await self.page.reload(wait_until="networkidle", timeout=20000)
-                    await self._wait_stable()
-                    await self._close_modal()
-                    self._last_active = datetime.now()
-                except Exception as e:
-                    logger.warning(f"  予防的reload失敗: {e}")
+            if idle_sec < self.RELOGIN_SKIP_SEC:
+                return True
+            logger.info(f"  アイドル{idle_sec:.0f}秒 → 完全再ログイン実行")
+        else:
+            logger.info("  未ログイン扱い → 完全再ログイン実行")
+
+        # 完全再ログイン（ブラウザ閉じて再起動）
+        if not await self._reconnect():
+            return False
 
         if "/top" not in self.page.url:
             await self._navigate_to_top()
