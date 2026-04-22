@@ -508,6 +508,32 @@
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
             "max_race_number": 4
+        },
+        "mc_early_race_filtered": {
+            "_comment": "Of戦略 (O+Miss Analysisフィルタ): V10と並走しA/B検証用。勝ち会場のみ・R1除外。実購入は無し(schedulerが予測・bets生成のみ)。Miss Analysis 2026-04-22: V12(792%)/V23(704%)/V09(347%)/V20(145%)/V10(700%)をホワイトリスト化、R1(ROI 0%)を除外",
+            "use_monte_carlo": true,
+            "real_kelly": true,
+            "joseki_mode": true,
+            "skip_56": true,
+            "bet_mode": "sanrentan",
+            "kelly_fraction": 0.0625,
+            "max_total_bet_ratio": 0.02,
+            "max_ticket_bet_ratio": 0.008,
+            "min_expected_value": 0.0,
+            "max_expected_value": 9999.0,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 3,
+            "min_bet_amount": 100,
+            "min_odds": 5.0,
+            "max_odds": 40,
+            "filter_type": "entropy",
+            "max_entropy": 2.3,
+            "min_probability": 0.005,
+            "kelly_prob_gain": 1.0,
+            "max_race_number": 4,
+            "exclude_race_numbers": [1],
+            "include_venues": [9, 10, 12, 20, 23]
         }
     }
 }
