@@ -658,47 +658,57 @@ class TelebotPurchaser:
                 pass
             return {"success": False, "message": str(e), "screenshot": error_ss}
 
+    def _extract_balance(self, page_text):
+        """ページテキストから残高をパース。見つからなければNone。"""
+        for pattern in (
+            r'購入残高\s*([\d,]+)\s*円',
+            r'購入残高[^\d]*([\d,]+)',
+            r'残高[^\d]*?([\d,]+)\s*円',
+        ):
+            match = re.search(pattern, page_text)
+            if match:
+                try:
+                    return int(match.group(1).replace(',', ''))
+                except ValueError:
+                    continue
+        return None
+
     async def get_balance(self):
-        """残高確認
+        """残高確認（reload フォールバック付き）
 
         Returns:
             int or None: 残高（円）
 
-        2026-04-23: ページリロードを追加。手動入金後や長時間アイドル時に
-        古いDOMを読み続けて残高¥0のまま動かないバグ対策。
+        戦略:
+          1. まず現在のDOMから残高をパース（ログイン直後は高確率で成功）
+          2. 失敗したら page.reload() して再パース（長時間アイドル後の古いDOM対策）
+
+        2026-04-23: 無条件reloadで残高取得失敗が多発した（ログイン直後の/top
+        がreload時に残高ウィジェットを再描画しないケース）ため、reloadは
+        初回読み取り失敗時のフォールバックに降格。
         """
         try:
-            # 最新残高を取得するためページを再読み込み（DOMリフレッシュ）
+            page_text = await self.page.inner_text("body")
+            balance = self._extract_balance(page_text)
+            if balance is not None:
+                logger.info(f"残高: ¥{balance:,}")
+                return balance
+
+            # 1回目失敗 → reload して再試行
+            logger.info("残高パターン未検出 → reloadして再取得")
             try:
                 await self.page.reload(wait_until="networkidle", timeout=10000)
                 await self._wait_stable()
             except Exception as e:
-                logger.warning(f"残高確認前reload失敗: {e}")
+                logger.warning(f"残高確認reload失敗: {e}")
 
             page_text = await self.page.inner_text("body")
-
-            # パターン1: 「購入残高 1,000 円」
-            match = re.search(r'購入残高\s*([\d,]+)\s*円', page_text)
-            if match:
-                balance = int(match.group(1).replace(',', ''))
-                logger.info(f"残高: ¥{balance:,}")
+            balance = self._extract_balance(page_text)
+            if balance is not None:
+                logger.info(f"残高: ¥{balance:,} (reload後)")
                 return balance
 
-            # パターン2: 「購入残高」の後に数字
-            match = re.search(r'購入残高[^\d]*([\d,]+)', page_text)
-            if match:
-                balance = int(match.group(1).replace(',', ''))
-                logger.info(f"残高: ¥{balance:,}")
-                return balance
-
-            # パターン3: 「残高」+ 数字 + 「円」
-            match = re.search(r'残高[^\d]*?([\d,]+)\s*円', page_text)
-            if match:
-                balance = int(match.group(1).replace(',', ''))
-                logger.info(f"残高: ¥{balance:,}")
-                return balance
-
-            logger.warning("残高取得失敗")
+            logger.warning("残高取得失敗（reload後も不検出）")
             return None
         except Exception as e:
             logger.error(f"残高取得エラー: {e}")
