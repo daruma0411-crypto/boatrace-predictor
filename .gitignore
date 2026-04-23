@@ -13,3 +13,6 @@ venv/
 .venv/
 scripts/teleboat_screenshots/
 scripts/teleboat_ui_debug/
+analysis/venv_v11/
+analysis/venv_*/
+tmp_*.py

@@ -1,0 +1,344 @@
+{
+  "generated_at": "2026-04-23T00:19:24.460350",
+  "v10_actual": {
+    "bets": 80,
+    "hits": 4,
+    "invest": 93600,
+    "payout": 116530,
+    "profit": 22930,
+    "roi": 1.2449786324786325,
+    "hit_rate": 0.05
+  },
+  "variants": {
+    "v11_baseline": {
+      "raw": {
+        "bets": 3720,
+        "hits": 183,
+        "invest": 3720000,
+        "payout": 2729400,
+        "filtered_out": 0,
+        "roi": 0.7337096774193549,
+        "hit_rate": 0.049193548387096775,
+        "profit": -990600
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 11,
+        "invest": 240000,
+        "payout": 86000,
+        "filtered_out": 1160,
+        "roi": 0.35833333333333334,
+        "hit_rate": 0.04583333333333333,
+        "profit": -154000
+      }
+    },
+    "v11_hp_deep": {
+      "raw": {
+        "bets": 3720,
+        "hits": 180,
+        "invest": 3720000,
+        "payout": 2757900,
+        "filtered_out": 0,
+        "roi": 0.7413709677419354,
+        "hit_rate": 0.04838709677419355,
+        "profit": -962100
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 10,
+        "invest": 240000,
+        "payout": 107200,
+        "filtered_out": 1160,
+        "roi": 0.44666666666666666,
+        "hit_rate": 0.041666666666666664,
+        "profit": -132800
+      }
+    },
+    "v11_hp_fast_lr": {
+      "raw": {
+        "bets": 3720,
+        "hits": 181,
+        "invest": 3720000,
+        "payout": 3106100,
+        "filtered_out": 0,
+        "roi": 0.8349731182795699,
+        "hit_rate": 0.04865591397849462,
+        "profit": -613900
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 9,
+        "invest": 240000,
+        "payout": 111000,
+        "filtered_out": 1160,
+        "roi": 0.4625,
+        "hit_rate": 0.0375,
+        "profit": -129000
+      }
+    },
+    "v11_hp_shallow": {
+      "raw": {
+        "bets": 3720,
+        "hits": 210,
+        "invest": 3720000,
+        "payout": 3021000,
+        "filtered_out": 0,
+        "roi": 0.8120967741935484,
+        "hit_rate": 0.056451612903225805,
+        "profit": -699000
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 13,
+        "invest": 240000,
+        "payout": 138900,
+        "filtered_out": 1160,
+        "roi": 0.57875,
+        "hit_rate": 0.05416666666666667,
+        "profit": -101100
+      }
+    },
+    "v11_hp_slow_lr": {
+      "raw": {
+        "bets": 3720,
+        "hits": 211,
+        "invest": 3720000,
+        "payout": 2950200,
+        "filtered_out": 0,
+        "roi": 0.7930645161290323,
+        "hit_rate": 0.05672043010752688,
+        "profit": -769800
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 11,
+        "invest": 240000,
+        "payout": 118600,
+        "filtered_out": 1160,
+        "roi": 0.49416666666666664,
+        "hit_rate": 0.04583333333333333,
+        "profit": -121400
+      }
+    },
+    "v11_raw_deep": {
+      "raw": {
+        "bets": 3720,
+        "hits": 193,
+        "invest": 3720000,
+        "payout": 2887300,
+        "filtered_out": 0,
+        "roi": 0.7761559139784946,
+        "hit_rate": 0.051881720430107525,
+        "profit": -832700
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 10,
+        "invest": 240000,
+        "payout": 103100,
+        "filtered_out": 1160,
+        "roi": 0.4295833333333333,
+        "hit_rate": 0.041666666666666664,
+        "profit": -136900
+      }
+    },
+    "v11_reg_extreme": {
+      "raw": {
+        "bets": 3720,
+        "hits": 201,
+        "invest": 3720000,
+        "payout": 2793200,
+        "filtered_out": 0,
+        "roi": 0.7508602150537634,
+        "hit_rate": 0.05403225806451613,
+        "profit": -926800
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 11,
+        "invest": 240000,
+        "payout": 102600,
+        "filtered_out": 1160,
+        "roi": 0.4275,
+        "hit_rate": 0.04583333333333333,
+        "profit": -137400
+      }
+    },
+    "v11_reg_strong": {
+      "raw": {
+        "bets": 3720,
+        "hits": 196,
+        "invest": 3720000,
+        "payout": 2768600,
+        "filtered_out": 0,
+        "roi": 0.744247311827957,
+        "hit_rate": 0.05268817204301075,
+        "profit": -951400
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 12,
+        "invest": 240000,
+        "payout": 128300,
+        "filtered_out": 1160,
+        "roi": 0.5345833333333333,
+        "hit_rate": 0.05,
+        "profit": -111700
+      }
+    },
+    "v11_w_extreme": {
+      "raw": {
+        "bets": 3720,
+        "hits": 199,
+        "invest": 3720000,
+        "payout": 2824600,
+        "filtered_out": 0,
+        "roi": 0.7593010752688172,
+        "hit_rate": 0.05349462365591398,
+        "profit": -895400
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 11,
+        "invest": 240000,
+        "payout": 113400,
+        "filtered_out": 1160,
+        "roi": 0.4725,
+        "hit_rate": 0.04583333333333333,
+        "profit": -126600
+      }
+    },
+    "v11_w_extreme_deep": {
+      "raw": {
+        "bets": 3720,
+        "hits": 197,
+        "invest": 3720000,
+        "payout": 2882300,
+        "filtered_out": 0,
+        "roi": 0.7748118279569892,
+        "hit_rate": 0.05295698924731183,
+        "profit": -837700
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 10,
+        "invest": 240000,
+        "payout": 113100,
+        "filtered_out": 1160,
+        "roi": 0.47125,
+        "hit_rate": 0.041666666666666664,
+        "profit": -126900
+      }
+    },
+    "v11_w_mild": {
+      "raw": {
+        "bets": 3720,
+        "hits": 182,
+        "invest": 3720000,
+        "payout": 2894200,
+        "filtered_out": 0,
+        "roi": 0.778010752688172,
+        "hit_rate": 0.0489247311827957,
+        "profit": -825800
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 13,
+        "invest": 240000,
+        "payout": 163700,
+        "filtered_out": 1160,
+        "roi": 0.6820833333333334,
+        "hit_rate": 0.05416666666666667,
+        "profit": -76300
+      }
+    },
+    "v11_w_mild_deep": {
+      "raw": {
+        "bets": 3720,
+        "hits": 183,
+        "invest": 3720000,
+        "payout": 2726400,
+        "filtered_out": 0,
+        "roi": 0.7329032258064516,
+        "hit_rate": 0.049193548387096775,
+        "profit": -993600
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 11,
+        "invest": 240000,
+        "payout": 130300,
+        "filtered_out": 1160,
+        "roi": 0.5429166666666667,
+        "hit_rate": 0.04583333333333333,
+        "profit": -109700
+      }
+    },
+    "v11_w_mild_fast": {
+      "raw": {
+        "bets": 3720,
+        "hits": 163,
+        "invest": 3720000,
+        "payout": 2681700,
+        "filtered_out": 0,
+        "roi": 0.7208870967741936,
+        "hit_rate": 0.04381720430107527,
+        "profit": -1038300
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 7,
+        "invest": 240000,
+        "payout": 82700,
+        "filtered_out": 1160,
+        "roi": 0.34458333333333335,
+        "hit_rate": 0.029166666666666667,
+        "profit": -157300
+      }
+    },
+    "v11_w_strong": {
+      "raw": {
+        "bets": 3720,
+        "hits": 193,
+        "invest": 3720000,
+        "payout": 2695400,
+        "filtered_out": 0,
+        "roi": 0.7245698924731183,
+        "hit_rate": 0.051881720430107525,
+        "profit": -1024600
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 10,
+        "invest": 240000,
+        "payout": 94300,
+        "filtered_out": 1160,
+        "roi": 0.3929166666666667,
+        "hit_rate": 0.041666666666666664,
+        "profit": -145700
+      }
+    },
+    "v11_w_strong_shallow": {
+      "raw": {
+        "bets": 3720,
+        "hits": 210,
+        "invest": 3720000,
+        "payout": 3021000,
+        "filtered_out": 0,
+        "roi": 0.8120967741935484,
+        "hit_rate": 0.056451612903225805,
+        "profit": -699000
+      },
+      "filtered": {
+        "bets": 240,
+        "hits": 13,
+        "invest": 240000,
+        "payout": 138900,
+        "filtered_out": 1160,
+        "roi": 0.57875,
+        "hit_rate": 0.05416666666666667,
+        "profit": -101100
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "backtest_at": "2026-04-22T23:04:36.971889",
+  "val_races": 1240,
+  "bet_amount_per_ticket": 1000,
+  "top_k_bets": 3,
+  "results": {
+    "V11_raw": {
+      "bets": 3720,
+      "invest": 3720000,
+      "hits": 193,
+      "payout": 2695400,
+      "filtered_out_races": 0,
+      "roi": 0.7245698924731183,
+      "hit_rate": 0.051881720430107525,
+      "profit": -1024600
+    },
+    "V11_filtered": {
+      "bets": 240,
+      "invest": 240000,
+      "hits": 10,
+      "payout": 94300,
+      "filtered_out_races": 1160,
+      "roi": 0.3929166666666667,
+      "hit_rate": 0.041666666666666664,
+      "profit": -145700
+    },
+    "V11_max_odds_40": {
+      "bets": 3713,
+      "invest": 3713000,
+      "hits": 186,
+      "payout": 2190800,
+      "filtered_out_races": 0,
+      "roi": 0.5900350121195799,
+      "hit_rate": 0.05009426339886884,
+      "profit": -1522200
+    }
+  }
+}

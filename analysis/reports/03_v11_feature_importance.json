@@ -1,0 +1,144 @@
+{
+  "trained_at": "2026-04-23T08:03:13.377036",
+  "total_samples": 6200,
+  "train_samples": 4960,
+  "val_samples": 1240,
+  "results": {
+    "1st": {
+      "best_iteration": 12,
+      "val_accuracy": 0.5693548387096774
+    },
+    "2nd": {
+      "best_iteration": 2,
+      "val_accuracy": 0.22096774193548388
+    },
+    "3rd": {
+      "best_iteration": 4,
+      "val_accuracy": 0.19838709677419356
+    }
+  },
+  "top20_features": [
+    {
+      "name": "B1_win_rate",
+      "importance": 3531.6826199761417
+    },
+    {
+      "name": "B4_win_rate_2",
+      "importance": 2870.5118566463643
+    },
+    {
+      "name": "B6_local_win_rate_2",
+      "importance": 2545.869421482086
+    },
+    {
+      "name": "B5_win_rate_2",
+      "importance": 2346.8007463727263
+    },
+    {
+      "name": "B4_local_win_rate",
+      "importance": 2329.2320703864098
+    },
+    {
+      "name": "B5_local_win_rate",
+      "importance": 2204.6262998580933
+    },
+    {
+      "name": "B3_weight_diff",
+      "importance": 2201.126797433564
+    },
+    {
+      "name": "B3_boat_win_rate_2",
+      "importance": 2123.28806664281
+    },
+    {
+      "name": "B4_win_rate_3",
+      "importance": 2092.714924419357
+    },
+    {
+      "name": "B5_win_rate_3",
+      "importance": 2047.8111552968621
+    },
+    {
+      "name": "B3_win_rate_3",
+      "importance": 2023.6813037996035
+    },
+    {
+      "name": "B6_win_rate_2",
+      "importance": 1946.320354830823
+    },
+    {
+      "name": "B6_win_rate",
+      "importance": 1937.9820568164578
+    },
+    {
+      "name": "B1_motor_win_rate_2",
+      "importance": 1929.6755316257477
+    },
+    {
+      "name": "B1_win_rate_2",
+      "importance": 1925.4891265211627
+    },
+    {
+      "name": "B2_motor_win_rate_2",
+      "importance": 1885.3612731993198
+    },
+    {
+      "name": "B6_boat_win_rate_2",
+      "importance": 1882.8329939693213
+    },
+    {
+      "name": "B4_win_rate",
+      "importance": 1865.8891934438143
+    },
+    {
+      "name": "B4_motor_win_rate_3",
+      "importance": 1795.8616781234741
+    },
+    {
+      "name": "B5_motor_win_rate_3",
+      "importance": 1757.898165166378
+    }
+  ],
+  "bottom10_features": [
+    {
+      "name": "B5_tilt",
+      "importance": 157.4243984222412
+    },
+    {
+      "name": "B2_class_ord",
+      "importance": 141.35979843139648
+    },
+    {
+      "name": "B5_class_ord",
+      "importance": 128.02410221099854
+    },
+    {
+      "name": "B1_tilt",
+      "importance": 95.78539848327637
+    },
+    {
+      "name": "B1_is_new_motor",
+      "importance": 0.0
+    },
+    {
+      "name": "B2_is_new_motor",
+      "importance": 0.0
+    },
+    {
+      "name": "B3_is_new_motor",
+      "importance": 0.0
+    },
+    {
+      "name": "B4_is_new_motor",
+      "importance": 0.0
+    },
+    {
+      "name": "B5_is_new_motor",
+      "importance": 0.0
+    },
+    {
+      "name": "B6_is_new_motor",
+      "importance": 0.0
+    }
+  ]
+}

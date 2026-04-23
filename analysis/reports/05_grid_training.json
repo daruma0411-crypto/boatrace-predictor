@@ -1,0 +1,353 @@
+{
+  "trained_at": "2026-04-23T08:32:10.096127",
+  "n_variants": 15,
+  "variants": {
+    "v11_baseline": {
+      "config": {
+        "name": "v11_baseline",
+        "weight_preset": "none",
+        "num_leaves": 63,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 17,
+          "val_acc": 0.5596774193548387
+        },
+        "2nd": {
+          "best_iter": 3,
+          "val_acc": 0.22903225806451613
+        },
+        "3rd": {
+          "best_iter": 4,
+          "val_acc": 0.20080645161290323
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_mild": {
+      "config": {
+        "name": "v11_w_mild",
+        "weight_preset": "mild",
+        "num_leaves": 63,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 22,
+          "val_acc": 0.5604838709677419
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.2161290322580645
+        },
+        "3rd": {
+          "best_iter": 7,
+          "val_acc": 0.19112903225806452
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_strong": {
+      "config": {
+        "name": "v11_w_strong",
+        "weight_preset": "strong",
+        "num_leaves": 63,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 12,
+          "val_acc": 0.5693548387096774
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.22096774193548388
+        },
+        "3rd": {
+          "best_iter": 4,
+          "val_acc": 0.19838709677419356
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_extreme": {
+      "config": {
+        "name": "v11_w_extreme",
+        "weight_preset": "extreme",
+        "num_leaves": 63,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 21,
+          "val_acc": 0.5629032258064516
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.21451612903225806
+        },
+        "3rd": {
+          "best_iter": 1,
+          "val_acc": 0.17983870967741936
+        }
+      },
+      "status": "success"
+    },
+    "v11_hp_shallow": {
+      "config": {
+        "name": "v11_hp_shallow",
+        "weight_preset": "strong",
+        "num_leaves": 31,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 17,
+          "val_acc": 0.5669354838709677
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.2161290322580645
+        },
+        "3rd": {
+          "best_iter": 2,
+          "val_acc": 0.20887096774193548
+        }
+      },
+      "status": "success"
+    },
+    "v11_hp_deep": {
+      "config": {
+        "name": "v11_hp_deep",
+        "weight_preset": "strong",
+        "num_leaves": 127,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 13,
+          "val_acc": 0.5717741935483871
+        },
+        "2nd": {
+          "best_iter": 7,
+          "val_acc": 0.24274193548387096
+        },
+        "3rd": {
+          "best_iter": 5,
+          "val_acc": 0.18951612903225806
+        }
+      },
+      "status": "success"
+    },
+    "v11_hp_fast_lr": {
+      "config": {
+        "name": "v11_hp_fast_lr",
+        "weight_preset": "strong",
+        "num_leaves": 63,
+        "learning_rate": 0.1
+      },
+      "results": {
+        "1st": {
+          "best_iter": 7,
+          "val_acc": 0.5604838709677419
+        },
+        "2nd": {
+          "best_iter": 1,
+          "val_acc": 0.19919354838709677
+        },
+        "3rd": {
+          "best_iter": 2,
+          "val_acc": 0.19112903225806452
+        }
+      },
+      "status": "success"
+    },
+    "v11_hp_slow_lr": {
+      "config": {
+        "name": "v11_hp_slow_lr",
+        "weight_preset": "strong",
+        "num_leaves": 63,
+        "learning_rate": 0.02
+      },
+      "results": {
+        "1st": {
+          "best_iter": 48,
+          "val_acc": 0.5685483870967742
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.22016129032258064
+        },
+        "3rd": {
+          "best_iter": 7,
+          "val_acc": 0.20241935483870968
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_mild_deep": {
+      "config": {
+        "name": "v11_w_mild_deep",
+        "weight_preset": "mild",
+        "num_leaves": 127,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 10,
+          "val_acc": 0.5596774193548387
+        },
+        "2nd": {
+          "best_iter": 3,
+          "val_acc": 0.2161290322580645
+        },
+        "3rd": {
+          "best_iter": 5,
+          "val_acc": 0.19112903225806452
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_mild_fast": {
+      "config": {
+        "name": "v11_w_mild_fast",
+        "weight_preset": "mild",
+        "num_leaves": 63,
+        "learning_rate": 0.1
+      },
+      "results": {
+        "1st": {
+          "best_iter": 5,
+          "val_acc": 0.5580645161290323
+        },
+        "2nd": {
+          "best_iter": 1,
+          "val_acc": 0.19435483870967743
+        },
+        "3rd": {
+          "best_iter": 2,
+          "val_acc": 0.18064516129032257
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_strong_shallow": {
+      "config": {
+        "name": "v11_w_strong_shallow",
+        "weight_preset": "strong",
+        "num_leaves": 31,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 17,
+          "val_acc": 0.5669354838709677
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.2161290322580645
+        },
+        "3rd": {
+          "best_iter": 2,
+          "val_acc": 0.20887096774193548
+        }
+      },
+      "status": "success"
+    },
+    "v11_w_extreme_deep": {
+      "config": {
+        "name": "v11_w_extreme_deep",
+        "weight_preset": "extreme",
+        "num_leaves": 127,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 10,
+          "val_acc": 0.5645161290322581
+        },
+        "2nd": {
+          "best_iter": 2,
+          "val_acc": 0.2306451612903226
+        },
+        "3rd": {
+          "best_iter": 1,
+          "val_acc": 0.1774193548387097
+        }
+      },
+      "status": "success"
+    },
+    "v11_reg_strong": {
+      "config": {
+        "name": "v11_reg_strong",
+        "weight_preset": "strong",
+        "num_leaves": 31,
+        "learning_rate": 0.05,
+        "min_child_samples": 50
+      },
+      "results": {
+        "1st": {
+          "best_iter": 22,
+          "val_acc": 0.5645161290322581
+        },
+        "2nd": {
+          "best_iter": 7,
+          "val_acc": 0.21935483870967742
+        },
+        "3rd": {
+          "best_iter": 5,
+          "val_acc": 0.18387096774193548
+        }
+      },
+      "status": "success"
+    },
+    "v11_reg_extreme": {
+      "config": {
+        "name": "v11_reg_extreme",
+        "weight_preset": "strong",
+        "num_leaves": 15,
+        "learning_rate": 0.05,
+        "min_child_samples": 100
+      },
+      "results": {
+        "1st": {
+          "best_iter": 39,
+          "val_acc": 0.5524193548387096
+        },
+        "2nd": {
+          "best_iter": 9,
+          "val_acc": 0.23387096774193547
+        },
+        "3rd": {
+          "best_iter": 15,
+          "val_acc": 0.21048387096774193
+        }
+      },
+      "status": "success"
+    },
+    "v11_raw_deep": {
+      "config": {
+        "name": "v11_raw_deep",
+        "weight_preset": "none",
+        "num_leaves": 127,
+        "learning_rate": 0.05
+      },
+      "results": {
+        "1st": {
+          "best_iter": 14,
+          "val_acc": 0.5645161290322581
+        },
+        "2nd": {
+          "best_iter": 3,
+          "val_acc": 0.23790322580645162
+        },
+        "3rd": {
+          "best_iter": 2,
+          "val_acc": 0.20887096774193548
+        }
+      },
+      "status": "success"
+    }
+  }
+}

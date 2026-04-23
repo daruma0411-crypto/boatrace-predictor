@@ -1,0 +1,192 @@
+{
+  "generated_at": "2026-04-23T01:23:47.117090",
+  "v10_stats": {
+    "bets": 80,
+    "hits": 4,
+    "invest": 93600,
+    "payout": 116530,
+    "roi": 1.2449786324786325
+  },
+  "variants": {
+    "v11_baseline": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 51,
+      "v11_rejected_odds": 11,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_hp_deep": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 61,
+      "v11_rejected_odds": 7,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_hp_fast_lr": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 62,
+      "v11_rejected_odds": 8,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_hp_shallow": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 58,
+      "v11_rejected_odds": 8,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_hp_slow_lr": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 58,
+      "v11_rejected_odds": 11,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_raw_deep": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 60,
+      "v11_rejected_odds": 6,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_reg_extreme": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 48,
+      "v11_rejected_odds": 10,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_reg_strong": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 60,
+      "v11_rejected_odds": 7,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_extreme": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 55,
+      "v11_rejected_odds": 10,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_extreme_deep": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 60,
+      "v11_rejected_odds": 7,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_mild": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 62,
+      "v11_rejected_odds": 2,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_mild_deep": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 60,
+      "v11_rejected_odds": 8,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_mild_fast": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 62,
+      "v11_rejected_odds": 6,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_strong": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 56,
+      "v11_rejected_odds": 8,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    },
+    "v11_w_strong_shallow": {
+      "considered_bets": 80,
+      "v11_accepted": 0,
+      "v11_rejected_ev": 58,
+      "v11_rejected_odds": 8,
+      "v11_invest": 0,
+      "v11_payout": 0,
+      "v11_hits": 0,
+      "v11_roi": 0,
+      "v11_hit_rate": 0,
+      "v11_profit": 0
+    }
+  }
+}

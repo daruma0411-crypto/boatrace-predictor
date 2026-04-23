@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-04-23T05:59:55.712205",
+  "v10_actual": {
+    "bets": 74,
+    "hits": 4,
+    "invest": 88300,
+    "payout": 116530,
+    "roi": 1.3197055492638732
+  },
+  "v10_1_filtered": {
+    "considered": 74,
+    "accepted": 0,
+    "reject_ev_low": 51,
+    "reject_ev_high": 6,
+    "reject_odds": 3,
+    "reject_kelly": 14,
+    "reject_no_features": 0,
+    "invest": 0,
+    "payout": 0,
+    "hits": 0,
+    "roi": 0,
+    "hit_rate": 0,
+    "profit": 0
+  }
+}

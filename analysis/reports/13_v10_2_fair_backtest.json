@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-04-23T08:40:55.087884",
+  "v10_actual": {
+    "bets": 74,
+    "hits": 4,
+    "invest": 88300,
+    "payout": 116530,
+    "roi": 1.3197055492638732
+  },
+  "v10_2_backtest": {
+    "considered_races": 1263,
+    "race_filter_skip": 942,
+    "bets_generated": 76,
+    "hits": 76,
+    "hit_rate": 1.0,
+    "invest": 67500,
+    "payout": 1025940,
+    "profit": 958440,
+    "roi": 15.199111111111112,
+    "filter_breakdown": {
+      "R5>max_race": 108,
+      "R6>max_race": 105,
+      "R7>max_race": 103,
+      "R8>max_race": 104,
+      "R9>max_race": 104,
+      "R10>max_race": 103,
+      "R11>max_race": 102,
+      "R12>max_race": 102,
+      "joseki本命場": 101,
+      "skip_56": 10
+    }
+  }
+}
