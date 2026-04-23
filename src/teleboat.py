@@ -206,6 +206,7 @@ class TelebotPurchaser:
           1. Playwright native click (mousedown/mouseup含む本物の操作)
           2. <li>親要素を native click (onClickが親にバインドされてる場合)
           3. JS el.click() (最終手段)
+          4. 上記全て失敗時: ブラウザ完全再起動+再ログインしてから native click
 
         各手法の間で _navigate_to_top によりページ状態をリセット。
         /jyomenu 中間画面や /top停滞をまとめて処理する。
@@ -214,13 +215,20 @@ class TelebotPurchaser:
             bool: bet画面到達に成功したか
         """
         methods = [
-            ("native", "el"),
-            ("native_li", "li"),
-            ("js", "js"),
+            ("native", "el", False),
+            ("native_li", "li", False),
+            ("js", "js", False),
+            ("native_after_relogin", "el", True),
         ]
 
-        for idx, (method_name, target) in enumerate(methods):
-            if idx > 0:
+        for idx, (method_name, target, need_relogin) in enumerate(methods):
+            if need_relogin:
+                # 最終手段: ブラウザ完全再起動+再ログイン
+                logger.warning(f"  全手法失敗 → 完全再ログイン後リトライ")
+                if not await self._reconnect():
+                    return False
+                await self._close_modal()
+            elif idx > 0:
                 # 2回目以降: トップ状態にリセット
                 await self._navigate_to_top()
                 await self._close_modal()
@@ -228,7 +236,9 @@ class TelebotPurchaser:
             panel = await self._find_venue_panel(venue_name)
             if not panel:
                 logger.warning(f"  場パネル未検出: {venue_name} (方法={method_name})")
-                return False
+                if need_relogin:
+                    return False
+                continue
 
             try:
                 await panel.scroll_into_view_if_needed(timeout=3000)
