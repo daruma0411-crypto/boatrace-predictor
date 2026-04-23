@@ -653,8 +653,18 @@ class TelebotPurchaser:
 
         Returns:
             int or None: 残高（円）
+
+        2026-04-23: ページリロードを追加。手動入金後や長時間アイドル時に
+        古いDOMを読み続けて残高¥0のまま動かないバグ対策。
         """
         try:
+            # 最新残高を取得するためページを再読み込み（DOMリフレッシュ）
+            try:
+                await self.page.reload(wait_until="networkidle", timeout=10000)
+                await self._wait_stable()
+            except Exception as e:
+                logger.warning(f"残高確認前reload失敗: {e}")
+
             page_text = await self.page.inner_text("body")
 
             # パターン1: 「購入残高 1,000 円」
