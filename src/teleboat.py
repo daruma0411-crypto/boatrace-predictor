@@ -632,21 +632,37 @@ class TelebotPurchaser:
 
             # --- Step 9: 投票結果確認 ---
             complete_ss = await self._screenshot("complete")
+            await self._dump_html("complete_html")
 
             page_text = await self.page.inner_text("body")
-            if any(k in page_text for k in ["完了", "受付", "投票しました"]):
+            success_keywords = ["完了", "受付", "投票しました", "投票を受け付け"]
+            failure_keywords = ["エラー", "失敗", "できません", "不足", "上限", "再度"]
+
+            hit_success = [k for k in success_keywords if k in page_text]
+            hit_failure = [k for k in failure_keywords if k in page_text]
+
+            if hit_success and not hit_failure:
                 msg = f"購入完了: {venue_name} {race_number}R 3連単 {combination} ¥{amount:,}"
                 logger.info(f"  {msg}")
                 self._last_active = datetime.now()
-                # 次の購入に備えてトップ画面に復帰
                 await self._navigate_to_top()
                 return {"success": True, "message": msg, "screenshot": complete_ss}
+
+            # 失敗キーワード検出 or 成功キーワード不在 → 購入不成立として扱う
+            # 2026-04-24: 以前は「結果不明」を success:True としていたため、
+            # DBに購入済扱いで記録されるがテレボート側には履歴が無い乖離が多発。
+            # SSと HTMLダンプを残して人間が後から検証できるようにしつつ failed 返す。
+            if hit_failure:
+                reason = f"失敗キーワード検出: {','.join(hit_failure)}"
             else:
-                msg = f"購入結果不明: {venue_name} {race_number}R（SS確認）"
-                logger.warning(f"  {msg}")
-                self._last_active = datetime.now()
-                await self._navigate_to_top()
-                return {"success": True, "message": msg, "screenshot": complete_ss}
+                reason = "成功キーワード未検出（完了/受付/投票しました のいずれも画面に無い）"
+            msg = (
+                f"購入不成立の可能性: {venue_name} {race_number}R {combination} "
+                f"¥{amount:,} — {reason} URL={self.page.url}"
+            )
+            logger.error(f"  {msg}")
+            await self._navigate_to_top()
+            return {"success": False, "message": msg, "screenshot": complete_ss}
 
         except Exception as e:
             error_ss = await self._screenshot("error")
