@@ -39,14 +39,18 @@ logging.basicConfig(
 logger = logging.getLogger('teleboat_purchaser')
 
 # ポーリング間隔（秒）
-POLL_INTERVAL = 45
+# 2026-04-24: 45→20秒に短縮。DEADLINE_WINDOW_MIN=3 の狭い窓内で retry を収めるため。
+POLL_INTERVAL = 20
 
 # 終了時刻（JST 23:00）
 END_HOUR = 23
 
 # 締切ウィンドウ（分）: 締切この時間以内のbetを処理対象に。
-# 2026-04-23: 3→10分に拡大。購入1件~20秒×数件で詰まっても取りこぼさないよう余裕を持たせる。
-DEADLINE_WINDOW_MIN = 10
+# 設計意図: scheduler が LEAD_TIME 1.5〜3分前に予測＆bet生成するため、
+# この窓も 3分にして「予測時と実売時の EV 乖離」を最小化する（オッズは
+# 締切直前に激変するため）。
+# 2026-04-23 に10分に広げたが、retry時にオッズが大きくズレるため3分に戻した。
+DEADLINE_WINDOW_MIN = 3
 
 # 同一betの最大再試行回数（purchase_logにfailedが入ってても締切前ならこの回数までリトライ）
 MAX_RETRY_PER_BET = 3
