@@ -39,8 +39,6 @@ STRATEGY_NAMES = {
     'mc2_high_ev': 'Q2: MC v2 高EV',
     'mc2_are_v2': 'R2: MC v2 ModelB',
     'mc_early_race_filtered': 'Of: O+Miss分析フィルタ',
-    'mc_early_race_v10_2_lr_hi': 'V10.2-A: fine-tune lr_hi',
-    'mc_early_race_v10_2_gamma3': 'V10.2-B: fine-tune gamma3',
 }
 
 STRATEGY_COLORS = {
@@ -55,8 +53,6 @@ STRATEGY_COLORS = {
     'mc2_high_ev': '#8c564b',
     'mc2_are_v2': '#7f7f7f',
     'mc_early_race_filtered': '#ff6b35',
-    'mc_early_race_v10_2_lr_hi': '#ffd700',
-    'mc_early_race_v10_2_gamma3': '#ff4500',
 }
 
 STRATEGY_ORDER = [
@@ -65,8 +61,6 @@ STRATEGY_ORDER = [
     'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus',
     'mc2_high_ev', 'mc2_are_v2',
     'mc_early_race_filtered',
-    'mc_early_race_v10_2_lr_hi',
-    'mc_early_race_v10_2_gamma3',
 ]
 
 # --- キャッシュ付きDB取得 (TTL=300秒) ---

@@ -49,24 +49,6 @@ class DynamicRaceScheduler:
         self.settled_today = False
         self._schedule_date = None  # 現在のスケジュールの対象日
 
-        # V10.2 shadow predictors (X3 retrospective 上位2変種)
-        # 本番V10 (self.predictor) には一切影響しない。失敗時は例外raise
-        # されて process_race の try/except でV10 path は保護される。
-        self.v10_2_shadow_predictors = {}
-        try:
-            from src.v10_2_shadow import V10_2_Predictor
-            self.v10_2_shadow_predictors['mc_early_race_v10_2_lr_hi'] = (
-                V10_2_Predictor('v10_2_lr_hi'))
-            self.v10_2_shadow_predictors['mc_early_race_v10_2_gamma3'] = (
-                V10_2_Predictor('v10_2_gamma3'))
-            logger.info(
-                f"V10.2 shadow predictors loaded: "
-                f"{list(self.v10_2_shadow_predictors.keys())}"
-            )
-        except Exception as e:
-            logger.warning(f"V10.2 shadow predictor初期化失敗 (V10には影響なし): {e}")
-            self.v10_2_shadow_predictors = {}
-
     def fetch_daily_schedule(self):
         """当日のレーススケジュールを取得しDBに保存
 
@@ -792,20 +774,6 @@ class DynamicRaceScheduler:
                 if bets:
                     self.betting.save_bets(bets, pred_id, race['race_id'])
 
-            # V10.2 shadow (X3) - V10 path完了後に完全隔離して実行
-            # 例外時は V10 本番に一切影響しない
-            if self.v10_2_shadow_predictors:
-                try:
-                    self._run_v10_2_shadow(
-                        race, race_data, boats_data, odds_dict,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"V10.2 shadow失敗 (V10に影響なし): "
-                        f"場{vid} R{rn}: {e}",
-                        exc_info=True,
-                    )
-
             total_bets = sum(len(b) for b in all_bets.values())
             if total_bets > 0:
                 logger.info("==========================================")
@@ -966,96 +934,3 @@ class DynamicRaceScheduler:
                     if combo and odds_val:
                         result[combo] = float(odds_val)
         return result
-
-    def _run_v10_2_shadow(self, race, race_data, boats_data, odds_dict):
-        """V10.2 shadow 予測: V10 本番と並走、独立にbets生成
-
-        各variantで:
-          1. V10.2 NN predict → probs_1st/2nd/3rd (calibrated)
-          2. MC simulation で全120combo確率
-          3. _strategy_kelly で フィルタ + Kelly sizing
-          4. bets をDBに保存 (strategy_type = variant名)
-
-        V10本番の購入には影響しない（GCP側の TELEBOAT_STRATEGY は
-        mc_early_race のみ）。予測データのみDBに蓄積して retrospective比較用。
-        """
-        from src.monte_carlo import monte_carlo_sanrentan
-        vid = race['venue_id']
-        rn = race['race_number']
-
-        for strategy_type, predictor in self.v10_2_shadow_predictors.items():
-            try:
-                # 該当戦略のconfig存在確認
-                cfg = self.betting.config['strategies'].get(strategy_type)
-                if cfg is None:
-                    logger.warning(f"[{strategy_type}] config未登録、skip")
-                    continue
-
-                # NN predict (cal済み)
-                pred = predictor.predict(race_data, boats_data)
-                if pred is None:
-                    continue
-                p1, p2, p3 = pred
-
-                # MC simulation (mc_early_race系と同じ設定: v1, n=20000)
-                try:
-                    mc_probs = monte_carlo_sanrentan(
-                        list(p1), boats_data=boats_data,
-                        n_simulations=20000,
-                        race_data=race_data,
-                        race_number=rn,
-                    )
-                except Exception as e:
-                    logger.warning(f"[{strategy_type}] MC失敗: {e}")
-                    continue
-
-                # レース全体フィルタ (skip_56, joseki_mode, max_race)
-                from src.betting import (
-                    _should_skip_by_top_boat, VENUE_HONMEI, VENUE_ARE,
-                )
-                if rn > cfg.get('max_race_number', 12):
-                    continue
-                if cfg.get('skip_56') and _should_skip_by_top_boat(list(p1)):
-                    continue
-                if cfg.get('joseki_mode'):
-                    if vid in VENUE_HONMEI:
-                        continue
-                    if cfg.get('joseki_skip_gray_late', True):
-                        is_gray = vid not in VENUE_ARE
-                        if is_gray and rn >= 7:
-                            continue
-
-                # _strategy_kelly で betting candidate生成
-                bets = self.betting._strategy_kelly(
-                    config=cfg,
-                    sanrentan_probs=mc_probs,
-                    odds_data=odds_dict,
-                    bankroll=self.betting.initial_bankroll,
-                    strategy_name=strategy_type,
-                    venue_id=vid,
-                    race_number=rn,
-                )
-
-                # prediction + bets 保存
-                prediction_dict = {
-                    'probs_1st': list(p1),
-                    'probs_2nd': list(p2),
-                    'probs_3rd': list(p3),
-                    'prediction_time': now_jst().isoformat(),
-                }
-                pred_id = self.predictor.save_prediction(
-                    race['race_id'], prediction_dict,
-                    recommended_bets=bets if bets else [],
-                    strategy_type=strategy_type,
-                )
-                if bets:
-                    self.betting.save_bets(bets, pred_id, race['race_id'])
-                    logger.info(
-                        f"[{strategy_type}] shadow bets={len(bets)} "
-                        f"場{vid} R{rn}"
-                    )
-            except Exception as e:
-                logger.warning(
-                    f"[{strategy_type}] shadow個別失敗 (V10に影響なし): {e}"
-                )
-                # 1 variant 失敗でも他variantは継続

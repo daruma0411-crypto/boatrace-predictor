@@ -266,6 +266,8 @@ ACTIVE_STRATEGIES = {
     'mc2_are_v2',           # R2: QMC + ModelB
     # QMC v3 (序盤特化ノイズモデル + Sobol列) — クラス分散/展示タイム差/当地勝率+風速/波高
     'mc3_early_race',       # O3: QMC v3 + R1-R4限定
+    # Miss Analysis フィルタ (V10ベース + 勝ち会場ホワイトリスト + R1除外)
+    'mc_early_race_filtered',  # Of: O + Miss Analysis (shadow検証中, 2026-04-28〜)
 }
 
 

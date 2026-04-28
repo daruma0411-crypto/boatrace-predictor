@@ -264,8 +264,6 @@ STRATEGY_NAMES = {
     'mc2_are_v2': 'R2: QMC ModelB',
     'mc3_early_race': 'O3: QMC v3 序盤',
     'mc_early_race_filtered': 'Of: O+Miss分析フィルタ',
-    'mc_early_race_v10_2_lr_hi': 'V10.2-A: fine-tune lr_hi',
-    'mc_early_race_v10_2_gamma3': 'V10.2-B: fine-tune gamma3',
 }
 
 STRATEGY_ORDER = [
@@ -275,8 +273,6 @@ STRATEGY_ORDER = [
     'mc2_high_ev', 'mc2_are_v2',
     'mc3_early_race',
     'mc_early_race_filtered',
-    'mc_early_race_v10_2_lr_hi',
-    'mc_early_race_v10_2_gamma3',
 ]
 
 
