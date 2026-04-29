@@ -510,7 +510,7 @@
             "max_race_number": 4
         },
         "mc_early_race_filtered": {
-            "_comment": "Of戦略 (O+Miss Analysisフィルタ): V10と並走しA/B検証用。勝ち会場のみ・R1除外。実購入は無し(schedulerが予測・bets生成のみ)。Miss Analysis 2026-04-22: V12(792%)/V23(704%)/V09(347%)/V20(145%)/V10(700%)をホワイトリスト化、R1(ROI 0%)を除外",
+            "_comment": "Of戦略 (O+forward実績フィルタ): R1-R4序盤特化 + forward 30日 (2026-03-25〜04-28) で ROI≥130%/bets≥10件の会場 [4平和島,9津,12住之江,13尼崎,20若松,23唐津]。R1除外は forward 検証で逆効果(全体R1=168.6% > R2-R4=109.4%)のため撤廃 (2026-04-29 最適化)",
             "use_monte_carlo": true,
             "real_kelly": true,
             "joseki_mode": true,
@@ -532,8 +532,7 @@
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
             "max_race_number": 4,
-            "exclude_race_numbers": [1],
-            "include_venues": [9, 10, 12, 20, 23]
+            "include_venues": [4, 9, 12, 13, 20, 23]
         }
     }
 }
