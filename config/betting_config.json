@@ -312,7 +312,7 @@
             "max_entropy": 2.3,
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
-            "include_venues": [4, 6, 13, 17, 23, 24]
+            "include_venues": [4, 6, 12, 13, 23]
         },
         "mc_high_ev": {
             "_comment": "Q戦略: L + EV>=1.0フィルター | max_odds 80→40 (2026-04-19: V1 A/B test)",
@@ -411,7 +411,7 @@
             "max_race_number": 4
         },
         "mc2_venue_focus": {
-            "_comment": "P2戦略: QMC + 得意6会場限定",
+            "_comment": "P2戦略: QMC + 得意会場限定 (2026-04-29 forward 30日見直し: +12住之江, -17宮島(0勝3bets), -24大村(joseki HONMEIで実質無効))",
             "mc_version": 2,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -433,7 +433,7 @@
             "max_entropy": 2.3,
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
-            "include_venues": [4, 6, 13, 17, 23, 24]
+            "include_venues": [4, 6, 12, 13, 23]
         },
         "mc2_high_ev": {
             "_comment": "Q2戦略: QMC + EV>=1.0",
