@@ -268,6 +268,8 @@ ACTIVE_STRATEGIES = {
     'mc3_early_race',       # O3: QMC v3 + R1-R4限定
     # Miss Analysis フィルタ (V10ベース + 勝ち会場ホワイトリスト + R1除外)
     'mc_early_race_filtered',  # Of: O + Miss Analysis (shadow検証中, 2026-04-28〜)
+    # P4 (P2 + V3 + TOP10会場): 2026-05-01 新設
+    'mc3_venue_focus',  # P4: QMC v3 + 10会場ホワイトリスト
 }
 
 
