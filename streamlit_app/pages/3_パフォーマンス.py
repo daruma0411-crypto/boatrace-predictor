@@ -39,6 +39,8 @@ STRATEGY_NAMES = {
     'mc2_high_ev': 'Q2: MC v2 高EV',
     'mc2_are_v2': 'R2: MC v2 ModelB',
     'mc3_venue_focus': 'P4: QMC v3 + 10会場',
+    'mc3_venue_focus_r2': 'P5: P4 + R1-R2',
+    'mc3_venue_focus_r4': 'P6: P4 + R1-R4',
     'mc_early_race_filtered': 'Of: O+Miss分析フィルタ',
 }
 
@@ -54,6 +56,8 @@ STRATEGY_COLORS = {
     'mc2_high_ev': '#8c564b',
     'mc2_are_v2': '#7f7f7f',
     'mc3_venue_focus': '#9c27b0',
+    'mc3_venue_focus_r2': '#673ab7',
+    'mc3_venue_focus_r4': '#3f51b5',
     'mc_early_race_filtered': '#ff6b35',
 }
 
@@ -62,7 +66,7 @@ STRATEGY_ORDER = [
     'mc_high_ev', 'mc_are_v2',
     'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus',
     'mc2_high_ev', 'mc2_are_v2',
-    'mc3_venue_focus',
+    'mc3_venue_focus', 'mc3_venue_focus_r2', 'mc3_venue_focus_r4',
     'mc_early_race_filtered',
 ]
 
