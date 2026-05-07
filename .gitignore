@@ -16,3 +16,7 @@ scripts/teleboat_ui_debug/
 analysis/venv_v11/
 analysis/venv_*/
 tmp_*.py
+
+# 過去年スクレイピングの pkl 出力 (数GB単位、git管理しない)
+analysis/historical_data/2*/
+# README.md は追跡する (ディレクトリ用途説明)
