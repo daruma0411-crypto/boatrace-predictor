@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 OUT_ROOT = Path(__file__).parent / 'historical_data'
-SLEEP_SEC = 0.5  # 加速A: 2リクエスト/秒、8並列で 16 RPS 想定
+SLEEP_SEC = float(os.environ.get('SCRAPE_SLEEP_SEC', '0.5'))  # 加速A: 2リクエスト/秒、8並列で 16 RPS 想定
 
 
 def main(year: int, month: int, max_days: int | None = None,
@@ -93,14 +93,22 @@ def main(year: int, month: int, max_days: int | None = None,
     for d in range(start_day, end_day + 1):
         race_date = date(year, month, d)
         date_str = race_date.isoformat()
+        # 休場会場のキャッシュ: そのレース日に R1 で racelist が None なら全 R で skip
+        closed_venues = set()
 
         for venue_id in range(venue_start, venue_end + 1):
             for race_num in range(1, 13):
                 key = (date_str, venue_id, race_num)
 
+                # その日その会場が休場確定なら R2 以降は丸ごとスキップ
+                if venue_id in closed_venues:
+                    step += 3
+                    continue
+
                 # racelist
                 step += 1
-                if key not in done_racelist:
+                rl_ok = key in done_racelist
+                if not rl_ok:
                     try:
                         rl = scrape_racelist(session, race_date, venue_id, race_num)
                         if rl:
@@ -110,9 +118,17 @@ def main(year: int, month: int, max_days: int | None = None,
                                 'race_number': race_num,
                                 'boats': rl,
                             })
+                            rl_ok = True
                     except Exception as e:
                         skipped.append((date_str, venue_id, race_num, 'racelist', str(e)[:100]))
                     time.sleep(SLEEP_SEC)
+
+                # racelist が取れない = 休場の可能性。R1 なら以降全 R をスキップ
+                if not rl_ok:
+                    if race_num == 1:
+                        closed_venues.add(venue_id)
+                    step += 2
+                    continue
 
                 # result
                 step += 1
