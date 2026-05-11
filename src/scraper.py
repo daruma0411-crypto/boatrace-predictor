@@ -542,21 +542,21 @@ def _parse_weather(soup):
             if m:
                 weather['wave_height'] = int(m.group(1))
 
-    # 気温: "気温" ラベルの隣テキスト "10.0℃"
+    # 気温: "気温" ラベルの隣テキスト "10.0℃" (欠損時は "－.－℃" 等)
     temp_label = weather_div.find(string=re.compile(r'気温'))
     if temp_label:
-        sib = temp_label.find_next(string=re.compile(r'[\d.]+'))
+        sib = temp_label.find_next(string=re.compile(r'\d+(?:\.\d+)?'))
         if sib:
-            m = re.search(r'([\d.]+)', sib)
+            m = re.search(r'(\d+(?:\.\d+)?)', sib)
             if m:
                 weather['temperature'] = float(m.group(1))
 
-    # 水温: "水温" ラベルの隣テキスト "11.0℃"
+    # 水温: "水温" ラベルの隣テキスト "11.0℃" (欠損時は "－.－℃" 等)
     water_label = weather_div.find(string=re.compile(r'水温'))
     if water_label:
-        sib = water_label.find_next(string=re.compile(r'[\d.]+'))
+        sib = water_label.find_next(string=re.compile(r'\d+(?:\.\d+)?'))
         if sib:
-            m = re.search(r'([\d.]+)', sib)
+            m = re.search(r'(\d+(?:\.\d+)?)', sib)
             if m:
                 weather['water_temperature'] = float(m.group(1))
 
