@@ -295,7 +295,21 @@ def init_database():
             conn.rollback()
             cur = conn.cursor()
 
-        logger.info("データベース初期化完了（5テーブル + race_processing作成）")
+        # race_titles テーブル (A3: race title スクレイピング拡張)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS race_titles (
+                race_id INTEGER PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE,
+                title TEXT,
+                scraped_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_race_titles_title
+            ON race_titles(title)
+        """)
+        logger.info("race_titles テーブル / index 確認")
+
+        logger.info("データベース初期化完了（5テーブル + race_processing + race_titles作成）")
 
 
 # V4リセット日: この日以降のベットのみでbankrollを計算
