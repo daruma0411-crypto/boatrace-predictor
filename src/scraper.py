@@ -777,3 +777,51 @@ def scrape_race_result(session, race_date, venue_id, race_number):
     except Exception as e:
         logger.warning(f"結果取得エラー 場{venue_id} R{race_number}: {e}")
         return None
+
+
+def _parse_title_from_html(html):
+    """HTML 文字列から race title を抽出 (A3)
+
+    Args:
+        html: str (boatrace.jp /owpc/pc/race/racelist のレスポンス本文)
+
+    Returns:
+        str | None: title 文字列 (前後空白除去)。要素なし / 空文字列 / 不正 HTML 時は None
+    """
+    if not html:
+        return None
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+    except Exception as e:
+        logger.debug(f"BS4 parse error: {e}")
+        return None
+    el = soup.select_one(".heading2_titleName")
+    if el is None:
+        return None
+    text = el.get_text(strip=True)
+    return text or None
+
+
+def scrape_race_title(session, race_date, venue_id, race_number):
+    """boatrace 公式サイトから race title を取得 (A3)
+
+    Args:
+        session: requests.Session
+        race_date: datetime.date
+        venue_id: int (1-24)
+        race_number: int (1-12)
+
+    Returns:
+        str | None: title 文字列。取得失敗 / title 無し時は None
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/racelist?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+    try:
+        r = session.get(url, timeout=15)
+        if r.status_code != 200:
+            logger.debug(f"HTTP {r.status_code}: {url}")
+            return None
+    except Exception as e:
+        logger.debug(f"HTTP error {url}: {e}")
+        return None
+    return _parse_title_from_html(r.text)
