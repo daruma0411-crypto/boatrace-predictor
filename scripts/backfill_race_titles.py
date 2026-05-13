@@ -24,7 +24,7 @@ from src.database import get_db_connection
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 logger = logging.getLogger(__name__)
 
-SLEEP_SEC = 0.5
+SLEEP_SEC = 0.2
 
 
 def upsert_title(conn, race_id, title):
