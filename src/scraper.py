@@ -825,3 +825,86 @@ def scrape_race_title(session, race_date, venue_id, race_number):
         logger.debug(f"HTTP error {url}: {e}")
         return None
     return _parse_title_from_html(r.text)
+
+
+def _parse_subtitle_from_html(html):
+    """HTML から race subtitle (例: '予選1200m') を抽出
+
+    要素内には改行・タブ・全角空白が混在するため、空白を全て単一半角空白に正規化する。
+    """
+    if not html:
+        return None
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+    except Exception:
+        return None
+    el = soup.select_one(".title16_titleDetail__add2020")
+    if el is None:
+        return None
+    text = el.get_text(strip=True)
+    text = re.sub(r'[\s\u3000]+', ' ', text).strip()
+    return text or None
+
+
+def _parse_day_label_from_html(html, race_date):
+    """HTML 内の節日程タブから race_date に対応する day_label を抽出
+
+    タブテキストは 'MM月DD日{label}' 形式 (例: '5月11日初日', '5月13日３日目', '5月16日最終日')。
+    race_date と一致する label 部分を返す。
+
+    Args:
+        html: str
+        race_date: datetime.date
+
+    Returns:
+        str | None
+    """
+    if not html or race_date is None:
+        return None
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+    except Exception:
+        return None
+    pattern = re.compile(r'^(\d{1,2})月(\d{1,2})日(.+)$')
+    for el in soup.select(".tab2_inner"):
+        text = el.get_text(strip=True)
+        m = pattern.match(text)
+        if not m:
+            continue
+        month, day, label = int(m.group(1)), int(m.group(2)), m.group(3).strip()
+        if month == race_date.month and day == race_date.day and label:
+            return label
+    return None
+
+
+def scrape_race_meta(session, race_date, venue_id, race_number):
+    """boatrace 公式サイトから race meta (title / subtitle / day_label) を取得 (A3 拡張)
+
+    1 HTTP リクエストで 3 field 取得。Phase B1 (企画レース分類器) +
+    B4 (day_in_meeting) の前提データとして使う。
+
+    Args:
+        session: requests.Session
+        race_date: datetime.date
+        venue_id: int (1-24)
+        race_number: int (1-12)
+
+    Returns:
+        dict: {'title': str|None, 'subtitle': str|None, 'day_label': str|None}
+              HTTP 失敗時は全フィールド None
+    """
+    hd = race_date.strftime('%Y%m%d')
+    url = f"{BASE_URL}/racelist?rno={race_number}&jcd={venue_id:02d}&hd={hd}"
+    try:
+        r = session.get(url, timeout=15)
+        if r.status_code != 200:
+            logger.debug(f"HTTP {r.status_code}: {url}")
+            return {'title': None, 'subtitle': None, 'day_label': None}
+    except Exception as e:
+        logger.debug(f"HTTP error {url}: {e}")
+        return {'title': None, 'subtitle': None, 'day_label': None}
+    return {
+        'title': _parse_title_from_html(r.text),
+        'subtitle': _parse_subtitle_from_html(r.text),
+        'day_label': _parse_day_label_from_html(r.text, race_date),
+    }

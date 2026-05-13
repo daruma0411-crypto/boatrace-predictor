@@ -300,9 +300,20 @@ def init_database():
             CREATE TABLE IF NOT EXISTS race_titles (
                 race_id INTEGER PRIMARY KEY REFERENCES races(id) ON DELETE CASCADE,
                 title TEXT,
+                subtitle TEXT,
+                day_label TEXT,
                 scraped_at TIMESTAMP DEFAULT NOW()
             )
         """)
+        # 既に title のみで作成された場合の追加カラムマイグレーション
+        for col, col_def in [('subtitle', 'TEXT'), ('day_label', 'TEXT')]:
+            cur.execute("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'race_titles' AND column_name = %s
+            """, (col,))
+            if not cur.fetchone():
+                cur.execute(f'ALTER TABLE race_titles ADD COLUMN {col} {col_def}')
+                logger.info(f"マイグレーション: race_titles.{col} 追加")
         cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_race_titles_title
             ON race_titles(title)

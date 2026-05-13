@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
-from src.scraper import scrape_race_title, _get_session
+from src.scraper import scrape_race_meta, _get_session
 from src.database import get_db_connection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -27,14 +27,17 @@ logger = logging.getLogger(__name__)
 SLEEP_SEC = 0.2
 
 
-def upsert_title(conn, race_id, title):
+def upsert_meta(conn, race_id, meta):
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO race_titles (race_id, title, scraped_at)
-        VALUES (%s, %s, NOW())
+        INSERT INTO race_titles (race_id, title, subtitle, day_label, scraped_at)
+        VALUES (%s, %s, %s, %s, NOW())
         ON CONFLICT (race_id) DO UPDATE
-        SET title = EXCLUDED.title, scraped_at = NOW()
-    """, (race_id, title))
+        SET title = EXCLUDED.title,
+            subtitle = EXCLUDED.subtitle,
+            day_label = EXCLUDED.day_label,
+            scraped_at = NOW()
+    """, (race_id, meta.get('title'), meta.get('subtitle'), meta.get('day_label')))
 
 
 def process_date(session, conn, target_date):
@@ -51,15 +54,13 @@ def process_date(session, conn, target_date):
         return 0, 0
     success = 0
     for r in races:
-        title = scrape_race_title(session, target_date, r['venue_id'], r['race_number'])
-        if title is not None:
-            upsert_title(conn, r['id'], title)
+        meta = scrape_race_meta(session, target_date, r['venue_id'], r['race_number'])
+        if meta.get('title') is not None:
             success += 1
-        else:
-            upsert_title(conn, r['id'], None)
+        upsert_meta(conn, r['id'], meta)
         time.sleep(SLEEP_SEC)
     conn.commit()
-    logger.info(f"  {target_date}: {success}/{len(races)} 件取得成功")
+    logger.info(f"  {target_date}: {success}/{len(races)} 件 title 取得成功")
     return success, len(races)
 
 
