@@ -76,13 +76,14 @@ def main():
 
     session = _get_session()
     total_success, total = 0, 0
-    with get_db_connection() as conn:
-        d = from_date
-        while d <= to_date:
+    d = from_date
+    while d <= to_date:
+        # 日ごとに接続を開閉して長時間 idle によるタイムアウトを回避
+        with get_db_connection() as conn:
             s, t = process_date(session, conn, d)
-            total_success += s
-            total += t
-            d += timedelta(days=1)
+        total_success += s
+        total += t
+        d += timedelta(days=1)
     logger.info(f"=== 完了: {total_success}/{total} 件取得成功 ===")
 
 
