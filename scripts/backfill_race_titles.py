@@ -27,24 +27,27 @@ logger = logging.getLogger(__name__)
 SLEEP_SEC = 0.2
 
 
-def upsert_meta(race_id, meta):
-    """Fresh connection per UPSERT (DB proxy のアイドル切断対策)"""
+def bulk_upsert_meta(results):
+    """1 接続で複数 race 分の UPSERT をまとめて発行 (proxy 接続爆発回避)"""
+    if not results:
+        return
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO race_titles (race_id, title, subtitle, day_label, scraped_at)
-            VALUES (%s, %s, %s, %s, NOW())
-            ON CONFLICT (race_id) DO UPDATE
-            SET title = EXCLUDED.title,
-                subtitle = EXCLUDED.subtitle,
-                day_label = EXCLUDED.day_label,
-                scraped_at = NOW()
-        """, (race_id, meta.get('title'), meta.get('subtitle'), meta.get('day_label')))
+        for race_id, meta in results:
+            cur.execute("""
+                INSERT INTO race_titles (race_id, title, subtitle, day_label, scraped_at)
+                VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT (race_id) DO UPDATE
+                SET title = EXCLUDED.title,
+                    subtitle = EXCLUDED.subtitle,
+                    day_label = EXCLUDED.day_label,
+                    scraped_at = NOW()
+            """, (race_id, meta.get('title'), meta.get('subtitle'), meta.get('day_label')))
         conn.commit()
 
 
 def process_date(session, target_date):
-    # races 取得用に接続を 1 回だけ開く (短時間で閉じる)
+    # SELECT 用に短時間接続
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("""
@@ -57,13 +60,17 @@ def process_date(session, target_date):
     if not races:
         logger.info(f"  {target_date}: 0 races")
         return 0, 0
+    # HTTP scrape (DB 接続なし)
+    results = []
     success = 0
     for r in races:
         meta = scrape_race_meta(session, target_date, r['venue_id'], r['race_number'])
         if meta.get('title') is not None:
             success += 1
-        upsert_meta(r['id'], meta)  # 1 race ごとに接続開閉
+        results.append((r['id'], meta))
         time.sleep(SLEEP_SEC)
+    # 1 日分まとめて 1 接続で UPSERT
+    bulk_upsert_meta(results)
     logger.info(f"  {target_date}: {success}/{len(races)} 件 title 取得成功")
     return success, len(races)
 
