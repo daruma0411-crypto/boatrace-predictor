@@ -66,6 +66,23 @@ def aggregate_db_inventory(detected_cols):
     return monthly
 
 
+def aggregate_race_titles_table():
+    """新規 race_titles テーブル (A3) の月別充足率を集計"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT to_char(r.race_date, 'YYYY-MM') AS ym,
+                   COUNT(*) AS total,
+                   COUNT(rt.title) AS filled
+            FROM races r
+            LEFT JOIN race_titles rt ON r.id = rt.race_id
+            WHERE r.race_date BETWEEN '2024-01-01' AND '2026-04-30'
+            GROUP BY ym
+            ORDER BY ym
+        """)
+        return [(r['ym'], r['total'], r['filled']) for r in cur.fetchall()]
+
+
 def aggregate_historical_inventory():
     """analysis/historical_data/ 配下の JSON/PKL を走査"""
     if not HISTORICAL_DIR.exists():
@@ -135,6 +152,16 @@ def make_report(all_cols, detected, monthly, historical):
             ratio = (wt / t * 100) if t else 0
             keys_str = ", ".join(sorted(info['keys_seen'])[:8])
             lines.append(f"| {bucket} | {t} | {wt} | {ratio:.1f}% | {keys_str} |\n")
+    rt_rows = aggregate_race_titles_table()
+    lines.append("\n## 2.5. race_titles テーブル充足率 (A3 後)\n\n")
+    if not rt_rows or all(t == 0 for _, t, _ in rt_rows):
+        lines.append("race_titles テーブル空 or 未作成\n")
+    else:
+        lines.append("| 年月 | total | filled | 充足率 |\n|---|---|---|---|\n")
+        for ym, total, filled in rt_rows:
+            ratio = (filled / total * 100) if total else 0
+            lines.append(f"| {ym} | {total} | {filled} | {ratio:.1f}% |\n")
+
     lines.append("\n## 4. 判定\n\n")
     if detected and monthly:
         recent_ratios = []
@@ -144,10 +171,20 @@ def make_report(all_cols, detected, monthly, historical):
                     recent_ratios.append(filled / total * 100)
         avg_recent = sum(recent_ratios) / len(recent_ratios) if recent_ratios else 0
         verdict = "A3 スキップ可能" if avg_recent >= 95 else "A3 (スクレイピング拡張) 発火必要"
-        lines.append(f"直近3ヶ月 (2026-02 〜 2026-04) の平均充足率: **{avg_recent:.1f}%**\n\n")
+        lines.append(f"直近3ヶ月 (2026-02 〜 2026-04) の平均充足率 (races 列ベース): **{avg_recent:.1f}%**\n\n")
         lines.append(f"判定: **{verdict}** (基準: 95%)\n")
     else:
-        lines.append("title 候補列が DB に無いため A3 発火必要\n")
+        recent_ratios = []
+        for ym, total, filled in rt_rows:
+            if ym in ('2026-02', '2026-03', '2026-04') and total:
+                recent_ratios.append(filled / total * 100)
+        if recent_ratios:
+            avg_recent = sum(recent_ratios) / len(recent_ratios)
+            verdict = "A3 完了 (race_titles 経由で充足)" if avg_recent >= 95 else "A3 不完全 (95% 未達)"
+            lines.append(f"直近3ヶ月 race_titles 平均充足率: **{avg_recent:.1f}%**\n\n")
+            lines.append(f"判定: **{verdict}** (基準: 95%)\n")
+        else:
+            lines.append("race_titles 未作成または空。A3 発火必要\n")
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT_PATH, 'w', encoding='utf-8') as f:
         f.writelines(lines)
