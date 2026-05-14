@@ -27,28 +27,33 @@ logger = logging.getLogger(__name__)
 SLEEP_SEC = 0.2
 
 
-def upsert_meta(conn, race_id, meta):
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO race_titles (race_id, title, subtitle, day_label, scraped_at)
-        VALUES (%s, %s, %s, %s, NOW())
-        ON CONFLICT (race_id) DO UPDATE
-        SET title = EXCLUDED.title,
-            subtitle = EXCLUDED.subtitle,
-            day_label = EXCLUDED.day_label,
-            scraped_at = NOW()
-    """, (race_id, meta.get('title'), meta.get('subtitle'), meta.get('day_label')))
+def upsert_meta(race_id, meta):
+    """Fresh connection per UPSERT (DB proxy のアイドル切断対策)"""
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO race_titles (race_id, title, subtitle, day_label, scraped_at)
+            VALUES (%s, %s, %s, %s, NOW())
+            ON CONFLICT (race_id) DO UPDATE
+            SET title = EXCLUDED.title,
+                subtitle = EXCLUDED.subtitle,
+                day_label = EXCLUDED.day_label,
+                scraped_at = NOW()
+        """, (race_id, meta.get('title'), meta.get('subtitle'), meta.get('day_label')))
+        conn.commit()
 
 
-def process_date(session, conn, target_date):
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT id, venue_id, race_number
-        FROM races
-        WHERE race_date = %s
-        ORDER BY venue_id, race_number
-    """, (target_date,))
-    races = cur.fetchall()
+def process_date(session, target_date):
+    # races 取得用に接続を 1 回だけ開く (短時間で閉じる)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, venue_id, race_number
+            FROM races
+            WHERE race_date = %s
+            ORDER BY venue_id, race_number
+        """, (target_date,))
+        races = cur.fetchall()
     if not races:
         logger.info(f"  {target_date}: 0 races")
         return 0, 0
@@ -57,9 +62,8 @@ def process_date(session, conn, target_date):
         meta = scrape_race_meta(session, target_date, r['venue_id'], r['race_number'])
         if meta.get('title') is not None:
             success += 1
-        upsert_meta(conn, r['id'], meta)
+        upsert_meta(r['id'], meta)  # 1 race ごとに接続開閉
         time.sleep(SLEEP_SEC)
-    conn.commit()
     logger.info(f"  {target_date}: {success}/{len(races)} 件 title 取得成功")
     return success, len(races)
 
@@ -79,9 +83,7 @@ def main():
     total_success, total = 0, 0
     d = from_date
     while d <= to_date:
-        # 日ごとに接続を開閉して長時間 idle によるタイムアウトを回避
-        with get_db_connection() as conn:
-            s, t = process_date(session, conn, d)
+        s, t = process_date(session, d)
         total_success += s
         total += t
         d += timedelta(days=1)

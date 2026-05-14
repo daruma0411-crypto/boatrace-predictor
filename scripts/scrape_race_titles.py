@@ -19,7 +19,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.scraper import _get_session
-from src.database import get_db_connection
 from scripts.backfill_race_titles import process_date
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -33,8 +32,7 @@ def main():
     target = datetime.strptime(args.date, '%Y-%m-%d').date() if args.date else date.today()
     logger.info(f"対象日付: {target}")
     session = _get_session()
-    with get_db_connection() as conn:
-        success, total = process_date(session, conn, target)
+    success, total = process_date(session, target)
     if total == 0:
         logger.info(f"races 0 件 ({target})、スクレイプ対象なし")
     else:
