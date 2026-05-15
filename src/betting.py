@@ -272,6 +272,7 @@ ACTIVE_STRATEGIES = {
     'mc3_venue_focus',     # P4: QMC v3 + 10会場ホワイトリスト (R1-R12)
     'mc3_venue_focus_r2',  # P5: P4 + R1-R2 限定
     'mc3_venue_focus_r4',  # P6: P4 + R1-R4 限定
+    'mc3_venue_focus_r3',  # P7: P6 + R1-R3 + Bフィルタ + 1/10 kelly (2026-05-15 新設)
 }
 
 
@@ -474,6 +475,63 @@ class KellyBettingStrategy:
                 )
                 results[strategy_name] = []
                 continue
+
+            # --- B フィルタ群 (P7 新設、30 仮説 screening でデータ駆動採用) ---
+            # H09: 1号艇展示タイム が他平均比 +N 秒以上遅 → skip
+            b1_exh_offset = strategy_config.get('skip_b1_exh_offset_above')
+            if b1_exh_offset is not None and boats_data:
+                b1 = next((b for b in boats_data if b.get('boat_number') == 1), None)
+                if b1 is not None:
+                    b1_exh = b1.get('exhibition_time')
+                    others = [b.get('exhibition_time') for b in boats_data
+                              if b.get('boat_number') != 1 and b.get('exhibition_time') is not None]
+                    if b1_exh is not None and len(others) == 5:
+                        offset = b1_exh - (sum(others) / 5)
+                        if offset > b1_exh_offset:
+                            logger.info(
+                                f"H09 skip: {strategy_name} 1号艇展示遅 "
+                                f"(+{offset:.3f}s > {b1_exh_offset})"
+                            )
+                            results[strategy_name] = []
+                            continue
+
+            # H10: 4号艇展示タイムが 6 艇中 1番時計 → skip
+            if strategy_config.get('skip_b4_exh_rank_1', False) and boats_data:
+                exhs = [(b.get('boat_number'), b.get('exhibition_time'))
+                        for b in boats_data if b.get('exhibition_time') is not None]
+                if len(exhs) == 6:
+                    fastest_boat = min(exhs, key=lambda x: x[1])[0]
+                    if fastest_boat == 4:
+                        logger.info(
+                            f"H10 skip: {strategy_name} 4号艇展示1番時計"
+                        )
+                        results[strategy_name] = []
+                        continue
+
+            # H16: 波高 > N cm → skip
+            wave_thr = strategy_config.get('skip_wave_height_above')
+            if wave_thr is not None and race_data:
+                wh = race_data.get('wave_height')
+                if wh is not None and wh > wave_thr:
+                    logger.info(
+                        f"H16 skip: {strategy_name} 波高 {wh} > {wave_thr}"
+                    )
+                    results[strategy_name] = []
+                    continue
+
+            # H27: 1号艇 weight > N kg → skip
+            b1_weight_thr = strategy_config.get('skip_b1_weight_above')
+            if b1_weight_thr is not None and boats_data:
+                b1 = next((b for b in boats_data if b.get('boat_number') == 1), None)
+                if b1 is not None:
+                    w = b1.get('weight')
+                    if w is not None and w > b1_weight_thr:
+                        logger.info(
+                            f"H27 skip: {strategy_name} 1号艇 weight "
+                            f"{w} > {b1_weight_thr}"
+                        )
+                        results[strategy_name] = []
+                        continue
 
             # --- 5-6号艇スキップ (skip_56=true の戦略のみ) ---
             if strategy_config.get('skip_56', False) and skip_56:

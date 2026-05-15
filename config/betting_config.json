@@ -562,7 +562,7 @@
             "kelly_prob_gain": 1.0
         },
         "mc3_early_race": {
-            "_comment": "O3戦略: QMC v3 序盤特化 (Sobol + クラス分散/展示タイム差/当地勝率/風速/波高)。2026-05-15: max_race_number 4→3 (R4 は ROI 53.8% 構造的不振)、本番切替",
+            "_comment": "O3戦略: QMC v3 序盤特化 (Sobol + クラス分散/展示タイム差/当地勝率/風速/波高)",
             "mc_version": 3,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -584,7 +584,37 @@
             "max_entropy": 2.3,
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
-            "max_race_number": 3
+            "max_race_number": 4
+        },
+        "mc3_venue_focus_r3": {
+            "_comment": "P7戦略 (2026-05-15 新設): P6 (mc3_venue_focus_r4) 派生。R1-R3限定 + Bフィルタ (H09/H10/H16/H27 skip) + 1/10 kelly (投資量補償)。include_venues は P6 現状 + V1 桐生追加。30 仮説 screening (FDR α=0.10 + hold-out) の data 駆動最適化版。",
+            "mc_version": 3,
+            "use_monte_carlo": true,
+            "real_kelly": true,
+            "joseki_mode": true,
+            "skip_56": true,
+            "bet_mode": "sanrentan",
+            "kelly_fraction": 0.10,
+            "max_total_bet_ratio": 0.02,
+            "max_ticket_bet_ratio": 0.012,
+            "min_expected_value": 0.0,
+            "max_expected_value": 9999.0,
+            "odds_discount_factor": 0.92,
+            "use_dynamic_discount": true,
+            "max_recommended_bets": 3,
+            "min_bet_amount": 100,
+            "min_odds": 5.0,
+            "max_odds": 80,
+            "filter_type": "entropy",
+            "max_entropy": 2.3,
+            "min_probability": 0.005,
+            "kelly_prob_gain": 1.0,
+            "max_race_number": 3,
+            "include_venues": [1, 2, 4, 5, 6, 9, 10, 12, 13, 17, 23],
+            "skip_b1_exh_offset_above": 0.10,
+            "skip_b4_exh_rank_1": true,
+            "skip_wave_height_above": 4,
+            "skip_b1_weight_above": 55
         },
         "mc_early_race_filtered": {
             "_comment": "Of戦略 (O+forward実績フィルタ): R1-R4序盤特化 + forward 30日 (2026-03-25〜04-28) で ROI≥130%/bets≥10件の会場 [4平和島,9津,12住之江,13尼崎,20若松,23唐津]。R1除外は forward 検証で逆効果(全体R1=168.6% > R2-R4=109.4%)のため撤廃 (2026-04-29 最適化)",
