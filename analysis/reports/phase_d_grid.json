@@ -1,0 +1,116 @@
+[
+  {
+    "label": "P6 default (1/16, EV0)",
+    "override": {
+      "kelly_fraction": 0.0625,
+      "min_expected_value": 0.0,
+      "label": "P6 default (1/16, EV0)"
+    },
+    "metrics": {
+      "n_bets": 191,
+      "n_hit": 11,
+      "hit_rate": 5.7591623036649215,
+      "total_stake": 292500,
+      "total_payout": 553200,
+      "total_pnl": 260700,
+      "roi": 189.1282051282051,
+      "sharpe_daily": 0.33638783326231186,
+      "mdd": 60200
+    }
+  },
+  {
+    "label": "1/16 + EV>=1.0",
+    "override": {
+      "kelly_fraction": 0.0625,
+      "min_expected_value": 1.0,
+      "label": "1/16 + EV>=1.0"
+    },
+    "metrics": {
+      "n_bets": 191,
+      "n_hit": 11,
+      "hit_rate": 5.7591623036649215,
+      "total_stake": 292500,
+      "total_payout": 553200,
+      "total_pnl": 260700,
+      "roi": 189.1282051282051,
+      "sharpe_daily": 0.33638783326231186,
+      "mdd": 60200
+    }
+  },
+  {
+    "label": "1/10 + EV0",
+    "override": {
+      "kelly_fraction": 0.1,
+      "min_expected_value": 0.0,
+      "label": "1/10 + EV0"
+    },
+    "metrics": {
+      "n_bets": 191,
+      "n_hit": 11,
+      "hit_rate": 5.7591623036649215,
+      "total_stake": 361100,
+      "total_payout": 647910,
+      "total_pnl": 286810,
+      "roi": 179.42675159235668,
+      "sharpe_daily": 0.32067459626465633,
+      "mdd": 74900
+    }
+  },
+  {
+    "label": "1/10 + EV>=1.0",
+    "override": {
+      "kelly_fraction": 0.1,
+      "min_expected_value": 1.0,
+      "label": "1/10 + EV>=1.0"
+    },
+    "metrics": {
+      "n_bets": 191,
+      "n_hit": 11,
+      "hit_rate": 5.7591623036649215,
+      "total_stake": 361100,
+      "total_payout": 647910,
+      "total_pnl": 286810,
+      "roi": 179.42675159235668,
+      "sharpe_daily": 0.32067459626465633,
+      "mdd": 74900
+    }
+  },
+  {
+    "label": "1/10 + EV>=1.1",
+    "override": {
+      "kelly_fraction": 0.1,
+      "min_expected_value": 1.1,
+      "label": "1/10 + EV>=1.1"
+    },
+    "metrics": {
+      "n_bets": 189,
+      "n_hit": 11,
+      "hit_rate": 5.82010582010582,
+      "total_stake": 360800,
+      "total_payout": 647910,
+      "total_pnl": 287110,
+      "roi": 179.57594235033258,
+      "sharpe_daily": 0.3209832858012686,
+      "mdd": 74900
+    }
+  },
+  {
+    "label": "1/5 + EV>=1.0",
+    "override": {
+      "kelly_fraction": 0.2,
+      "min_expected_value": 1.0,
+      "label": "1/5 + EV>=1.0"
+    },
+    "metrics": {
+      "n_bets": 191,
+      "n_hit": 11,
+      "hit_rate": 5.7591623036649215,
+      "total_stake": 342800,
+      "total_payout": 521450,
+      "total_pnl": 178650,
+      "roi": 152.1149358226371,
+      "sharpe_daily": 0.25333517237191766,
+      "mdd": 73600
+    }
+  }
+]

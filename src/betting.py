@@ -121,7 +121,7 @@ def _load_config():
         },
     }
     try:
-        with open(CONFIG_PATH, 'r') as f:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config = json.load(f)
         defaults.update(config)
     except FileNotFoundError:
