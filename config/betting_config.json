@@ -562,7 +562,7 @@
             "kelly_prob_gain": 1.0
         },
         "mc3_early_race": {
-            "_comment": "O3戦略: QMC v3 序盤特化 (Sobol + クラス分散/展示タイム差/当地勝率/風速/波高)",
+            "_comment": "O3戦略: QMC v3 序盤特化 (Sobol + クラス分散/展示タイム差/当地勝率/風速/波高)。2026-05-15: max_race_number 4→3 (R4 は ROI 53.8% 構造的不振)、本番切替",
             "mc_version": 3,
             "use_monte_carlo": true,
             "real_kelly": true,
@@ -584,7 +584,7 @@
             "max_entropy": 2.3,
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
-            "max_race_number": 4
+            "max_race_number": 3
         },
         "mc_early_race_filtered": {
             "_comment": "Of戦略 (O+forward実績フィルタ): R1-R4序盤特化 + forward 30日 (2026-03-25〜04-28) で ROI≥130%/bets≥10件の会場 [4平和島,9津,12住之江,13尼崎,20若松,23唐津]。R1除外は forward 検証で逆効果(全体R1=168.6% > R2-R4=109.4%)のため撤廃 (2026-04-29 最適化)",
