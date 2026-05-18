@@ -117,6 +117,34 @@ P7 失敗の構造的教訓を踏まえた設計原則:
 - `2026-05-15-p7-data-driven-launch.md` — P7 launch (3 日で撤退、本ファイル)
 - (新規予定) `2026-05-18-p7-rollback-architectural-rethink.md` — P7 ロールバック + filter/QMC 二重対処判明
 
+## 検証ワークフローの改訂 (2026-05-18 確立)
+
+P7 失敗教訓を踏まえた、新規仮説・filter・戦略検証の標準ワークフロー:
+
+### 必須実施項目
+- **30 仮説スクリーニングの評価軸は 6 艇 × {1着率/2着率/3着率} = 18 metric に拡張済**
+  (`analysis/48_full_position_hypothesis.py` 参照)。1着率のみの検証は禁止
+- **QMC 過去予測との突合分析を必須化** (`analysis/49_qmc_vs_empirical.py` 参照)。
+  QMC 再計算は 1 ヶ月 1.3 分で可能、コストは言い訳にならない
+- **新戦略提案時は「代替買い目シナリオ」の data 検証を伴う**こと。
+  「skip」だけで結論を出すのは禁止。「H09 trigger 時に 3-X-X / 2-X-X 軸の中穴で
+  実際稼げるか」を data で検証してから採否判断
+- **新 filter 提案時は QMC `compute_ratings_early` 11 項目との重複確認必須**。
+  重複する signal を扱う filter は自動却下
+
+### 検証ツール (本日確立)
+| ツール | 用途 |
+|---|---|
+| `analysis/46_hypothesis_screening.py` | 30 仮説 1着率 screening (legacy、参考用) |
+| `analysis/48_full_position_hypothesis.py` | 30 仮説 × 6 艇 × 3 着 拡張 (標準) |
+| `analysis/49_qmc_vs_empirical.py` | QMC 120 通り vs 実頻度突合 (必須) |
+| `analysis/qmc_predictions_cache.pkl` | QMC 過去予測キャッシュ |
+
+### 過去の失敗パターンとの対比 (避けるべき道筋)
+- **ML 改良路線 4 連敗** (A1 calibrator / Phase C V11.5 / Phase D Kelly / Phase D' P7):
+  表面の ML レイヤーを弄っても、根本の QMC キャリブレーションを直視していなかった
+- 教訓: **「強い ML がカバーしない領域をデータ検索で埋める」** より、**「QMC の calibration 系統誤差を直視する」** が次の本筋
+
 ## 関連ファイル / コードベース
 
 | 領域 | ファイル |
@@ -127,4 +155,7 @@ P7 失敗の構造的教訓を踏まえた設計原則:
 | 戦略 config | `config/betting_config.json` |
 | キャリブレーター | `models/calibrators.pkl`, `models/calibrators_v2.pkl` (検証で生成、本番非投入) |
 | Phase B 特徴量 | `analysis/features_phase_b.pkl`, `src/phase_b_features.py` |
-| 30 仮説 screening | `analysis/46_hypothesis_screening.py` (今後 6艇×3着拡張予定) |
+| 30 仮説 screening (legacy) | `analysis/46_hypothesis_screening.py` |
+| 30 仮説 6艇×3着 拡張 | `analysis/48_full_position_hypothesis.py` |
+| QMC 突合分析 | `analysis/49_qmc_vs_empirical.py` |
+| QMC 予測キャッシュ | `analysis/qmc_predictions_cache.pkl` (5828 races、再計算 95 秒) |
