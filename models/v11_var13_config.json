@@ -1,0 +1,2384 @@
+{
+  "version": "v1",
+  "created_at": "2026-05-20",
+  "description": "Shadow Recipe v1 strategy (13 functional venues) — Recipe blend + Pool + Specialist 全部入り",
+  "venue_strategies": {
+    "1": {
+      "type": "recipe_v10_own",
+      "v10_weight": 0.6,
+      "own_weight": 0.4
+    },
+    "2": {
+      "type": "specialist_82",
+      "venue": 2
+    },
+    "3": {
+      "type": "specialist_82",
+      "venue": 3
+    },
+    "4": {
+      "type": "recipe_top_K_sim",
+      "target": 4,
+      "K": 5
+    },
+    "7": {
+      "type": "specialist_76",
+      "venue": 7
+    },
+    "10": {
+      "type": "recipe_top_K_sim",
+      "target": 10,
+      "K": 2
+    },
+    "12": {
+      "type": "specialist_76",
+      "venue": 12
+    },
+    "13": {
+      "type": "recipe_75_sub",
+      "target": 13,
+      "K": 2,
+      "own_w": 1.0,
+      "sub_alpha": 0.3
+    },
+    "14": {
+      "type": "pool",
+      "pool_id": "pool_v14_L3_海水_strict"
+    },
+    "16": {
+      "type": "pool",
+      "pool_id": "pool_v16_L3_海水_strict"
+    },
+    "22": {
+      "type": "specialist_82",
+      "venue": 22
+    },
+    "23": {
+      "type": "pool",
+      "pool_id": "pool_v23_L3_淡水_strict"
+    },
+    "24": {
+      "type": "recipe_own_functional",
+      "target": 24,
+      "own_w": 2.0,
+      "functional_others": [
+        2,
+        3,
+        7,
+        12,
+        13,
+        14,
+        16
+      ]
+    }
+  },
+  "venue_distances": {
+    "2": [
+      {
+        "venue_id": 4,
+        "distance": 3.6801237240358713
+      },
+      {
+        "venue_id": 14,
+        "distance": 4.594620202805454
+      },
+      {
+        "venue_id": 3,
+        "distance": 4.763489083429519
+      },
+      {
+        "venue_id": 1,
+        "distance": 7.997984783792621
+      },
+      {
+        "venue_id": 10,
+        "distance": 8.518431700997304
+      },
+      {
+        "venue_id": 6,
+        "distance": 9.983539119425998
+      },
+      {
+        "venue_id": 11,
+        "distance": 10.386455747673077
+      },
+      {
+        "venue_id": 5,
+        "distance": 10.52750883463225
+      },
+      {
+        "venue_id": 23,
+        "distance": 12.94564426467344
+      },
+      {
+        "venue_id": 15,
+        "distance": 14.4199504346034
+      },
+      {
+        "venue_id": 7,
+        "distance": 14.569020963377982
+      },
+      {
+        "venue_id": 16,
+        "distance": 14.678353456046183
+      },
+      {
+        "venue_id": 12,
+        "distance": 14.712669614828956
+      },
+      {
+        "venue_id": 8,
+        "distance": 14.84914907606462
+      },
+      {
+        "venue_id": 17,
+        "distance": 14.895003647199443
+      },
+      {
+        "venue_id": 22,
+        "distance": 15.504463077902539
+      },
+      {
+        "venue_id": 9,
+        "distance": 16.007511751841733
+      },
+      {
+        "venue_id": 20,
+        "distance": 17.124484197184174
+      },
+      {
+        "venue_id": 13,
+        "distance": 17.85922519040978
+      },
+      {
+        "venue_id": 21,
+        "distance": 18.353187655003932
+      },
+      {
+        "venue_id": 19,
+        "distance": 19.284704777653758
+      },
+      {
+        "venue_id": 24,
+        "distance": 20.41209412556438
+      },
+      {
+        "venue_id": 18,
+        "distance": 21.736181432629444
+      }
+    ],
+    "1": [
+      {
+        "venue_id": 4,
+        "distance": 4.990305131756961
+      },
+      {
+        "venue_id": 14,
+        "distance": 5.0437304765346935
+      },
+      {
+        "venue_id": 5,
+        "distance": 6.2281073401070355
+      },
+      {
+        "venue_id": 11,
+        "distance": 6.398729654200944
+      },
+      {
+        "venue_id": 6,
+        "distance": 6.523806028678102
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.526231246219054
+      },
+      {
+        "venue_id": 3,
+        "distance": 7.100907638364658
+      },
+      {
+        "venue_id": 2,
+        "distance": 7.997984783792621
+      },
+      {
+        "venue_id": 23,
+        "distance": 9.044177006785933
+      },
+      {
+        "venue_id": 7,
+        "distance": 9.558026703417575
+      },
+      {
+        "venue_id": 15,
+        "distance": 9.593578715878747
+      },
+      {
+        "venue_id": 8,
+        "distance": 9.715580192393341
+      },
+      {
+        "venue_id": 16,
+        "distance": 10.147608696121212
+      },
+      {
+        "venue_id": 12,
+        "distance": 10.240424706507625
+      },
+      {
+        "venue_id": 17,
+        "distance": 10.383503406000452
+      },
+      {
+        "venue_id": 9,
+        "distance": 10.94013532727603
+      },
+      {
+        "venue_id": 20,
+        "distance": 11.938308045774422
+      },
+      {
+        "venue_id": 21,
+        "distance": 12.569177550010522
+      },
+      {
+        "venue_id": 13,
+        "distance": 12.585202919339146
+      },
+      {
+        "venue_id": 22,
+        "distance": 12.84017116855318
+      },
+      {
+        "venue_id": 19,
+        "distance": 14.699153770496475
+      },
+      {
+        "venue_id": 24,
+        "distance": 15.389203956551874
+      },
+      {
+        "venue_id": 18,
+        "distance": 16.931944858197813
+      }
+    ],
+    "3": [
+      {
+        "venue_id": 4,
+        "distance": 3.2225121590811727
+      },
+      {
+        "venue_id": 14,
+        "distance": 3.883382939484466
+      },
+      {
+        "venue_id": 2,
+        "distance": 4.763489083429519
+      },
+      {
+        "venue_id": 10,
+        "distance": 5.439250030884437
+      },
+      {
+        "venue_id": 6,
+        "distance": 6.959172011112232
+      },
+      {
+        "venue_id": 5,
+        "distance": 7.019961169949245
+      },
+      {
+        "venue_id": 11,
+        "distance": 7.094025351291407
+      },
+      {
+        "venue_id": 1,
+        "distance": 7.100907638364658
+      },
+      {
+        "venue_id": 23,
+        "distance": 9.00280413330148
+      },
+      {
+        "venue_id": 12,
+        "distance": 10.729734009154075
+      },
+      {
+        "venue_id": 15,
+        "distance": 10.830630189697224
+      },
+      {
+        "venue_id": 7,
+        "distance": 10.846955843237495
+      },
+      {
+        "venue_id": 8,
+        "distance": 11.158668378840508
+      },
+      {
+        "venue_id": 16,
+        "distance": 11.19597735446387
+      },
+      {
+        "venue_id": 17,
+        "distance": 11.223986405310868
+      },
+      {
+        "venue_id": 22,
+        "distance": 11.716296429818973
+      },
+      {
+        "venue_id": 9,
+        "distance": 12.24162281326504
+      },
+      {
+        "venue_id": 20,
+        "distance": 13.421022136444867
+      },
+      {
+        "venue_id": 13,
+        "distance": 14.198998903768002
+      },
+      {
+        "venue_id": 21,
+        "distance": 14.793390489112788
+      },
+      {
+        "venue_id": 19,
+        "distance": 15.529711554439464
+      },
+      {
+        "venue_id": 24,
+        "distance": 16.557573689760133
+      },
+      {
+        "venue_id": 18,
+        "distance": 17.823169316506643
+      }
+    ],
+    "4": [
+      {
+        "venue_id": 14,
+        "distance": 2.0347601878818082
+      },
+      {
+        "venue_id": 3,
+        "distance": 3.2225121590811727
+      },
+      {
+        "venue_id": 2,
+        "distance": 3.6801237240358713
+      },
+      {
+        "venue_id": 1,
+        "distance": 4.990305131756961
+      },
+      {
+        "venue_id": 10,
+        "distance": 5.745285612038351
+      },
+      {
+        "venue_id": 6,
+        "distance": 6.902614105923862
+      },
+      {
+        "venue_id": 11,
+        "distance": 7.17954856477916
+      },
+      {
+        "venue_id": 5,
+        "distance": 7.22569464577848
+      },
+      {
+        "venue_id": 23,
+        "distance": 9.821604581355
+      },
+      {
+        "venue_id": 7,
+        "distance": 11.166610889818111
+      },
+      {
+        "venue_id": 15,
+        "distance": 11.195041402910679
+      },
+      {
+        "venue_id": 16,
+        "distance": 11.438802788389996
+      },
+      {
+        "venue_id": 12,
+        "distance": 11.447231697824034
+      },
+      {
+        "venue_id": 8,
+        "distance": 11.540092921900193
+      },
+      {
+        "venue_id": 17,
+        "distance": 11.597085062565997
+      },
+      {
+        "venue_id": 9,
+        "distance": 12.699957520859305
+      },
+      {
+        "venue_id": 22,
+        "distance": 12.728155408769535
+      },
+      {
+        "venue_id": 20,
+        "distance": 13.787661819317242
+      },
+      {
+        "venue_id": 13,
+        "distance": 14.464941182235446
+      },
+      {
+        "venue_id": 21,
+        "distance": 14.896740263839387
+      },
+      {
+        "venue_id": 19,
+        "distance": 16.067528891719853
+      },
+      {
+        "venue_id": 24,
+        "distance": 17.128876075208126
+      },
+      {
+        "venue_id": 18,
+        "distance": 18.42928199684881
+      }
+    ],
+    "5": [
+      {
+        "venue_id": 11,
+        "distance": 1.6001938529859756
+      },
+      {
+        "venue_id": 6,
+        "distance": 1.9479632893912284
+      },
+      {
+        "venue_id": 10,
+        "distance": 2.966932859366609
+      },
+      {
+        "venue_id": 23,
+        "distance": 3.032552607190414
+      },
+      {
+        "venue_id": 15,
+        "distance": 4.137495709088977
+      },
+      {
+        "venue_id": 7,
+        "distance": 4.397903705175432
+      },
+      {
+        "venue_id": 12,
+        "distance": 4.425933335366134
+      },
+      {
+        "venue_id": 8,
+        "distance": 4.50089418748733
+      },
+      {
+        "venue_id": 16,
+        "distance": 4.625817580105534
+      },
+      {
+        "venue_id": 17,
+        "distance": 4.736655120580095
+      },
+      {
+        "venue_id": 9,
+        "distance": 5.539603484441869
+      },
+      {
+        "venue_id": 1,
+        "distance": 6.2281073401070355
+      },
+      {
+        "venue_id": 14,
+        "distance": 6.333025423474702
+      },
+      {
+        "venue_id": 20,
+        "distance": 6.779566550756344
+      },
+      {
+        "venue_id": 22,
+        "distance": 6.794219497984927
+      },
+      {
+        "venue_id": 3,
+        "distance": 7.019961169949245
+      },
+      {
+        "venue_id": 4,
+        "distance": 7.22569464577848
+      },
+      {
+        "venue_id": 13,
+        "distance": 7.482561948765115
+      },
+      {
+        "venue_id": 21,
+        "distance": 7.960291879695176
+      },
+      {
+        "venue_id": 19,
+        "distance": 9.188175557253093
+      },
+      {
+        "venue_id": 24,
+        "distance": 10.024319202281934
+      },
+      {
+        "venue_id": 2,
+        "distance": 10.52750883463225
+      },
+      {
+        "venue_id": 18,
+        "distance": 11.56478305291773
+      }
+    ],
+    "6": [
+      {
+        "venue_id": 10,
+        "distance": 1.8072554268980574
+      },
+      {
+        "venue_id": 5,
+        "distance": 1.9479632893912284
+      },
+      {
+        "venue_id": 11,
+        "distance": 2.1511009154089797
+      },
+      {
+        "venue_id": 23,
+        "distance": 3.8472067504957406
+      },
+      {
+        "venue_id": 15,
+        "distance": 4.719880293778474
+      },
+      {
+        "venue_id": 16,
+        "distance": 4.777875975537452
+      },
+      {
+        "venue_id": 17,
+        "distance": 5.18638095370897
+      },
+      {
+        "venue_id": 7,
+        "distance": 5.282715058434461
+      },
+      {
+        "venue_id": 12,
+        "distance": 5.378278107166168
+      },
+      {
+        "venue_id": 8,
+        "distance": 5.400513490942102
+      },
+      {
+        "venue_id": 14,
+        "distance": 5.612465817988562
+      },
+      {
+        "venue_id": 9,
+        "distance": 6.3418242558612645
+      },
+      {
+        "venue_id": 1,
+        "distance": 6.523806028678102
+      },
+      {
+        "venue_id": 22,
+        "distance": 6.5959064360526
+      },
+      {
+        "venue_id": 4,
+        "distance": 6.902614105923862
+      },
+      {
+        "venue_id": 3,
+        "distance": 6.959172011112232
+      },
+      {
+        "venue_id": 20,
+        "distance": 7.423096216011135
+      },
+      {
+        "venue_id": 13,
+        "distance": 8.090667145746641
+      },
+      {
+        "venue_id": 21,
+        "distance": 8.680829088389673
+      },
+      {
+        "venue_id": 19,
+        "distance": 9.480483427331661
+      },
+      {
+        "venue_id": 2,
+        "distance": 9.983539119425998
+      },
+      {
+        "venue_id": 24,
+        "distance": 10.59898129060336
+      },
+      {
+        "venue_id": 18,
+        "distance": 12.066201886731255
+      }
+    ],
+    "7": [
+      {
+        "venue_id": 8,
+        "distance": 1.4275527283777287
+      },
+      {
+        "venue_id": 12,
+        "distance": 1.8129965904433825
+      },
+      {
+        "venue_id": 15,
+        "distance": 1.9303343428756168
+      },
+      {
+        "venue_id": 9,
+        "distance": 2.1941237732577887
+      },
+      {
+        "venue_id": 17,
+        "distance": 2.3539340509929714
+      },
+      {
+        "venue_id": 16,
+        "distance": 2.4109522671621515
+      },
+      {
+        "venue_id": 23,
+        "distance": 2.64831078644002
+      },
+      {
+        "venue_id": 20,
+        "distance": 2.7836698613740785
+      },
+      {
+        "venue_id": 13,
+        "distance": 3.861181547017924
+      },
+      {
+        "venue_id": 21,
+        "distance": 4.1318742442126934
+      },
+      {
+        "venue_id": 5,
+        "distance": 4.397903705175432
+      },
+      {
+        "venue_id": 6,
+        "distance": 5.282715058434461
+      },
+      {
+        "venue_id": 11,
+        "distance": 5.346637509488846
+      },
+      {
+        "venue_id": 19,
+        "distance": 5.511847351118212
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.666237736754907
+      },
+      {
+        "venue_id": 24,
+        "distance": 6.377789855774638
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.755367663879052
+      },
+      {
+        "venue_id": 18,
+        "distance": 7.656435300265048
+      },
+      {
+        "venue_id": 1,
+        "distance": 9.558026703417575
+      },
+      {
+        "venue_id": 14,
+        "distance": 10.432174501855403
+      },
+      {
+        "venue_id": 3,
+        "distance": 10.846955843237495
+      },
+      {
+        "venue_id": 4,
+        "distance": 11.166610889818111
+      },
+      {
+        "venue_id": 2,
+        "distance": 14.569020963377982
+      }
+    ],
+    "8": [
+      {
+        "venue_id": 15,
+        "distance": 1.0760770277730611
+      },
+      {
+        "venue_id": 7,
+        "distance": 1.4275527283777287
+      },
+      {
+        "venue_id": 9,
+        "distance": 1.5516807429620958
+      },
+      {
+        "venue_id": 12,
+        "distance": 1.8134663872327277
+      },
+      {
+        "venue_id": 16,
+        "distance": 2.485371510142442
+      },
+      {
+        "venue_id": 20,
+        "distance": 2.513031960687302
+      },
+      {
+        "venue_id": 23,
+        "distance": 2.5719186540206262
+      },
+      {
+        "venue_id": 17,
+        "distance": 2.6819379439619624
+      },
+      {
+        "venue_id": 13,
+        "distance": 3.8404327465194132
+      },
+      {
+        "venue_id": 21,
+        "distance": 3.9842824374717996
+      },
+      {
+        "venue_id": 5,
+        "distance": 4.50089418748733
+      },
+      {
+        "venue_id": 6,
+        "distance": 5.400513490942102
+      },
+      {
+        "venue_id": 11,
+        "distance": 5.417294046318342
+      },
+      {
+        "venue_id": 19,
+        "distance": 5.464927983584499
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.805544008456539
+      },
+      {
+        "venue_id": 24,
+        "distance": 6.095711297806249
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.859708958253065
+      },
+      {
+        "venue_id": 18,
+        "distance": 7.732225675215857
+      },
+      {
+        "venue_id": 1,
+        "distance": 9.715580192393341
+      },
+      {
+        "venue_id": 14,
+        "distance": 10.692289996531231
+      },
+      {
+        "venue_id": 3,
+        "distance": 11.158668378840508
+      },
+      {
+        "venue_id": 4,
+        "distance": 11.540092921900193
+      },
+      {
+        "venue_id": 2,
+        "distance": 14.84914907606462
+      }
+    ],
+    "9": [
+      {
+        "venue_id": 8,
+        "distance": 1.5516807429620958
+      },
+      {
+        "venue_id": 20,
+        "distance": 1.565875704462991
+      },
+      {
+        "venue_id": 12,
+        "distance": 1.8130583738529424
+      },
+      {
+        "venue_id": 15,
+        "distance": 1.8800264974276475
+      },
+      {
+        "venue_id": 7,
+        "distance": 2.1941237732577887
+      },
+      {
+        "venue_id": 17,
+        "distance": 2.212843246576973
+      },
+      {
+        "venue_id": 16,
+        "distance": 2.3630356054839816
+      },
+      {
+        "venue_id": 13,
+        "distance": 2.4992452913359395
+      },
+      {
+        "venue_id": 21,
+        "distance": 2.9711939395819282
+      },
+      {
+        "venue_id": 23,
+        "distance": 3.430612963954876
+      },
+      {
+        "venue_id": 19,
+        "distance": 4.180742092526432
+      },
+      {
+        "venue_id": 24,
+        "distance": 4.640978802462407
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.195863979400305
+      },
+      {
+        "venue_id": 5,
+        "distance": 5.539603484441869
+      },
+      {
+        "venue_id": 11,
+        "distance": 6.142033486655554
+      },
+      {
+        "venue_id": 6,
+        "distance": 6.3418242558612645
+      },
+      {
+        "venue_id": 18,
+        "distance": 6.3865694464495455
+      },
+      {
+        "venue_id": 10,
+        "distance": 7.824184094019349
+      },
+      {
+        "venue_id": 1,
+        "distance": 10.94013532727603
+      },
+      {
+        "venue_id": 14,
+        "distance": 11.767119054939139
+      },
+      {
+        "venue_id": 3,
+        "distance": 12.24162281326504
+      },
+      {
+        "venue_id": 4,
+        "distance": 12.699957520859305
+      },
+      {
+        "venue_id": 2,
+        "distance": 16.007511751841733
+      }
+    ],
+    "10": [
+      {
+        "venue_id": 6,
+        "distance": 1.8072554268980574
+      },
+      {
+        "venue_id": 5,
+        "distance": 2.966932859366609
+      },
+      {
+        "venue_id": 11,
+        "distance": 2.978779351711424
+      },
+      {
+        "venue_id": 14,
+        "distance": 4.407536793840065
+      },
+      {
+        "venue_id": 23,
+        "distance": 4.885117719077304
+      },
+      {
+        "venue_id": 3,
+        "distance": 5.439250030884437
+      },
+      {
+        "venue_id": 4,
+        "distance": 5.745285612038351
+      },
+      {
+        "venue_id": 15,
+        "distance": 6.202295184645838
+      },
+      {
+        "venue_id": 16,
+        "distance": 6.3492051052239225
+      },
+      {
+        "venue_id": 1,
+        "distance": 6.526231246219054
+      },
+      {
+        "venue_id": 12,
+        "distance": 6.652316943524685
+      },
+      {
+        "venue_id": 17,
+        "distance": 6.679294910204346
+      },
+      {
+        "venue_id": 7,
+        "distance": 6.755367663879052
+      },
+      {
+        "venue_id": 8,
+        "distance": 6.859708958253065
+      },
+      {
+        "venue_id": 22,
+        "distance": 7.412127613000991
+      },
+      {
+        "venue_id": 9,
+        "distance": 7.824184094019349
+      },
+      {
+        "venue_id": 2,
+        "distance": 8.518431700997304
+      },
+      {
+        "venue_id": 20,
+        "distance": 8.9602290023128
+      },
+      {
+        "venue_id": 13,
+        "distance": 9.68511778197172
+      },
+      {
+        "venue_id": 21,
+        "distance": 10.340051462814381
+      },
+      {
+        "venue_id": 19,
+        "distance": 10.91784535472502
+      },
+      {
+        "venue_id": 24,
+        "distance": 12.062149920089253
+      },
+      {
+        "venue_id": 18,
+        "distance": 13.501078691838218
+      }
+    ],
+    "11": [
+      {
+        "venue_id": 5,
+        "distance": 1.6001938529859756
+      },
+      {
+        "venue_id": 6,
+        "distance": 2.1511009154089797
+      },
+      {
+        "venue_id": 10,
+        "distance": 2.978779351711424
+      },
+      {
+        "venue_id": 23,
+        "distance": 4.006761502671796
+      },
+      {
+        "venue_id": 15,
+        "distance": 4.927382115031678
+      },
+      {
+        "venue_id": 17,
+        "distance": 5.026574337323424
+      },
+      {
+        "venue_id": 16,
+        "distance": 5.033753586676896
+      },
+      {
+        "venue_id": 12,
+        "distance": 5.106220056961087
+      },
+      {
+        "venue_id": 7,
+        "distance": 5.346637509488846
+      },
+      {
+        "venue_id": 8,
+        "distance": 5.417294046318342
+      },
+      {
+        "venue_id": 14,
+        "distance": 6.052473338823755
+      },
+      {
+        "venue_id": 9,
+        "distance": 6.142033486655554
+      },
+      {
+        "venue_id": 1,
+        "distance": 6.398729654200944
+      },
+      {
+        "venue_id": 22,
+        "distance": 6.732028089710574
+      },
+      {
+        "venue_id": 3,
+        "distance": 7.094025351291407
+      },
+      {
+        "venue_id": 4,
+        "distance": 7.17954856477916
+      },
+      {
+        "venue_id": 20,
+        "distance": 7.467533156540654
+      },
+      {
+        "venue_id": 13,
+        "distance": 7.820435050583392
+      },
+      {
+        "venue_id": 21,
+        "distance": 8.463112146671616
+      },
+      {
+        "venue_id": 19,
+        "distance": 9.570735849186311
+      },
+      {
+        "venue_id": 24,
+        "distance": 10.339309220812524
+      },
+      {
+        "venue_id": 2,
+        "distance": 10.386455747673077
+      },
+      {
+        "venue_id": 18,
+        "distance": 11.920617824352664
+      }
+    ],
+    "12": [
+      {
+        "venue_id": 7,
+        "distance": 1.8129965904433825
+      },
+      {
+        "venue_id": 9,
+        "distance": 1.8130583738529424
+      },
+      {
+        "venue_id": 8,
+        "distance": 1.8134663872327277
+      },
+      {
+        "venue_id": 17,
+        "distance": 1.9286214466694258
+      },
+      {
+        "venue_id": 15,
+        "distance": 1.964523643584983
+      },
+      {
+        "venue_id": 23,
+        "distance": 2.034595457718162
+      },
+      {
+        "venue_id": 16,
+        "distance": 2.414469802461601
+      },
+      {
+        "venue_id": 20,
+        "distance": 3.0187617344491326
+      },
+      {
+        "venue_id": 13,
+        "distance": 3.812720006586147
+      },
+      {
+        "venue_id": 5,
+        "distance": 4.425933335366134
+      },
+      {
+        "venue_id": 22,
+        "distance": 4.524828076279569
+      },
+      {
+        "venue_id": 21,
+        "distance": 4.534903021486675
+      },
+      {
+        "venue_id": 11,
+        "distance": 5.106220056961087
+      },
+      {
+        "venue_id": 19,
+        "distance": 5.207956626891503
+      },
+      {
+        "venue_id": 6,
+        "distance": 5.378278107166168
+      },
+      {
+        "venue_id": 24,
+        "distance": 5.904978395465071
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.652316943524685
+      },
+      {
+        "venue_id": 18,
+        "distance": 7.3685244076167775
+      },
+      {
+        "venue_id": 1,
+        "distance": 10.240424706507625
+      },
+      {
+        "venue_id": 14,
+        "distance": 10.618001537386975
+      },
+      {
+        "venue_id": 3,
+        "distance": 10.729734009154075
+      },
+      {
+        "venue_id": 4,
+        "distance": 11.447231697824034
+      },
+      {
+        "venue_id": 2,
+        "distance": 14.712669614828956
+      }
+    ],
+    "13": [
+      {
+        "venue_id": 21,
+        "distance": 1.5687207161760253
+      },
+      {
+        "venue_id": 20,
+        "distance": 1.9379024750451412
+      },
+      {
+        "venue_id": 9,
+        "distance": 2.4992452913359395
+      },
+      {
+        "venue_id": 19,
+        "distance": 2.7190419079344372
+      },
+      {
+        "venue_id": 24,
+        "distance": 2.9816189010250196
+      },
+      {
+        "venue_id": 17,
+        "distance": 3.1301836703274866
+      },
+      {
+        "venue_id": 16,
+        "distance": 3.504499017205165
+      },
+      {
+        "venue_id": 12,
+        "distance": 3.812720006586147
+      },
+      {
+        "venue_id": 8,
+        "distance": 3.8404327465194132
+      },
+      {
+        "venue_id": 7,
+        "distance": 3.861181547017924
+      },
+      {
+        "venue_id": 15,
+        "distance": 4.075821026089522
+      },
+      {
+        "venue_id": 18,
+        "distance": 4.470888444774052
+      },
+      {
+        "venue_id": 23,
+        "distance": 5.631442996488846
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.683980815586881
+      },
+      {
+        "venue_id": 5,
+        "distance": 7.482561948765115
+      },
+      {
+        "venue_id": 11,
+        "distance": 7.820435050583392
+      },
+      {
+        "venue_id": 6,
+        "distance": 8.090667145746641
+      },
+      {
+        "venue_id": 10,
+        "distance": 9.68511778197172
+      },
+      {
+        "venue_id": 1,
+        "distance": 12.585202919339146
+      },
+      {
+        "venue_id": 14,
+        "distance": 13.490525822414662
+      },
+      {
+        "venue_id": 3,
+        "distance": 14.198998903768002
+      },
+      {
+        "venue_id": 4,
+        "distance": 14.464941182235446
+      },
+      {
+        "venue_id": 2,
+        "distance": 17.85922519040978
+      }
+    ],
+    "14": [
+      {
+        "venue_id": 4,
+        "distance": 2.0347601878818082
+      },
+      {
+        "venue_id": 3,
+        "distance": 3.883382939484466
+      },
+      {
+        "venue_id": 10,
+        "distance": 4.407536793840065
+      },
+      {
+        "venue_id": 2,
+        "distance": 4.594620202805454
+      },
+      {
+        "venue_id": 1,
+        "distance": 5.0437304765346935
+      },
+      {
+        "venue_id": 6,
+        "distance": 5.612465817988562
+      },
+      {
+        "venue_id": 11,
+        "distance": 6.052473338823755
+      },
+      {
+        "venue_id": 5,
+        "distance": 6.333025423474702
+      },
+      {
+        "venue_id": 23,
+        "distance": 8.967063128224122
+      },
+      {
+        "venue_id": 15,
+        "distance": 10.19211781398492
+      },
+      {
+        "venue_id": 16,
+        "distance": 10.32007770406999
+      },
+      {
+        "venue_id": 7,
+        "distance": 10.432174501855403
+      },
+      {
+        "venue_id": 17,
+        "distance": 10.5731346931867
+      },
+      {
+        "venue_id": 12,
+        "distance": 10.618001537386975
+      },
+      {
+        "venue_id": 8,
+        "distance": 10.692289996531231
+      },
+      {
+        "venue_id": 22,
+        "distance": 11.526380143047637
+      },
+      {
+        "venue_id": 9,
+        "distance": 11.767119054939139
+      },
+      {
+        "venue_id": 20,
+        "distance": 12.881457718894245
+      },
+      {
+        "venue_id": 13,
+        "distance": 13.490525822414662
+      },
+      {
+        "venue_id": 21,
+        "distance": 14.000665288709742
+      },
+      {
+        "venue_id": 19,
+        "distance": 15.010982841236581
+      },
+      {
+        "venue_id": 24,
+        "distance": 16.108561090138295
+      },
+      {
+        "venue_id": 18,
+        "distance": 17.495671866971065
+      }
+    ],
+    "15": [
+      {
+        "venue_id": 8,
+        "distance": 1.0760770277730611
+      },
+      {
+        "venue_id": 16,
+        "distance": 1.8161047188103117
+      },
+      {
+        "venue_id": 9,
+        "distance": 1.8800264974276475
+      },
+      {
+        "venue_id": 7,
+        "distance": 1.9303343428756168
+      },
+      {
+        "venue_id": 12,
+        "distance": 1.964523643584983
+      },
+      {
+        "venue_id": 23,
+        "distance": 2.22733471207934
+      },
+      {
+        "venue_id": 17,
+        "distance": 2.351128323161416
+      },
+      {
+        "venue_id": 20,
+        "distance": 2.9104140458234977
+      },
+      {
+        "venue_id": 13,
+        "distance": 4.075821026089522
+      },
+      {
+        "venue_id": 5,
+        "distance": 4.137495709088977
+      },
+      {
+        "venue_id": 21,
+        "distance": 4.456595940846894
+      },
+      {
+        "venue_id": 6,
+        "distance": 4.719880293778474
+      },
+      {
+        "venue_id": 11,
+        "distance": 4.927382115031678
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.181849451572515
+      },
+      {
+        "venue_id": 19,
+        "distance": 5.483863420407378
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.202295184645838
+      },
+      {
+        "venue_id": 24,
+        "distance": 6.316052475320716
+      },
+      {
+        "venue_id": 18,
+        "distance": 7.992446201666991
+      },
+      {
+        "venue_id": 1,
+        "distance": 9.593578715878747
+      },
+      {
+        "venue_id": 14,
+        "distance": 10.19211781398492
+      },
+      {
+        "venue_id": 3,
+        "distance": 10.830630189697224
+      },
+      {
+        "venue_id": 4,
+        "distance": 11.195041402910679
+      },
+      {
+        "venue_id": 2,
+        "distance": 14.4199504346034
+      }
+    ],
+    "16": [
+      {
+        "venue_id": 17,
+        "distance": 1.1871514473888745
+      },
+      {
+        "venue_id": 15,
+        "distance": 1.8161047188103117
+      },
+      {
+        "venue_id": 9,
+        "distance": 2.3630356054839816
+      },
+      {
+        "venue_id": 7,
+        "distance": 2.4109522671621515
+      },
+      {
+        "venue_id": 12,
+        "distance": 2.414469802461601
+      },
+      {
+        "venue_id": 8,
+        "distance": 2.485371510142442
+      },
+      {
+        "venue_id": 23,
+        "distance": 3.017907471661446
+      },
+      {
+        "venue_id": 20,
+        "distance": 3.028679269555004
+      },
+      {
+        "venue_id": 13,
+        "distance": 3.504499017205165
+      },
+      {
+        "venue_id": 22,
+        "distance": 4.107890152222454
+      },
+      {
+        "venue_id": 21,
+        "distance": 4.3311322270856465
+      },
+      {
+        "venue_id": 5,
+        "distance": 4.625817580105534
+      },
+      {
+        "venue_id": 19,
+        "distance": 4.756994467849079
+      },
+      {
+        "venue_id": 6,
+        "distance": 4.777875975537452
+      },
+      {
+        "venue_id": 11,
+        "distance": 5.033753586676896
+      },
+      {
+        "venue_id": 24,
+        "distance": 5.934866074231074
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.3492051052239225
+      },
+      {
+        "venue_id": 18,
+        "distance": 7.355685964392275
+      },
+      {
+        "venue_id": 1,
+        "distance": 10.147608696121212
+      },
+      {
+        "venue_id": 14,
+        "distance": 10.32007770406999
+      },
+      {
+        "venue_id": 3,
+        "distance": 11.19597735446387
+      },
+      {
+        "venue_id": 4,
+        "distance": 11.438802788389996
+      },
+      {
+        "venue_id": 2,
+        "distance": 14.678353456046183
+      }
+    ],
+    "17": [
+      {
+        "venue_id": 16,
+        "distance": 1.1871514473888745
+      },
+      {
+        "venue_id": 12,
+        "distance": 1.9286214466694258
+      },
+      {
+        "venue_id": 9,
+        "distance": 2.212843246576973
+      },
+      {
+        "venue_id": 15,
+        "distance": 2.351128323161416
+      },
+      {
+        "venue_id": 7,
+        "distance": 2.3539340509929714
+      },
+      {
+        "venue_id": 8,
+        "distance": 2.6819379439619624
+      },
+      {
+        "venue_id": 20,
+        "distance": 3.051070970147924
+      },
+      {
+        "venue_id": 23,
+        "distance": 3.0862949951496574
+      },
+      {
+        "venue_id": 13,
+        "distance": 3.1301836703274866
+      },
+      {
+        "venue_id": 22,
+        "distance": 3.8572768935286663
+      },
+      {
+        "venue_id": 21,
+        "distance": 4.177589335056069
+      },
+      {
+        "venue_id": 19,
+        "distance": 4.6170641590590344
+      },
+      {
+        "venue_id": 5,
+        "distance": 4.736655120580095
+      },
+      {
+        "venue_id": 11,
+        "distance": 5.026574337323424
+      },
+      {
+        "venue_id": 6,
+        "distance": 5.18638095370897
+      },
+      {
+        "venue_id": 24,
+        "distance": 5.612339211851534
+      },
+      {
+        "venue_id": 10,
+        "distance": 6.679294910204346
+      },
+      {
+        "venue_id": 18,
+        "distance": 6.962033306920407
+      },
+      {
+        "venue_id": 1,
+        "distance": 10.383503406000452
+      },
+      {
+        "venue_id": 14,
+        "distance": 10.5731346931867
+      },
+      {
+        "venue_id": 3,
+        "distance": 11.223986405310868
+      },
+      {
+        "venue_id": 4,
+        "distance": 11.597085062565997
+      },
+      {
+        "venue_id": 2,
+        "distance": 14.895003647199443
+      }
+    ],
+    "18": [
+      {
+        "venue_id": 24,
+        "distance": 2.404241763624854
+      },
+      {
+        "venue_id": 19,
+        "distance": 2.8698352707801034
+      },
+      {
+        "venue_id": 13,
+        "distance": 4.470888444774052
+      },
+      {
+        "venue_id": 21,
+        "distance": 4.905752674830932
+      },
+      {
+        "venue_id": 20,
+        "distance": 5.356429670999896
+      },
+      {
+        "venue_id": 9,
+        "distance": 6.3865694464495455
+      },
+      {
+        "venue_id": 17,
+        "distance": 6.962033306920407
+      },
+      {
+        "venue_id": 16,
+        "distance": 7.355685964392275
+      },
+      {
+        "venue_id": 12,
+        "distance": 7.3685244076167775
+      },
+      {
+        "venue_id": 22,
+        "distance": 7.56067496010952
+      },
+      {
+        "venue_id": 7,
+        "distance": 7.656435300265048
+      },
+      {
+        "venue_id": 8,
+        "distance": 7.732225675215857
+      },
+      {
+        "venue_id": 15,
+        "distance": 7.992446201666991
+      },
+      {
+        "venue_id": 23,
+        "distance": 9.188688888588656
+      },
+      {
+        "venue_id": 5,
+        "distance": 11.56478305291773
+      },
+      {
+        "venue_id": 11,
+        "distance": 11.920617824352664
+      },
+      {
+        "venue_id": 6,
+        "distance": 12.066201886731255
+      },
+      {
+        "venue_id": 10,
+        "distance": 13.501078691838218
+      },
+      {
+        "venue_id": 1,
+        "distance": 16.931944858197813
+      },
+      {
+        "venue_id": 14,
+        "distance": 17.495671866971065
+      },
+      {
+        "venue_id": 3,
+        "distance": 17.823169316506643
+      },
+      {
+        "venue_id": 4,
+        "distance": 18.42928199684881
+      },
+      {
+        "venue_id": 2,
+        "distance": 21.736181432629444
+      }
+    ],
+    "19": [
+      {
+        "venue_id": 24,
+        "distance": 2.1378705134144824
+      },
+      {
+        "venue_id": 13,
+        "distance": 2.7190419079344372
+      },
+      {
+        "venue_id": 18,
+        "distance": 2.8698352707801034
+      },
+      {
+        "venue_id": 20,
+        "distance": 3.2184805072416696
+      },
+      {
+        "venue_id": 21,
+        "distance": 3.571608664515855
+      },
+      {
+        "venue_id": 9,
+        "distance": 4.180742092526432
+      },
+      {
+        "venue_id": 17,
+        "distance": 4.6170641590590344
+      },
+      {
+        "venue_id": 16,
+        "distance": 4.756994467849079
+      },
+      {
+        "venue_id": 12,
+        "distance": 5.207956626891503
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.344785344840189
+      },
+      {
+        "venue_id": 8,
+        "distance": 5.464927983584499
+      },
+      {
+        "venue_id": 15,
+        "distance": 5.483863420407378
+      },
+      {
+        "venue_id": 7,
+        "distance": 5.511847351118212
+      },
+      {
+        "venue_id": 23,
+        "distance": 6.799527591862938
+      },
+      {
+        "venue_id": 5,
+        "distance": 9.188175557253093
+      },
+      {
+        "venue_id": 6,
+        "distance": 9.480483427331661
+      },
+      {
+        "venue_id": 11,
+        "distance": 9.570735849186311
+      },
+      {
+        "venue_id": 10,
+        "distance": 10.91784535472502
+      },
+      {
+        "venue_id": 1,
+        "distance": 14.699153770496475
+      },
+      {
+        "venue_id": 14,
+        "distance": 15.010982841236581
+      },
+      {
+        "venue_id": 3,
+        "distance": 15.529711554439464
+      },
+      {
+        "venue_id": 4,
+        "distance": 16.067528891719853
+      },
+      {
+        "venue_id": 2,
+        "distance": 19.284704777653758
+      }
+    ],
+    "20": [
+      {
+        "venue_id": 9,
+        "distance": 1.565875704462991
+      },
+      {
+        "venue_id": 13,
+        "distance": 1.9379024750451412
+      },
+      {
+        "venue_id": 21,
+        "distance": 2.048476295277061
+      },
+      {
+        "venue_id": 8,
+        "distance": 2.513031960687302
+      },
+      {
+        "venue_id": 7,
+        "distance": 2.7836698613740785
+      },
+      {
+        "venue_id": 15,
+        "distance": 2.9104140458234977
+      },
+      {
+        "venue_id": 12,
+        "distance": 3.0187617344491326
+      },
+      {
+        "venue_id": 16,
+        "distance": 3.028679269555004
+      },
+      {
+        "venue_id": 17,
+        "distance": 3.051070970147924
+      },
+      {
+        "venue_id": 19,
+        "distance": 3.2184805072416696
+      },
+      {
+        "venue_id": 24,
+        "distance": 3.8555355010684127
+      },
+      {
+        "venue_id": 23,
+        "distance": 4.583905894875031
+      },
+      {
+        "venue_id": 18,
+        "distance": 5.356429670999896
+      },
+      {
+        "venue_id": 22,
+        "distance": 5.748634734231657
+      },
+      {
+        "venue_id": 5,
+        "distance": 6.779566550756344
+      },
+      {
+        "venue_id": 6,
+        "distance": 7.423096216011135
+      },
+      {
+        "venue_id": 11,
+        "distance": 7.467533156540654
+      },
+      {
+        "venue_id": 10,
+        "distance": 8.9602290023128
+      },
+      {
+        "venue_id": 1,
+        "distance": 11.938308045774422
+      },
+      {
+        "venue_id": 14,
+        "distance": 12.881457718894245
+      },
+      {
+        "venue_id": 3,
+        "distance": 13.421022136444867
+      },
+      {
+        "venue_id": 4,
+        "distance": 13.787661819317242
+      },
+      {
+        "venue_id": 2,
+        "distance": 17.124484197184174
+      }
+    ],
+    "21": [
+      {
+        "venue_id": 13,
+        "distance": 1.5687207161760253
+      },
+      {
+        "venue_id": 20,
+        "distance": 2.048476295277061
+      },
+      {
+        "venue_id": 9,
+        "distance": 2.9711939395819282
+      },
+      {
+        "venue_id": 24,
+        "distance": 3.4454285619646767
+      },
+      {
+        "venue_id": 19,
+        "distance": 3.571608664515855
+      },
+      {
+        "venue_id": 8,
+        "distance": 3.9842824374717996
+      },
+      {
+        "venue_id": 7,
+        "distance": 4.1318742442126934
+      },
+      {
+        "venue_id": 17,
+        "distance": 4.177589335056069
+      },
+      {
+        "venue_id": 16,
+        "distance": 4.3311322270856465
+      },
+      {
+        "venue_id": 15,
+        "distance": 4.456595940846894
+      },
+      {
+        "venue_id": 12,
+        "distance": 4.534903021486675
+      },
+      {
+        "venue_id": 18,
+        "distance": 4.905752674830932
+      },
+      {
+        "venue_id": 23,
+        "distance": 6.252850116017707
+      },
+      {
+        "venue_id": 22,
+        "distance": 7.104812935285936
+      },
+      {
+        "venue_id": 5,
+        "distance": 7.960291879695176
+      },
+      {
+        "venue_id": 11,
+        "distance": 8.463112146671616
+      },
+      {
+        "venue_id": 6,
+        "distance": 8.680829088389673
+      },
+      {
+        "venue_id": 10,
+        "distance": 10.340051462814381
+      },
+      {
+        "venue_id": 1,
+        "distance": 12.569177550010522
+      },
+      {
+        "venue_id": 14,
+        "distance": 14.000665288709742
+      },
+      {
+        "venue_id": 3,
+        "distance": 14.793390489112788
+      },
+      {
+        "venue_id": 4,
+        "distance": 14.896740263839387
+      },
+      {
+        "venue_id": 2,
+        "distance": 18.353187655003932
+      }
+    ],
+    "22": [
+      {
+        "venue_id": 17,
+        "distance": 3.8572768935286663
+      },
+      {
+        "venue_id": 16,
+        "distance": 4.107890152222454
+      },
+      {
+        "venue_id": 12,
+        "distance": 4.524828076279569
+      },
+      {
+        "venue_id": 23,
+        "distance": 4.861121334050758
+      },
+      {
+        "venue_id": 15,
+        "distance": 5.181849451572515
+      },
+      {
+        "venue_id": 9,
+        "distance": 5.195863979400305
+      },
+      {
+        "venue_id": 19,
+        "distance": 5.344785344840189
+      },
+      {
+        "venue_id": 7,
+        "distance": 5.666237736754907
+      },
+      {
+        "venue_id": 13,
+        "distance": 5.683980815586881
+      },
+      {
+        "venue_id": 20,
+        "distance": 5.748634734231657
+      },
+      {
+        "venue_id": 8,
+        "distance": 5.805544008456539
+      },
+      {
+        "venue_id": 6,
+        "distance": 6.5959064360526
+      },
+      {
+        "venue_id": 24,
+        "distance": 6.683004742723537
+      },
+      {
+        "venue_id": 11,
+        "distance": 6.732028089710574
+      },
+      {
+        "venue_id": 5,
+        "distance": 6.794219497984927
+      },
+      {
+        "venue_id": 21,
+        "distance": 7.104812935285936
+      },
+      {
+        "venue_id": 10,
+        "distance": 7.412127613000991
+      },
+      {
+        "venue_id": 18,
+        "distance": 7.56067496010952
+      },
+      {
+        "venue_id": 14,
+        "distance": 11.526380143047637
+      },
+      {
+        "venue_id": 3,
+        "distance": 11.716296429818973
+      },
+      {
+        "venue_id": 4,
+        "distance": 12.728155408769535
+      },
+      {
+        "venue_id": 1,
+        "distance": 12.84017116855318
+      },
+      {
+        "venue_id": 2,
+        "distance": 15.504463077902539
+      }
+    ],
+    "23": [
+      {
+        "venue_id": 12,
+        "distance": 2.034595457718162
+      },
+      {
+        "venue_id": 15,
+        "distance": 2.22733471207934
+      },
+      {
+        "venue_id": 8,
+        "distance": 2.5719186540206262
+      },
+      {
+        "venue_id": 7,
+        "distance": 2.64831078644002
+      },
+      {
+        "venue_id": 16,
+        "distance": 3.017907471661446
+      },
+      {
+        "venue_id": 5,
+        "distance": 3.032552607190414
+      },
+      {
+        "venue_id": 17,
+        "distance": 3.0862949951496574
+      },
+      {
+        "venue_id": 9,
+        "distance": 3.430612963954876
+      },
+      {
+        "venue_id": 6,
+        "distance": 3.8472067504957406
+      },
+      {
+        "venue_id": 11,
+        "distance": 4.006761502671796
+      },
+      {
+        "venue_id": 20,
+        "distance": 4.583905894875031
+      },
+      {
+        "venue_id": 22,
+        "distance": 4.861121334050758
+      },
+      {
+        "venue_id": 10,
+        "distance": 4.885117719077304
+      },
+      {
+        "venue_id": 13,
+        "distance": 5.631442996488846
+      },
+      {
+        "venue_id": 21,
+        "distance": 6.252850116017707
+      },
+      {
+        "venue_id": 19,
+        "distance": 6.799527591862938
+      },
+      {
+        "venue_id": 24,
+        "distance": 7.727376711647781
+      },
+      {
+        "venue_id": 14,
+        "distance": 8.967063128224122
+      },
+      {
+        "venue_id": 3,
+        "distance": 9.00280413330148
+      },
+      {
+        "venue_id": 1,
+        "distance": 9.044177006785933
+      },
+      {
+        "venue_id": 18,
+        "distance": 9.188688888588656
+      },
+      {
+        "venue_id": 4,
+        "distance": 9.821604581355
+      },
+      {
+        "venue_id": 2,
+        "distance": 12.94564426467344
+      }
+    ],
+    "24": [
+      {
+        "venue_id": 19,
+        "distance": 2.1378705134144824
+      },
+      {
+        "venue_id": 18,
+        "distance": 2.404241763624854
+      },
+      {
+        "venue_id": 13,
+        "distance": 2.9816189010250196
+      },
+      {
+        "venue_id": 21,
+        "distance": 3.4454285619646767
+      },
+      {
+        "venue_id": 20,
+        "distance": 3.8555355010684127
+      },
+      {
+        "venue_id": 9,
+        "distance": 4.640978802462407
+      },
+      {
+        "venue_id": 17,
+        "distance": 5.612339211851534
+      },
+      {
+        "venue_id": 12,
+        "distance": 5.904978395465071
+      },
+      {
+        "venue_id": 16,
+        "distance": 5.934866074231074
+      },
+      {
+        "venue_id": 8,
+        "distance": 6.095711297806249
+      },
+      {
+        "venue_id": 15,
+        "distance": 6.316052475320716
+      },
+      {
+        "venue_id": 7,
+        "distance": 6.377789855774638
+      },
+      {
+        "venue_id": 22,
+        "distance": 6.683004742723537
+      },
+      {
+        "venue_id": 23,
+        "distance": 7.727376711647781
+      },
+      {
+        "venue_id": 5,
+        "distance": 10.024319202281934
+      },
+      {
+        "venue_id": 11,
+        "distance": 10.339309220812524
+      },
+      {
+        "venue_id": 6,
+        "distance": 10.59898129060336
+      },
+      {
+        "venue_id": 10,
+        "distance": 12.062149920089253
+      },
+      {
+        "venue_id": 1,
+        "distance": 15.389203956551874
+      },
+      {
+        "venue_id": 14,
+        "distance": 16.108561090138295
+      },
+      {
+        "venue_id": 3,
+        "distance": 16.557573689760133
+      },
+      {
+        "venue_id": 4,
+        "distance": 17.128876075208126
+      },
+      {
+        "venue_id": 2,
+        "distance": 20.41209412556438
+      }
+    ]
+  },
+  "functional_venues": [
+    1,
+    2,
+    3,
+    4,
+    7,
+    10,
+    12,
+    13,
+    14,
+    16,
+    22,
+    23,
+    24
+  ],
+  "pool_models": {
+    "pool_v14_L3_海水_strict": {
+      "members": [
+        14,
+        4,
+        16,
+        17,
+        22
+      ],
+      "file": "models/pool_models/pool_v14_L3_strict.txt"
+    },
+    "pool_v16_L3_海水_strict": {
+      "members": [
+        16,
+        14,
+        17,
+        22,
+        4
+      ],
+      "file": "models/pool_models/pool_v16_L3_strict.txt"
+    },
+    "pool_v23_L3_淡水_strict": {
+      "members": [
+        23,
+        12,
+        13,
+        21,
+        5,
+        11
+      ],
+      "file": "models/pool_models/pool_v23_L3_strict.txt"
+    }
+  },
+  "specialists_76_dir": "models/specialists",
+  "specialists_82_dir": "models/specialists_82",
+  "scaler_path": "models/feature_scaler.pkl"
+}

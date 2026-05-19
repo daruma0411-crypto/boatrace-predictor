@@ -14,6 +14,7 @@ from src.scraper import (
 from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
 from src.predictor import RealtimePredictor, EnsemblePredictor
+from src.v11_var13_predictor import V11VAR13Predictor
 from src.betting import KellyBettingStrategy
 from src.result_collector import ResultCollector
 from src.notifier import send_line_bet_notification
@@ -37,7 +38,9 @@ class DynamicRaceScheduler:
 
     def __init__(self, model_path='models/boatrace_model.pth'):
         self.collector = RealtimeDataCollector()
-        self.predictor = RealtimePredictor(model_path)
+        # V11 (VAR-13): venue 別 best approach で probs_1st override
+        # 非 functional venue は V10 baseline そのまま (継承して動作)
+        self.predictor = V11VAR13Predictor(model_path)
         self.ensemble_predictor = EnsemblePredictor(
             shared_predictor=self.predictor
         )

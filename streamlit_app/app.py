@@ -252,30 +252,32 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'mc_quarter_kelly': 'L: MC v1 基準',
+    'v11_var13': 'V11 (VAR-13)',  # 新戦略 (venue 別 best approach)
     'mc_early_race': 'O: MC v1 序盤',
     'mc_venue_focus': 'P: MC v1 得意場',
     'mc_high_ev': 'Q: MC v1 高EV',
-    'mc_are_v2': 'R: MC v1 ModelB',
     'mc2_quarter_kelly': 'L2: QMC 基準',
     'mc2_early_race': 'O2: QMC 序盤',
     'mc2_venue_focus': 'P2: QMC 得意場',
     'mc2_high_ev': 'Q2: QMC 高EV',
-    'mc2_are_v2': 'R2: QMC ModelB',
     'mc3_early_race': 'O3: QMC v3 序盤',
-    'mc3_venue_focus': 'P4: QMC v3 + 10会場',
     'mc3_venue_focus_r2': 'P5: P4 + R1-R2',
     'mc3_venue_focus_r4': 'P6: P4 + R1-R4',
-    'mc_early_race_filtered': 'Of: O+Miss分析フィルタ',
+    # 非表示化 (2026-05-20): L, R, R2, P4, Of (残金 ¥200,000 以下)
+    # 'mc_quarter_kelly': 'L: MC v1 基準',
+    # 'mc_are_v2': 'R: MC v1 ModelB',
+    # 'mc2_are_v2': 'R2: QMC ModelB',
+    # 'mc3_venue_focus': 'P4: QMC v3 + 10会場',
+    # 'mc_early_race_filtered': 'Of: O+Miss分析フィルタ',
 }
 
 STRATEGY_ORDER = [
-    'mc_quarter_kelly', 'mc_early_race', 'mc_venue_focus',
-    'mc_high_ev', 'mc_are_v2',
-    'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus',
-    'mc2_high_ev', 'mc2_are_v2',
-    'mc3_early_race', 'mc3_venue_focus', 'mc3_venue_focus_r2', 'mc3_venue_focus_r4',
-    'mc_early_race_filtered',
+    'v11_var13',  # 新戦略を先頭 (右上に目立つ表示)
+    'mc3_venue_focus_r4',  # P6 (本番停止予定だが過去結果のため表示維持)
+    'mc3_venue_focus_r2',  # P5
+    'mc3_early_race',      # O3
+    'mc2_quarter_kelly', 'mc2_early_race', 'mc2_venue_focus', 'mc2_high_ev',
+    'mc_early_race', 'mc_venue_focus', 'mc_high_ev',
 ]
 
 
