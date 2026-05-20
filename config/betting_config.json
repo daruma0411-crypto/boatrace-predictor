@@ -513,12 +513,12 @@
             "include_venues": []
         },
         "v11_var13": {
-            "_comment": "V11 (VAR-13): Venue-Adapted Recipe 13 venues. P6 を継承、venue 別 best approach (recipe/pool/specialist) で probs_1st 計算 (QMC 等は従来通り)。2026-05-20 本番投入、初期 ¥200,000",
+            "_comment": "V11 (VAR-13): Venue-Adapted Recipe 13 venues. P6 を継承、venue 別 best approach (recipe/pool/specialist) で probs_1st 計算。2026-05-20 投入 + 2026-05-20 夕 filter 緩和 (skip_56:false, max_entropy:2.6) で中穴狙い V11 設計と整合。",
             "mc_version": 3,
             "use_monte_carlo": true,
             "real_kelly": true,
             "joseki_mode": true,
-            "skip_56": true,
+            "skip_56": false,
             "bet_mode": "sanrentan",
             "kelly_fraction": 0.0625,
             "max_total_bet_ratio": 0.02,
@@ -532,7 +532,7 @@
             "min_odds": 5.0,
             "max_odds": 80,
             "filter_type": "entropy",
-            "max_entropy": 2.3,
+            "max_entropy": 2.6,
             "min_probability": 0.005,
             "kelly_prob_gain": 1.0,
             "max_race_number": 3,
