@@ -936,15 +936,15 @@ class KellyBettingStrategy:
         )
         logger.info(f"[{strategy_name}] skip: {skip_summary}")
 
-        # DB診断: conservativeのスキップ内訳をscheduler_healthに記録
-        if strategy_name == 'conservative':
+        # DB診断: conservative + v11_var13 のスキップ内訳を scheduler_health に記録
+        if strategy_name in ('conservative', 'v11_var13'):
             try:
                 from src.database import get_db_connection
                 with get_db_connection() as conn:
                     cur = conn.cursor()
                     cur.execute(
                         "INSERT INTO scheduler_health (status, detail) VALUES (%s, %s)",
-                        ('skip_detail', f'v={venue_id}R={race_number} {skip_summary} min_ev={min_ev} min_odds={min_odds} min_prob={min_prob}'),
+                        (f'skip_detail_{strategy_name}', f'v={venue_id}R={race_number} {skip_summary} min_ev={min_ev} min_odds={min_odds} min_prob={min_prob}'),
                     )
             except Exception:
                 pass
