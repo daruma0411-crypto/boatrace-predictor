@@ -513,11 +513,11 @@
             "include_venues": []
         },
         "v11_var13": {
-            "_comment": "V11 (VAR-13): Venue-Adapted Recipe 13 venues. P6 を継承、venue 別 best approach (recipe/pool/specialist) で probs_1st 計算。2026-05-20 投入 + 2026-05-20 夕 filter 緩和 (skip_56:false, max_entropy:2.6) で中穴狙い V11 設計と整合。",
+            "_comment": "V11 (VAR-13): Venue-Adapted Recipe 13 venues. P6 を継承、venue 別 best approach (recipe/pool/specialist) で probs_1st 計算。2026-05-20 投入 + 2026-05-20 夕 filter 緩和 (skip_56:false, max_entropy:2.6) で中穴狙い V11 設計と整合。2026-05-25 joseki_mode:false (大村24 を VENUE_HONMEI skip から救出)。",
             "mc_version": 3,
             "use_monte_carlo": true,
             "real_kelly": true,
-            "joseki_mode": true,
+            "joseki_mode": false,
             "skip_56": false,
             "bet_mode": "sanrentan",
             "kelly_fraction": 0.0625,
