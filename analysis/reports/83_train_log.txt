@@ -1,0 +1,223 @@
+2026-05-26 05:30:03,661 V11.5: 2着 + 3着 specialists 訓練開始
+2026-05-26 05:30:08,130 --- venue 1 (桐生): tr=1926, v=204, te=122 ---
+2026-05-26 05:30:10,563   2着 specialist: best_iter=9 val_ll=1.7167 test top1=0.311 top3=0.713
+2026-05-26 05:30:11,904   3着 specialist: best_iter=6 val_ll=1.7736 test top1=0.156 top3=0.525
+2026-05-26 05:30:13,086 --- venue 2 (戸田): tr=1968, v=168, te=135 ---
+2026-05-26 05:30:14,666   2着 specialist: best_iter=13 val_ll=1.7114 test top1=0.237 top3=0.622
+2026-05-26 05:30:15,837   3着 specialist: best_iter=7 val_ll=1.7674 test top1=0.170 top3=0.533
+2026-05-26 05:30:16,893 --- venue 3 (江戸川): tr=1816, v=127, te=78 ---
+2026-05-26 05:30:21,048   2着 specialist: best_iter=30 val_ll=1.6843 test top1=0.179 top3=0.641
+2026-05-26 05:30:23,641   3着 specialist: best_iter=10 val_ll=1.7758 test top1=0.167 top3=0.577
+2026-05-26 05:30:25,151 --- venue 4 (平和島): tr=1695, v=192, te=130 ---
+2026-05-26 05:30:27,794   2着 specialist: best_iter=18 val_ll=1.7015 test top1=0.292 top3=0.600
+2026-05-26 05:30:28,868   3着 specialist: best_iter=3 val_ll=1.7954 test top1=0.138 top3=0.546
+2026-05-26 05:30:30,386 --- venue 5 (多摩川): tr=1937, v=120, te=96 ---
+2026-05-26 05:30:31,622   2着 specialist: best_iter=3 val_ll=1.7232 test top1=0.240 top3=0.562
+2026-05-26 05:30:34,234   3着 specialist: best_iter=7 val_ll=1.7433 test top1=0.260 top3=0.646
+2026-05-26 05:30:36,211 --- venue 6 (浜名湖): tr=2096, v=228, te=113 ---
+2026-05-26 05:30:39,995   2着 specialist: best_iter=30 val_ll=1.7005 test top1=0.212 top3=0.664
+2026-05-26 05:30:42,636   3着 specialist: best_iter=7 val_ll=1.7516 test top1=0.177 top3=0.593
+2026-05-26 05:30:44,861 --- venue 7 (蒲郡): tr=1943, v=191, te=138 ---
+2026-05-26 05:31:02,759   2着 specialist: best_iter=47 val_ll=1.6359 test top1=0.232 top3=0.638
+2026-05-26 05:31:05,717   3着 specialist: best_iter=19 val_ll=1.7251 test top1=0.188 top3=0.587
+2026-05-26 05:31:07,944 --- venue 8 (常滑): tr=1962, v=228, te=140 ---
+2026-05-26 05:31:11,697   2着 specialist: best_iter=25 val_ll=1.6541 test top1=0.343 top3=0.700
+2026-05-26 05:31:12,683   3着 specialist: best_iter=3 val_ll=1.7827 test top1=0.200 top3=0.643
+2026-05-26 05:31:14,336 --- venue 9 (津): tr=1842, v=203, te=127 ---
+2026-05-26 05:31:31,130   2着 specialist: best_iter=22 val_ll=1.7059 test top1=0.370 top3=0.756
+2026-05-26 05:31:34,091   3着 specialist: best_iter=1 val_ll=1.7503 test top1=0.205 top3=0.543
+2026-05-26 05:31:37,276 --- venue 10 (三国): tr=1901, v=138, te=132 ---
+2026-05-26 05:31:43,075   2着 specialist: best_iter=18 val_ll=1.6924 test top1=0.258 top3=0.697
+2026-05-26 05:31:44,358   3着 specialist: best_iter=1 val_ll=1.8042 test top1=0.182 top3=0.561
+2026-05-26 05:31:46,019 --- venue 11 (びわこ): tr=1977, v=118, te=128 ---
+2026-05-26 05:31:48,211   2着 specialist: best_iter=20 val_ll=1.7194 test top1=0.250 top3=0.688
+2026-05-26 05:31:52,401   3着 specialist: best_iter=23 val_ll=1.7091 test top1=0.250 top3=0.578
+2026-05-26 05:31:54,157 --- venue 12 (住之江): tr=2040, v=216, te=115 ---
+2026-05-26 05:31:55,699   2着 specialist: best_iter=11 val_ll=1.6927 test top1=0.278 top3=0.809
+2026-05-26 05:31:57,204   3着 specialist: best_iter=10 val_ll=1.7417 test top1=0.235 top3=0.687
+2026-05-26 05:31:58,999 --- venue 13 (尼崎): tr=1697, v=144, te=77 ---
+2026-05-26 05:32:01,624   2着 specialist: best_iter=27 val_ll=1.6890 test top1=0.286 top3=0.649
+2026-05-26 05:32:05,242   3着 specialist: best_iter=15 val_ll=1.6969 test top1=0.208 top3=0.610
+2026-05-26 05:32:07,252 --- venue 14 (鳴門): tr=1903, v=142, te=167 ---
+2026-05-26 05:32:08,476   2着 specialist: best_iter=9 val_ll=1.6889 test top1=0.216 top3=0.653
+2026-05-26 05:32:09,890   3着 specialist: best_iter=1 val_ll=1.7887 test top1=0.210 top3=0.653
+2026-05-26 05:32:11,409 --- venue 15 (丸亀): tr=1960, v=264, te=92 ---
+2026-05-26 05:32:12,702   2着 specialist: best_iter=15 val_ll=1.6832 test top1=0.261 top3=0.641
+2026-05-26 05:32:14,409   3着 specialist: best_iter=17 val_ll=1.7151 test top1=0.250 top3=0.620
+2026-05-26 05:32:16,121 --- venue 16 (児島): tr=1882, v=216, te=151 ---
+2026-05-26 05:32:18,058   2着 specialist: best_iter=16 val_ll=1.6825 test top1=0.298 top3=0.642
+2026-05-26 05:32:19,727   3着 specialist: best_iter=12 val_ll=1.7558 test top1=0.199 top3=0.556
+2026-05-26 05:32:21,419 --- venue 17 (宮島): tr=1938, v=216, te=99 ---
+2026-05-26 05:32:22,200   2着 specialist: best_iter=4 val_ll=1.6844 test top1=0.283 top3=0.677
+2026-05-26 05:32:23,730   3着 specialist: best_iter=8 val_ll=1.7442 test top1=0.263 top3=0.636
+2026-05-26 05:32:25,553 --- venue 18 (徳山): tr=1979, v=154, te=156 ---
+2026-05-26 05:32:26,898   2着 specialist: best_iter=35 val_ll=1.6308 test top1=0.301 top3=0.692
+2026-05-26 05:32:30,058   3着 specialist: best_iter=16 val_ll=1.7146 test top1=0.269 top3=0.641
+2026-05-26 05:32:32,195 --- venue 19 (下関): tr=1961, v=23, te=117 ---
+2026-05-26 05:32:33,381   2着 specialist: best_iter=3 val_ll=1.6686 test top1=0.299 top3=0.667
+2026-05-26 05:32:35,203   3着 specialist: best_iter=35 val_ll=1.7458 test top1=0.188 top3=0.692
+2026-05-26 05:32:36,388 --- venue 20 (若松): tr=1942, v=143, te=151 ---
+2026-05-26 05:32:37,650   2着 specialist: best_iter=28 val_ll=1.6337 test top1=0.278 top3=0.649
+2026-05-26 05:32:39,421   3着 specialist: best_iter=40 val_ll=1.7026 test top1=0.219 top3=0.616
+2026-05-26 05:32:40,372 --- venue 21 (芦屋): tr=1916, v=204, te=116 ---
+2026-05-26 05:32:40,905   2着 specialist: best_iter=5 val_ll=1.7311 test top1=0.259 top3=0.629
+2026-05-26 05:32:41,526   3着 specialist: best_iter=3 val_ll=1.7510 test top1=0.207 top3=0.586
+2026-05-26 05:32:42,497 --- venue 22 (福岡): tr=2016, v=233, te=120 ---
+2026-05-26 05:32:42,856   2着 specialist: best_iter=1 val_ll=1.6473 test top1=0.242 top3=0.642
+2026-05-26 05:32:43,555   3着 specialist: best_iter=5 val_ll=1.7357 test top1=0.233 top3=0.658
+2026-05-26 05:32:44,376 --- venue 23 (唐津): tr=1711, v=210, te=132 ---
+2026-05-26 05:32:45,039   2着 specialist: best_iter=16 val_ll=1.6711 test top1=0.295 top3=0.644
+2026-05-26 05:32:45,795   3着 specialist: best_iter=4 val_ll=1.7368 test top1=0.227 top3=0.689
+2026-05-26 05:32:46,905 --- venue 24 (大村): tr=2015, v=238, te=72 ---
+2026-05-26 05:32:47,835   2着 specialist: best_iter=16 val_ll=1.6775 test top1=0.208 top3=0.667
+2026-05-26 05:32:49,494   3着 specialist: best_iter=18 val_ll=1.7009 test top1=0.139 top3=0.556
+2026-05-26 05:32:49,497 Report saved: C:\Users\iwashita.AKGNET\.openclaw\workspace\boatrace-predictor\analysis\reports\83_2nd_3rd_specialists.md
+2026-05-26 05:32:49,497 
+=== Summary ===
+2026-05-26 05:32:49,498 venues trained: 24
+2026-05-26 05:32:49,498 avg 2着 top1: 0.268
+2026-05-26 05:32:49,498 avg 3着 top1: 0.206
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[9]	train's multi_logloss: 1.44491	val's multi_logloss: 1.71666
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[6]	train's multi_logloss: 1.57403	val's multi_logloss: 1.77356
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[13]	train's multi_logloss: 1.35468	val's multi_logloss: 1.71144
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[7]	train's multi_logloss: 1.55156	val's multi_logloss: 1.76745
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[30]	train's multi_logloss: 0.967102	val's multi_logloss: 1.68434
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[10]	train's multi_logloss: 1.46029	val's multi_logloss: 1.77577
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[18]	train's multi_logloss: 1.20535	val's multi_logloss: 1.70146
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[3]	train's multi_logloss: 1.6574	val's multi_logloss: 1.79541
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[3]	train's multi_logloss: 1.64437	val's multi_logloss: 1.7232
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[7]	train's multi_logloss: 1.53873	val's multi_logloss: 1.74334
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[30]	train's multi_logloss: 1.00339	val's multi_logloss: 1.70046
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[7]	train's multi_logloss: 1.54681	val's multi_logloss: 1.7516
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[47]	train's multi_logloss: 0.711325	val's multi_logloss: 1.63586
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[19]	train's multi_logloss: 1.22536	val's multi_logloss: 1.72508
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[25]	train's multi_logloss: 1.08648	val's multi_logloss: 1.65409
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[3]	train's multi_logloss: 1.6611	val's multi_logloss: 1.78267
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[22]	train's multi_logloss: 1.10075	val's multi_logloss: 1.70587
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[1]	train's multi_logloss: 1.7204	val's multi_logloss: 1.75029
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[18]	train's multi_logloss: 1.21007	val's multi_logloss: 1.69242
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[1]	train's multi_logloss: 1.72792	val's multi_logloss: 1.80418
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[20]	train's multi_logloss: 1.17126	val's multi_logloss: 1.7194
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[23]	train's multi_logloss: 1.14678	val's multi_logloss: 1.70912
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[11]	train's multi_logloss: 1.40235	val's multi_logloss: 1.69268
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[10]	train's multi_logloss: 1.45798	val's multi_logloss: 1.74173
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[27]	train's multi_logloss: 0.974337	val's multi_logloss: 1.68903
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[15]	train's multi_logloss: 1.29615	val's multi_logloss: 1.69694
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[9]	train's multi_logloss: 1.46137	val's multi_logloss: 1.68888
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[1]	train's multi_logloss: 1.73465	val's multi_logloss: 1.78869
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[15]	train's multi_logloss: 1.2773	val's multi_logloss: 1.6832
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[17]	train's multi_logloss: 1.27499	val's multi_logloss: 1.71511
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[16]	train's multi_logloss: 1.25264	val's multi_logloss: 1.6825
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[12]	train's multi_logloss: 1.3743	val's multi_logloss: 1.75578
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[4]	train's multi_logloss: 1.58717	val's multi_logloss: 1.68438
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[8]	train's multi_logloss: 1.49657	val's multi_logloss: 1.74419
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[35]	train's multi_logloss: 0.878062	val's multi_logloss: 1.63084
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[16]	train's multi_logloss: 1.28255	val's multi_logloss: 1.71461
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[3]	train's multi_logloss: 1.61552	val's multi_logloss: 1.66856
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[35]	train's multi_logloss: 0.923875	val's multi_logloss: 1.7458
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[28]	train's multi_logloss: 1.01453	val's multi_logloss: 1.63374
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[40]	train's multi_logloss: 0.856993	val's multi_logloss: 1.7026
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[5]	train's multi_logloss: 1.56151	val's multi_logloss: 1.73106
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[3]	train's multi_logloss: 1.65032	val's multi_logloss: 1.75102
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[1]	train's multi_logloss: 1.66116	val's multi_logloss: 1.64734
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[5]	train's multi_logloss: 1.59128	val's multi_logloss: 1.73565
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[16]	train's multi_logloss: 1.21951	val's multi_logloss: 1.67107
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[4]	train's multi_logloss: 1.61765	val's multi_logloss: 1.73684
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[16]	train's multi_logloss: 1.24267	val's multi_logloss: 1.6775
+Training until validation scores don't improve for 20 rounds
+Early stopping, best iteration is:
+[18]	train's multi_logloss: 1.25493	val's multi_logloss: 1.70092

@@ -1,0 +1,9 @@
+2026-05-26 08:30:08,687 V11 vs V11.5 (QMC v4) forward simulate on 2026-04
+2026-05-26 08:30:10,893 Loaded: 76dim=24, 82dim=23, 2着=24, 3着=24, pool=3
+2026-05-26 08:30:10,910 target records: 2419 (R1-R3 + include 13 venues, 2026-04)
+2026-05-26 08:30:10,910 Simulating V11 (QMC v3, 1着 only specialist)...
+2026-05-26 08:30:24,922 Simulating V11.5 (QMC v4, 全 position specialist)...
+2026-05-26 08:30:48,966 Report saved: C:\Users\iwashita.AKGNET\.openclaw\workspace\boatrace-predictor\analysis\reports\84_v11_vs_v115_v4_forward.md
+2026-05-26 08:30:48,966 
+V11 1軸比率: 79.3%, V11.5 1軸比率: 79.8%
+2026-05-26 08:30:48,966 V11 hit: 100.00%, V11.5 hit: 100.00%

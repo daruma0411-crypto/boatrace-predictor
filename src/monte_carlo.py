@@ -404,6 +404,72 @@ def compute_ratings_early(probs_1st, boats_data=None, race_data=None,
     return ratings, stds
 
 
+def qmc_sanrentan_v4(probs_1st, probs_2nd, probs_3rd,
+                     boats_data=None, n_simulations=8192, seed=None,
+                     race_data=None, race_number=None):
+    """ハイブリッド QMC (v4): venue 別 全 position prior + 既存 std 調整 + Plackett-Luce
+
+    v3 との違い:
+      - v3: probs_1st のみから rating 計算、MC で全 6 艇順位を一発 argsort
+      - v4: probs_1st / probs_2nd / probs_3rd を全 position の prior に使う
+            各 iteration で 1着 → 2着 → 3着 を順次 argmax (除外しながら)
+            std (展示/風/クラス/モーター等) は compute_ratings_early のものを全 position 共通で適用
+
+    効果:
+      - V11.5 specialist 群 (1着/2着/3着) の venue 別 specialty を全 position に反映
+      - 1号艇軸偏重を構造的に解消 (1着 specialist 過大評価を 2着/3着 specialist が中和)
+      - 展示タイム差・風・クラス分散等の race-day 情報は std 経由で完全維持
+    """
+    # 1着 prior + std (既存 v3 と同じ)
+    ratings_1, stds = compute_ratings_early(
+        probs_1st, boats_data,
+        race_data=race_data, race_number=race_number,
+    )
+
+    # 2着 prior: logit(probs_2nd)
+    p2 = np.clip(np.array(probs_2nd, dtype=np.float64), 0.01, 0.99)
+    ratings_2 = np.log(p2 / (1.0 - p2))
+    # 3着 prior: logit(probs_3rd)
+    p3 = np.clip(np.array(probs_3rd, dtype=np.float64), 0.01, 0.99)
+    ratings_3 = np.log(p3 / (1.0 - p3))
+
+    sampler = qmc.Sobol(
+        d=18, scramble=True,
+        seed=seed if seed is not None else np.random.randint(0, 2**31),
+    )
+    m = int(np.ceil(np.log2(max(n_simulations, 64))))
+    n_actual = 2 ** m
+    uniform_samples = sampler.random(n_actual)
+
+    # 各 position 用に独立な noise を Sobol 列の異なる次元から引く
+    noise_1 = norm.ppf(uniform_samples[:, 0:6], loc=0.0, scale=stds)
+    noise_2 = norm.ppf(uniform_samples[:, 6:12], loc=0.0, scale=stds)
+    noise_3 = norm.ppf(uniform_samples[:, 12:18], loc=0.0, scale=stds)
+
+    perf_1 = ratings_1[None, :] + noise_1
+    first = np.argmax(perf_1, axis=1)
+
+    perf_2 = ratings_2[None, :] + noise_2
+    perf_2[np.arange(n_actual), first] = -np.inf
+    second = np.argmax(perf_2, axis=1)
+
+    perf_3 = ratings_3[None, :] + noise_3
+    perf_3[np.arange(n_actual), first] = -np.inf
+    perf_3[np.arange(n_actual), second] = -np.inf
+    third = np.argmax(perf_3, axis=1)
+
+    keys = [f"{f+1}-{s+1}-{t+1}" for f, s, t in zip(first, second, third)]
+    sanrentan_counts = {}
+    for key in keys:
+        sanrentan_counts[key] = sanrentan_counts.get(key, 0) + 1
+
+    return {
+        key: count / n_actual
+        for key, count in sanrentan_counts.items()
+        if count > 0
+    }
+
+
 def qmc_sanrentan_v3(probs_1st, boats_data=None,
                      n_simulations=8192, seed=None,
                      race_data=None, race_number=None):
