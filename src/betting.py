@@ -368,23 +368,21 @@ class KellyBettingStrategy:
             {probs_1st: [5], probs_2nd: [6], probs_3rd: [6]}
             probs_1st は 2-6号艇の5クラス確率
         """
-        # 壊滅会場ブラックリスト: 旧戦略のみ無条件スキップ (v11_var13 は venue 別 best で運用継続)
-        global_blacklist_hit = (
-            venue_id is not None and venue_id in VENUE_BLACKLIST
-        )
-        if global_blacklist_hit:
+        # 壊滅会場ブラックリスト: 全戦略共通で無条件スキップ
+        if venue_id is not None and venue_id in VENUE_BLACKLIST:
             logger.info(
-                f"壊滅会場ブラックリスト: 旧戦略スキップ (場{venue_id}, v11_var13 は継続)"
+                f"壊滅会場ブラックリスト: 全戦略スキップ (場{venue_id})"
             )
+            return {s: [] for s in self.config['strategies']}
 
-        # 1号艇軸スキップ: 旧戦略のみエッジなし扱い (v11_var13 は venue 特化で継続)
+        # 1号艇軸スキップ: モデルが1号艇1着と予測 → エッジなし（市場織り込み済み）
         top_boat = max(range(6), key=lambda i: probs_1st[i])
-        global_boat1_hit = (top_boat == 0)
-        if global_boat1_hit:
+        if top_boat == 0:  # 0-indexed: 0=1号艇
             logger.info(
-                f"1号艇軸スキップ: 旧戦略スキップ "
-                f"(場{venue_id} R{race_number}, P={probs_1st[0]:.3f}, v11_var13 は継続)"
+                f"1号艇軸スキップ: 全戦略スキップ "
+                f"(場{venue_id} R{race_number}, P={probs_1st[0]:.3f})"
             )
+            return {s: [] for s in self.config['strategies']}
 
         # 5-6号艇軸: 戦略設定の skip_56=true で有効化
         skip_56 = _should_skip_by_top_boat(probs_1st)
@@ -434,18 +432,10 @@ class KellyBettingStrategy:
                     avg['probs_1st'], avg['probs_2nd'], avg['probs_3rd']
                 )
 
-        # global filter をバイパスする戦略 (venue 特化 + 自前 model で旧 blacklist を override)
-        BYPASS_GLOBAL_FILTERS = {'v11_var13'}
-
         results = {}
         for strategy_name, strategy_config in self.config['strategies'].items():
             # アクティブ戦略以外はスキップ
             if strategy_name not in ACTIVE_STRATEGIES:
-                results[strategy_name] = []
-                continue
-
-            # global filter (壊滅会場 / 1号艇軸) は bypass 戦略以外で適用
-            if (global_blacklist_hit or global_boat1_hit) and strategy_name not in BYPASS_GLOBAL_FILTERS:
                 results[strategy_name] = []
                 continue
 
@@ -699,9 +689,26 @@ class KellyBettingStrategy:
                     logger.info(f"NN-B確率生成: {len(use_probs)}通り")
                 use_odds = odds_data
             elif use_monte_carlo:
-                # モンテカルロ確率（mc_version で v1/QMC/v3 分岐）
+                # モンテカルロ確率（mc_version で v1/QMC/v3/v4 分岐）
                 mc_ver = strategy_config.get('mc_version', 1)
-                if mc_ver >= 3:
+                if mc_ver >= 4:
+                    # QMC v4: V11.5 specialist 群 (1着/2着/3着) + 既存 std 調整 + Plackett-Luce
+                    cache_key = f'qmc_v4_{strategy_name}'
+                    if cache_key not in _mc_cache:
+                        from src.monte_carlo import qmc_sanrentan_v4
+                        _mc_cache[cache_key] = qmc_sanrentan_v4(
+                            probs_1st, probs_2nd, probs_3rd,
+                            boats_data=boats_data,
+                            n_simulations=8192,
+                            race_data=race_data,
+                            race_number=race_number,
+                        )
+                        logger.info(
+                            f"QMC v4確率生成: {len(_mc_cache[cache_key])}通り "
+                            f"(top={max(_mc_cache[cache_key].values()):.4f})"
+                        )
+                    use_probs = _mc_cache[cache_key]
+                elif mc_ver >= 3:
                     # QMC v3: 序盤特化ノイズモデル + Sobol列（全変数）
                     cache_key = f'qmc_v3_{strategy_name}'
                     if cache_key not in _mc_cache:
