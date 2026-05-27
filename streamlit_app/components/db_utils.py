@@ -9,6 +9,23 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
+# 戦略別 reset_date: race_date >= この日の bets だけを集計対象にする
+# (¥200,000 fresh start 表示のため過去分を非表示)
+STRATEGY_RESET_DATES = {
+    'v11_var13': '2026-05-27',  # V11 を再 ¥200,000 スタート (P6 strict filter 適用後の新規測定)
+}
+
+
+def _reset_filter_sql(table_alias='b', race_alias='r'):
+    """STRATEGY_RESET_DATES を WHERE 句に展開する SQL fragment"""
+    if not STRATEGY_RESET_DATES:
+        return ''
+    parts = []
+    for strat, d in STRATEGY_RESET_DATES.items():
+        parts.append(f"({table_alias}.strategy_type = '{strat}' AND {race_alias}.race_date >= DATE '{d}')")
+    other = ", ".join(f"'{s}'" for s in STRATEGY_RESET_DATES)
+    return f" AND ({table_alias}.strategy_type NOT IN ({other}) OR ({' OR '.join(parts)}))"
+
 
 def _get_database_url():
     url = os.environ.get('DATABASE_URL', '')
@@ -292,7 +309,7 @@ def get_dashboard_data(start_date, end_date):
         today_bets = cur.fetchone()['cnt']
 
         # 2. 戦略サマリー（結果確定分のみ）
-        cur.execute("""
+        cur.execute(f"""
             SELECT
                 b.strategy_type,
                 COUNT(*) as total_bets,
@@ -307,17 +324,21 @@ def get_dashboard_data(start_date, end_date):
             JOIN races r ON b.race_id = r.id
             WHERE (b.is_hit IS NOT NULL OR b.result IS NOT NULL)
               AND r.race_date >= %s AND r.race_date <= %s
+              {_reset_filter_sql('b', 'r')}
             GROUP BY b.strategy_type
             ORDER BY b.strategy_type
         """, (start_date, end_date))
         strategy_summary = cur.fetchall()
 
-        # 3. 全戦略bankroll（全期間累計）
-        cur.execute("""
-            SELECT strategy_type,
-                   COALESCE(SUM(COALESCE(return_amount, payout, 0) - amount), 0) as profit
-            FROM bets WHERE (is_hit IS NOT NULL OR result IS NOT NULL)
-            GROUP BY strategy_type
+        # 3. 全戦略bankroll（全期間累計、reset_date 以降のみ）
+        cur.execute(f"""
+            SELECT b.strategy_type,
+                   COALESCE(SUM(COALESCE(b.return_amount, b.payout, 0) - b.amount), 0) as profit
+            FROM bets b
+            JOIN races r ON b.race_id = r.id
+            WHERE (b.is_hit IS NOT NULL OR b.result IS NOT NULL)
+              {_reset_filter_sql('b', 'r')}
+            GROUP BY b.strategy_type
         """)
         bankroll_rows = cur.fetchall()
         bankrolls = {}
