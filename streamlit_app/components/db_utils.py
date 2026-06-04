@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # (¥200,000 fresh start 表示のため過去分を非表示)
 STRATEGY_RESET_DATES = {
     'v11_var13': '2026-05-27',  # V11 を再 ¥200,000 スタート (P6 strict filter 適用後の新規測定)
+    'v11_5_var13': '2026-06-04',  # V11.5 shadow 並走開始日 (¥200,000 fresh virtual)
 }
 
 
