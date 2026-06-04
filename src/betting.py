@@ -275,6 +275,8 @@ ACTIVE_STRATEGIES = {
     'mc3_venue_focus_r3',  # P7: P6 + R1-R3 + Bフィルタ + 1/10 kelly (2026-05-15 新設)
     # V11 (VAR-13): Venue-Adapted Recipe 13 venues — 2026-05-20 本番投入
     'v11_var13',
+    # V11.5 (VAR-13) shadow: venue 別 2着/3着 specialist + QMC v4 — 2026-06-04 並走開始
+    'v11_5_var13',
 }
 
 
