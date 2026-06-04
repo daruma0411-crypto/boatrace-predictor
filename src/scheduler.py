@@ -720,6 +720,15 @@ class DynamicRaceScheduler:
 
             prediction = self.predictor.predict(race_data, boats_data)
 
+            # V11.5 shadow prediction (例外時は None、V11 計算は継続)
+            prediction_v115 = None
+            if self.predictor_v115 is not None:
+                try:
+                    prediction_v115 = self.predictor_v115.predict(race_data, boats_data)
+                except Exception as e:
+                    logger.warning(f"V11.5 shadow 予測失敗 (V11 は継続): {e}")
+                    prediction_v115 = None
+
             # アンサンブル予測（戦略E用）
             try:
                 ensemble_preds = self.ensemble_predictor.predict_all(
@@ -778,10 +787,37 @@ class DynamicRaceScheduler:
                     pass
                 all_bets = {}
 
+            # V11.5 shadow strategy のみ V11.5 prediction で betting 計算
+            if prediction_v115 is not None:
+                try:
+                    all_bets_v115 = self.betting.calculate_all_strategies(
+                        prediction_v115['probs_1st'],
+                        prediction_v115['probs_2nd'],
+                        prediction_v115['probs_3rd'],
+                        odds_dict,
+                        venue_id=race['venue_id'],
+                        race_number=race['race_number'],
+                        ensemble_predictions=ensemble_preds,
+                        odds_2t=odds_2t,
+                        boats_data=boats_data,
+                        race_data=race_data,
+                        are_prediction=are_pred,
+                    )
+                    # v11_5_var13 の picks のみ V11.5 計算結果で上書き
+                    if 'v11_5_var13' in all_bets_v115:
+                        all_bets['v11_5_var13'] = all_bets_v115['v11_5_var13']
+                except Exception as e:
+                    logger.warning(f"V11.5 shadow betting 計算失敗 (V11 は継続): {e}")
+                    all_bets['v11_5_var13'] = []
+            else:
+                all_bets['v11_5_var13'] = []
+
             for strategy_type, bets in all_bets.items():
+                # v11_5_var13 は V11.5 prediction を保存、それ以外は V11 prediction
+                pred_to_save = prediction_v115 if (strategy_type == 'v11_5_var13' and prediction_v115 is not None) else prediction
                 # ベット有無に関わらず予測を保存（結果照合・分析用）
                 pred_id = self.predictor.save_prediction(
-                    race['race_id'], prediction,
+                    race['race_id'], pred_to_save,
                     recommended_bets=bets if bets else [],
                     strategy_type=strategy_type,
                 )
