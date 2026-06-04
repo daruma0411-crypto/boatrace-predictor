@@ -15,6 +15,7 @@ from src.database import get_db_connection
 from src.collector import RealtimeDataCollector
 from src.predictor import RealtimePredictor, EnsemblePredictor
 from src.v11_var13_predictor import V11VAR13Predictor
+from src.v11_5_var13_predictor import V115VAR13Predictor
 from src.betting import KellyBettingStrategy
 from src.result_collector import ResultCollector
 from src.notifier import send_line_bet_notification
@@ -41,6 +42,14 @@ class DynamicRaceScheduler:
         # V11 (VAR-13): venue 別 best approach で probs_1st override
         # 非 functional venue は V10 baseline そのまま (継承して動作)
         self.predictor = V11VAR13Predictor(model_path)
+        # V11.5 shadow predictor (2着/3着 specialist + qmc_v4)
+        # 例外時は None セット、V11 本番運用に影響させない
+        try:
+            self.predictor_v115 = V115VAR13Predictor(model_path)
+            logger.info("V11.5 shadow predictor 起動成功")
+        except Exception as e:
+            logger.error(f"V11.5 shadow predictor 起動失敗 (shadow のみ無効化、V11 本番は継続): {e}")
+            self.predictor_v115 = None
         self.ensemble_predictor = EnsemblePredictor(
             shared_predictor=self.predictor
         )
