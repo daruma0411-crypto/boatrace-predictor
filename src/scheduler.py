@@ -740,6 +740,15 @@ class DynamicRaceScheduler:
 
             odds_dict = self._parse_odds(odds_data) if odds_data else {}
 
+            # オッズ盤台帳: 判断時の全オッズ盤を1レース1行で保存（research replay 土台）
+            # save_odds_board は self-isolated だが呼び出し側でも二重保護
+            try:
+                if odds_dict:
+                    from src.odds_board import save_odds_board
+                    save_odds_board(race['race_id'], odds_dict)
+            except Exception as e:
+                logger.warning(f"odds_board capture 呼び出し失敗(無視): {e}")
+
             # 診断: オッズ取得状況をhealth記録
             try:
                 with get_db_connection() as conn:
