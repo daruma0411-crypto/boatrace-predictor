@@ -34,8 +34,35 @@ def test_save_empty_odds_returns_false():
 def test_save_never_raises_on_db_error():
     assert save_odds_board(103, {"1-2-3": 9.9}, conn_factory=_factory([], raise_it=True)) is False
 
+def test_save_default_factory_used_when_none():
+    import types, sys as _sys
+    log = []
+    fake_mod = types.ModuleType("src.database")
+    fake_mod.get_db_connection = _factory(log)
+    _sys.modules["src.database"] = fake_mod
+    try:
+        assert save_odds_board(201, {"1-2-3": 9.9}, conn_factory=None) is True
+        assert any(v == "INSERT" for v, _ in log)
+    finally:
+        _sys.modules.pop("src.database", None)
+
+def test_save_default_factory_import_failure_returns_false():
+    import types, sys as _sys
+    bad = types.ModuleType("src.database")
+    def _boom():
+        raise RuntimeError("import-time boom")
+    bad.get_db_connection = _boom  # callable that raises when used
+    _sys.modules["src.database"] = bad
+    try:
+        # even if the default factory raises, caller must not see an exception
+        assert save_odds_board(202, {"1-2-3": 9.9}, conn_factory=None) is False
+    finally:
+        _sys.modules.pop("src.database", None)
+
 if __name__ == "__main__":
     test_save_success_executes_insert_and_health()
     test_save_empty_odds_returns_false()
     test_save_never_raises_on_db_error()
+    test_save_default_factory_used_when_none()
+    test_save_default_factory_import_failure_returns_false()
     print("ALL PASS")

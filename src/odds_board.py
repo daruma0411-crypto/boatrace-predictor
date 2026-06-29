@@ -31,10 +31,10 @@ def save_odds_board(race_id, odds_dict, conn_factory=None):
     """判断時オッズ盤を1レース1行で保存。例外は投げず bool を返す（本処理を止めない）。"""
     if not odds_dict:
         return False
-    if conn_factory is None:
-        from src.database import get_db_connection
-        conn_factory = get_db_connection
     try:
+        if conn_factory is None:
+            from src.database import get_db_connection
+            conn_factory = get_db_connection
         row = build_board_row(race_id, odds_dict)
         with conn_factory() as conn:
             cur = conn.cursor()
