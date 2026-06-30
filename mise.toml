@@ -1,0 +1,8 @@
+# Railway/railpack のビルドが使う mise (2026.6.12) が python 3.11.9 の
+# GitHub artifact attestation 検証を必須化し、署名が無いためビルドが
+# Python インストール段階で失敗する問題への対処 (2026-06-30)。
+# attestation 検証を無効化して従来どおり python 3.11.9 を入れられるようにする。
+# 参考エラー: "mise ERROR Failed to install core:python@3.11.9:
+#            No GitHub artifact attestations found for python@3.11.9"
+[settings]
+python.github_attestations = false
