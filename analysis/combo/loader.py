@@ -5,7 +5,7 @@ _RACE_SQL = """
 SELECT DISTINCT ON (ob.race_id)
        ob.race_id, ob.odds_3t, r.race_number, r.venue_id, r.race_date,
        r.wind_speed, r.wind_direction, r.temperature, r.wave_height, r.water_temperature,
-       r.result_1st, r.result_2nd, r.result_3rd,
+       r.result_1st, r.result_2nd, r.result_3rd, r.payout_sanrentan,
        p.probabilities_1st, p.probabilities_2nd, p.probabilities_3rd
 FROM race_odds_board ob
 JOIN races r ON r.id = ob.race_id
@@ -59,6 +59,8 @@ def load_races(date_from, date_to, limit=None):
             "p1": _vec(r["probabilities_1st"]), "p2": _vec(r["probabilities_2nd"]),
             "p3": _vec(r["probabilities_3rd"]),
             "win_combo": f"{r['result_1st']}-{r['result_2nd']}-{r['result_3rd']}",
+            # 当たり目の確定配当(実払戻オッズ)。判断時オッズと異なるため決済はこちらを使う。
+            "payout_odds": (float(r["payout_sanrentan"]) / 100.0 if r["payout_sanrentan"] else None),
             "race_data": {
                 "venue_id": r["venue_id"], "month": r["race_date"].month, "distance": 1800,
                 "wind_speed": r["wind_speed"] or 0, "wind_direction": r["wind_direction"] or "calm",

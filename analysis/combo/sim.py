@@ -52,6 +52,8 @@ def run_sim(per_race, cfg=DEFAULT_CFG, settle_only=False):
     biggest = 0.0
     for race in per_race:
         win = race["win_combo"]
+        # 当たり目は確定配当(payout_odds)で決済＝本番の実払戻。無ければ bet odds にフォールバック。
+        payout_odds = race.get("payout_odds")
         race_inv = race_ret = 0.0
         for combo, amount, odds in race["bets"]:
             if amount <= 0:
@@ -59,7 +61,7 @@ def run_sim(per_race, cfg=DEFAULT_CFG, settle_only=False):
             race_inv += amount
             n_bets += 1
             if combo == win:
-                pay = amount * odds
+                pay = amount * (payout_odds if payout_odds else odds)
                 race_ret += pay
                 hits += 1
                 biggest = max(biggest, pay)
