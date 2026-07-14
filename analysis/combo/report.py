@@ -25,11 +25,13 @@ def build_report(date_from, date_to, limit=None):
              f"的中{ev['flat']['hits']}/{ev['flat']['n_bets']} 最大1本占{ev['flat']['top_hit_share']}%\n")
     L.append(f"- **本番同等**(¥200,000): ROI {ev['prod']['roi']}% PnL {ev['prod']['pnl']} "
              f"最終残高{ev['prod']['final_bankroll']} maxDD {ev['prod']['max_drawdown']}\n")
-    L.append("\n## 既存戦略（同シミュ検証＝ベンチマーク）\n")
+    # ベンチマークは候補と同じ窓(date_from〜)でフェアに比較する（GW込み全期間で下駄を履かせない）
+    L.append(f"\n## 既存戦略（**同じ窓 {date_from}〜** で公平比較＝ベンチマーク）\n")
     for strat, label in (("mc_venue_focus", "P"), ("mc2_venue_focus", "P2"), ("v11_var13", "V11")):
         try:
-            db, sim = replay_strategy_from_db(strat, "2026-04-08", date_to)
-            L.append(f"- {label}: DB PnL {db['pnl']} / sim PnL {sim['pnl']}（再現差={sim['pnl']-db['pnl']}）\n")
+            db, sim = replay_strategy_from_db(strat, date_from, date_to)
+            L.append(f"- {label}: DB PnL {db['pnl']} / sim PnL {sim['pnl']} "
+                     f"（n={db['n']}, 再現差={sim['pnl']-db['pnl']}）\n")
         except Exception as e:
             L.append(f"- {label}: 取得失敗 {e}\n")
     L.append("\n## 判定（結論は出すが採否は岩下さん）\n")
