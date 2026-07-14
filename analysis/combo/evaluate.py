@@ -21,8 +21,9 @@ def evaluate_method(races, joint_fn=qmc_joint):
                 pbets.append((c, amt, od))
         prod.append({"race_id": r["race_id"], "win_combo": r["win_combo"],
                      "payout_odds": po, "bets": pbets})
-        # サイジング用 bankroll も確定配当で更新（当たり目のみ payout_odds、無ければ bet odds）
-        bankroll += sum(((a * (po if po else od)) if c == r["win_combo"] else -a)
+        # サイジング用 bankroll も確定配当で更新（当たり目は純益 a*(odds-1)、外れは -a）
+        # ＝run_sim の bankroll += race_ret - race_inv と整合させる
+        bankroll += sum(((a * (po if po else od) - a) if c == r["win_combo"] else -a)
                         for c, a, od in pbets)
     return {"n_races": len(races), "flat": run_sim(flat, settle_only=True),
             "prod": run_sim(prod, settle_only=True)}
