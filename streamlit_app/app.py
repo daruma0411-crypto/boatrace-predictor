@@ -252,7 +252,9 @@ VENUE_NAMES = {
 }
 
 STRATEGY_NAMES = {
-    'v11_var13': 'V11 (VAR-13)',  # 新戦略 (venue 別 best approach)
+    'p_kai': 'P改: 堅見送り+低温半額',
+    'mc_venue_all': 'P全場: 得意場発掘',
+    # 'v11_var13': 'V11 (VAR-13)',  # 非表示化 (2026-07-30): 認定P(勝ち)=0%で撤去
     'mc_early_race': 'O: MC v1 序盤',
     'mc_venue_focus': 'P: MC v1 得意場',
     'mc_high_ev': 'Q: MC v1 高EV',
@@ -272,7 +274,7 @@ STRATEGY_NAMES = {
 }
 
 STRATEGY_ORDER = [
-    'v11_var13',  # 新戦略を先頭 (右上に目立つ表示)
+    'p_kai', 'mc_venue_all',   # 新カード先頭 (2026-07-30)
     'mc3_venue_focus_r4',  # P6 (本番停止予定だが過去結果のため表示維持)
     'mc3_venue_focus_r2',  # P5
     'mc3_early_race',      # O3
