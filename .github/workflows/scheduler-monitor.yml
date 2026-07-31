@@ -85,13 +85,20 @@ jobs:
               msg += f"\n本日のベット: {today['cnt']}件 / {int(today['total']):,}円"
               msg += f"\n\n[Railway Dashboard](https://railway.app) を確認してください"
 
-              data = json.dumps({"text": msg}).encode('utf-8')
-              req = urllib.request.Request(
-                  webhook_url, data=data,
-                  headers={'Content-Type': 'application/json; charset=utf-8'}
-              )
-              urllib.request.urlopen(req)
-              print(f"ALERT sent: {alerts}")
+              # Teams webhook は失効することがある(403)。送信失敗でクラッシュせず、
+              # 異常時は exit(1) でジョブを失敗させ GitHub のメール通知を正式チャネルにする。
+              try:
+                  data = json.dumps({"text": msg}).encode('utf-8')
+                  req = urllib.request.Request(
+                      webhook_url, data=data,
+                      headers={'Content-Type': 'application/json; charset=utf-8'}
+                  )
+                  urllib.request.urlopen(req)
+                  print(f"ALERT sent to Teams: {alerts}")
+              except Exception as we:
+                  print(f"Teams webhook 送信失敗 (URL失効の可能性): {we}")
+              print(f"ALERT: {msg}")
+              exit(1)   # 異常検知 → ジョブ失敗 → GitHub がメール通知
           else:
               print(f"OK: {now_jst.strftime('%H:%M')} JST - bets(2h)={recent_bets}, today={today['cnt']}件")
 
