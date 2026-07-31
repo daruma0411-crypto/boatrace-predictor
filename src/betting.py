@@ -256,6 +256,7 @@ ACTIVE_STRATEGIES = {
     'mc_quarter_kelly',     # L: MC v1 基準
     'mc_early_race',        # O: MC v1 + R1-R4限定
     'mc_venue_focus',       # P: MC v1 + 得意会場
+    'mc_venue_all',        # P全場: P同一フィルタ・会場制限なし (得意場発掘 shadow, 2026-07-30)
     'mc_high_ev',           # Q: MC v1 + EV≥1.0
     'mc_are_v2',            # R: MC v1 + ModelB
     # QMC (Sobol 8192回) — 準モンテカルロ法
@@ -273,8 +274,6 @@ ACTIVE_STRATEGIES = {
     'mc3_venue_focus_r2',  # P5: P4 + R1-R2 限定
     'mc3_venue_focus_r4',  # P6: P4 + R1-R4 限定
     'mc3_venue_focus_r3',  # P7: P6 + R1-R3 + Bフィルタ + 1/10 kelly (2026-05-15 新設)
-    # V11 (VAR-13): Venue-Adapted Recipe 13 venues — 2026-05-20 本番投入
-    'v11_var13',
     # V11.5 (VAR-13) shadow: venue 別 2着/3着 specialist + QMC v4 — 2026-06-04 並走開始
     'v11_5_var13',
 }
