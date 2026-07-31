@@ -749,6 +749,16 @@ class DynamicRaceScheduler:
             except Exception as e:
                 logger.warning(f"odds_board capture 呼び出し失敗(無視): {e}")
 
+            # P改用: レース軟らかさを記録し、当該レースのスコアを保持 (自己隔離)
+            softness_score = None
+            try:
+                from src.softness import score_race
+                from src.softness_store import save_race_softness
+                softness_score = score_race(boats_data)
+                save_race_softness(race['race_id'], today, softness_score)
+            except Exception as e:
+                logger.warning(f"softness 記録失敗(無視): {e}")
+
             # 診断: オッズ取得状況をhealth記録
             try:
                 with get_db_connection() as conn:
@@ -820,6 +830,17 @@ class DynamicRaceScheduler:
                     all_bets['v11_5_var13'] = []
             else:
                 all_bets['v11_5_var13'] = []
+
+            # P改 (p_kai): P の picks に凍結ルール適用 (堅見送り+低温半額)。自己隔離。
+            try:
+                from src.p_kai import derive_p_kai_bets
+                from src.softness_store import get_temperature
+                _temp = get_temperature(today)
+                all_bets['p_kai'] = derive_p_kai_bets(
+                    all_bets.get('mc_venue_focus') or [], softness_score, _temp)
+            except Exception as e:
+                logger.warning(f"p_kai 導出失敗(無視): {e}")
+                all_bets['p_kai'] = []
 
             for strategy_type, bets in all_bets.items():
                 # v11_5_var13 は V11.5 prediction を保存、それ以外は V11 prediction
